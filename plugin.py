@@ -1670,10 +1670,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def doTopic(self, irc, msg):
 		if len(msg.args) == 1:
 			return
+		if ircutils.isUserHostmask(msg.prefix):
+			n = self.getNick(irc,msg.nick)
 		channel = msg.args[0]
-		n = irc.getNick(irc,msg.nick)
 		if channel in irc.state.channels:
-			n.addLog(channel,'sets topic "%s"' % msg.args[1])
+			if n:
+				n.addLog(channel,'sets topic "%s"' % msg.args[1])
 			self._logChan(irc,channel,'[%s] %s sets topic "%s"' % (channel,msg.prefix,msg.args[1]))
 	
 	def doMode(self, irc, msg):
