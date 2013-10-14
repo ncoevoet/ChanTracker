@@ -62,7 +62,7 @@ def matchHostmask (pattern,n):
 	# TODO needs to implement CIDR masks
 	if host.find('/') != -1:
 		# cloaks
-		if n.ip == None and host.startswith('gateway/') and host.find('ip.') != -1:
+		if n.ip == None and host.startswith('gateway/web/freenode/ip.'):
 			n.setIp(host.split('ip.')[1])
 	else:
 		# trying to get ip
@@ -178,7 +178,7 @@ def getBestPattern (n):
 	if ident.startswith('~'):
 		ident = '*'
 	else:
-		if host.startswith('gateway/web/') and host.find('ip.') != -1:
+		if host.startswith('gateway/web/freenode/ip.'):
 			# uneeded to keep the hexip, otherwise keep identd
 			ident = '*'
 		if host.startswith('gateway/tor-sasl/'):
@@ -385,7 +385,7 @@ class Ircd (object):
 		if len(L):
 			# item exists, so edit it
 			c.close()
-			return self.edit(irc,channel,mode,value,seconds,prefix,db,logFunction)
+			return self.edit(irc,channel,mode,value,seconds,prefix,db,logFunction,False)
 		else:
 			if channel in self.channels:
 				chan = self.getChan(irc,channel)
@@ -496,10 +496,7 @@ class Ircd (object):
 			msgs = []
 			while i < len(results):
 				(uid,mask,kind,channel) = results[i]
-				if isOwner:
-					msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,channel))
-				else:
-					msgs.append('[#%s +%s %s]' % (uid,kind,mask))
+				msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,channel))
 				i = i+1
 			return ', '.join(msgs)
 		return 'nothing found'
@@ -837,8 +834,12 @@ def getTs (irc, msg, args, state):
 				state.args.append(n)
 				args.pop(0)
 			except:
-				if len(args):
+				if len(args) > 1:
+					if seconds != -1:
+						args.pop(0)
 					state.args.append(float(seconds))
+					raise callbacks.ArgumentError
+				else:
 					raise callbacks.ArgumentError
 			return
 		(s, kind) = arg[:-1], arg[-1]
@@ -920,10 +921,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._logChan,False)
 			else:
 				b = False
-		if b:
-			irc.replySuccess()
-		else:
-			irc.error('no item found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+			else:
+				irc.error('no item found or not enough rights')
 		self.forceTickle = True
 		self._tickle(irc)
 	edit = wrap(edit,['user',commalist('int'),any('getTs')])
@@ -970,10 +972,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		b = True
 		for id in ids:
 			b = b and i.mark(irc,id,message,msg.prefix,self.getDb(irc.network),self._logChan)
-		if b:
-			irc.replySuccess()
-		else:
-			irc.error('item not found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+			else:
+				irc.error('item not found or not enough rights')
 		self.forceTickle = True
 		self._tickle(irc)
 	mark = wrap(mark,['user',commalist('int'),'text'])
@@ -1025,10 +1028,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n +mode targets for duration reason is mandatory"""
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason)
-			if b:
-				irc.replySuccess()
-				return
-			irc.error('item already active or not enough rights')
+			if not msg.nick == irc.nick:
+				if b:
+					irc.replySuccess()
+					return
+				irc.error('item already active or not enough rights')
 		else:
 			irc.error('selected mode is not supported by config')
 	do = wrap(do,['op','channel','letter',commalist('something'),any('getTs',True),rest('text')])
@@ -1036,47 +1040,52 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def q (self,irc,msg,args,op,channel,items,seconds,reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+q targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item already active or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item already active or not enough rights')
 	q = wrap(q,['op','channel',commalist('something'),any('getTs',True),rest('text')])
 	
 	def b (self, irc, msg, args, op, channel, items, seconds,reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+b targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item already active or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item already active or not enough rights')
 	b = wrap(b,['op','channel',commalist('something'),any('getTs',True),rest('text')])
 	
 	def i (self, irc, msg, args, op, channel, items, seconds):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+I targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item already active or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item already active or not enough rights')
 	i = wrap(i,['op','channel',commalist('something'),any('getTs',True),rest('text')])
 	
 	def e (self, irc, msg, args, op, channel, items,seconds,reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+e targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item already active or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item already active or not enough rights')
 	e = wrap(e,['op','channel',commalist('something'),any('getTs'),rest('text')])
 	
 	def undo (self, irc, msg, args, op, channel, mode, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -q on them, * remove them all"""
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			b = self._removes(irc,msg,args,channel,mode,items)
-			if b:
-				irc.replySuccess()
-				return
-			irc.error('item not found or not enough rights')
+			if not msg.nick == irc.nick:
+				if b:
+					irc.replySuccess()
+					return
+				irc.error('item not found or not enough rights')
 		else:
 			irc.error('selected mode is not supported by config')
 	undo = wrap(undo,['op','channel','letter',many('something')])
@@ -1084,37 +1093,41 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def uq (self, irc, msg, args, op, channel, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -q on them, * remove them all"""
 		b = self._removes(irc,msg,args,channel,'q',items)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item not found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item not found or not enough rights')
 	uq = wrap(uq,['op','channel',many('something')])
 	
 	def ub (self, irc, msg, args, op, channel, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask>]\n\nsets -b on them, * remove them all"""
 		b = self._removes(irc,msg,args,channel,'b',items)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item not found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item not found or not enough rights')
 	ub = wrap(ub,['op','channel',many('something')])
 	
 	def ui (self, irc, msg, args, op, channel, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -I on them, * remove them all"""
 		b = self._removes(irc,msg,args,channel,'I',items)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item not found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item not found or not enough rights')
 	ui = wrap(ui,['op','channel',many('something')])
 	
 	def ue (self, irc, msg, args, op, channel, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -e on them, * remove them all"""
 		b = self._removes(irc,msg,args,channel,'e',items)
-		if b:
-			irc.replySuccess()
-			return
-		irc.error('item not found or not enough rights')
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item not found or not enough rights')
 	ue = wrap(ue,['op','channel',many('something')])
 	
 	def check (self,irc,msg,args,op,channel,pattern):
