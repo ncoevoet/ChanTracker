@@ -41,21 +41,44 @@ import supybot.ircmsgs as ircmsgs
 import supybot.callbacks as callbacks
 import supybot.ircdb as ircdb
 import supybot.log as log
+import supybot.schedule as schedule
 from string import Template
 from sets import Set
 import socket
 import re
 import sqlite3
 
-_isip4 = re.compile("\.".join(["([01]?\d\d?|2[0-4]\d|25[0-5])"]*4))
-_isip6 = re.compile("(\A([0-9a-f]{1,4}:){1,1}(:[0-9a-f]{1,4}){1,6}\Z)|(\A([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,5}\Z)|(\A([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,4}\Z)|(\A([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,3}\Z)|(\A([0-9a-f]{1,4}:){1,5}(:[0-9a-f]{1,4}){1,2}\Z)|(\A([0-9a-f]{1,4}:){1,6}(:[0-9a-f]{1,4}){1,1}\Z)|(\A(([0-9a-f]{1,4}:){1,7}|:):\Z)|(\A:(:[0-9a-f]{1,4}){1,7}\Z)|(\A((([0-9a-f]{1,4}:){6})(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3})\Z)|(\A(([0-9a-f]{1,4}:){5}[0-9a-f]{1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3})\Z)|(\A([0-9a-f]{1,4}:){5}:[0-9a-f]{1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,1}(:[0-9a-f]{1,4}){1,4}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,2}(:[0-9a-f]{1,4}){1,3}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,3}(:[0-9a-f]{1,4}){1,2}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A([0-9a-f]{1,4}:){1,4}(:[0-9a-f]{1,4}){1,1}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A(([0-9a-f]{1,4}:){1,5}|:):(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)|(\A:(:[0-9a-f]{1,4}){1,5}:(25[0-5]|2[0-4]\d|[0-1]?\d?\d)(\.(25[0-5]|2[0-4]\d|[0-1]?\d?\d)){3}\Z)")
-
-def isip(s):
-	if _isip4.match(s) or _isip6.match(s):
+def isIp(s):
+	# return true if string is a valid ip address
+	if is_valid_ipv4_address(s) or is_valid_ipv6_address(s):
 		return True
 	return False
 
+def is_valid_ipv4_address(address):
+	# return true if string is a valid ipv4 address
+	try:
+		socket.inet_pton(socket.AF_INET, address)
+	except AttributeError:
+		try:
+			socket.inet_aton(address)
+		except socket.error:
+			return False
+		return address.count('.') == 3
+	except socket.error:  
+		return False
+
+	return True
+
+def is_valid_ipv6_address(address):
+	# return true if string is a valid ipv6 address
+	try:
+		socket.inet_pton(socket.AF_INET6, address)
+	except socket.error:  
+		return False
+	return True
+
 def matchHostmask (pattern,n):
+	# return the machted pattern for pattern, for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
 		return None
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
@@ -66,7 +89,7 @@ def matchHostmask (pattern,n):
 			n.setIp(host.split('ip.')[1])
 	else:
 		# trying to get ip
-		if n.ip == None and not isip(host):
+		if n.ip == None and not isIp(host):
 			try:
 				r = socket.getaddrinfo(host,None)
 				if r != None:
@@ -80,10 +103,10 @@ def matchHostmask (pattern,n):
 						# when more than one ip is returned for the domain,
 						# don't use ip, otherwise it could not match
 						n.setIp(L[0])
-					else:
-						n.setIp(None)
 			except:
 				n.setIp(None)
+		if isIp(host):
+			n.setIp(host)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -91,12 +114,10 @@ def matchHostmask (pattern,n):
 	return None
 	
 def matchAccount (pattern,pat,negate,n):
+	# for $a, $~a, $a: extended pattern
 	if negate:
-		if len(pat):
-			log.error('%s unknown pattern' % pattern)
-		else:
-			if n.account == None:
-				return n.prefix
+		if not len(pat) and n.account == None:
+			return n.prefix
 	else:
 		if len(pat):
 			if n.account != None and ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.account):
@@ -107,6 +128,7 @@ def matchAccount (pattern,pat,negate,n):
 	return None
 
 def matchRealname (pattern,pat,negate,n):
+	# for $~r $r: extended pattern
 	if n.realname == None:
 		return None
 	if negate:
@@ -120,6 +142,7 @@ def matchRealname (pattern,pat,negate,n):
 	return None
 
 def matchGecos (pattern,pat,negate,n):
+	# for $~x, $x: extended pattern
 	if n.realname == None:
 		return None
 	tests = []
@@ -138,6 +161,7 @@ def matchGecos (pattern,pat,negate,n):
 	return None
 
 def match (pattern,n):
+	# check if given pattern match an Nick
 	if pattern.startswith('$'):
 		p = pattern[1:]
 		negate = p[0] == '~'
@@ -174,15 +198,13 @@ def match (pattern,n):
 def getBestPattern (n):
 	# return best pattern for a given Nick
 	results = []
+	if not n.prefix or not ircutils.isUserHostmask(n.prefix):
+		return []
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
 	if ident.startswith('~'):
 		ident = '*'
 	else:
-		if host.startswith('gateway/web/freenode/ip.'):
-			# uneeded to keep the hexip, otherwise keep identd
-			ident = '*'
-		if host.startswith('gateway/tor-sasl/'):
-			# don't trust tor
+		if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('unaffiliated/'):
 			ident = '*'
 	if n.ip != None:
 		if n.ip.find('::') > 4:
@@ -196,20 +218,19 @@ def getBestPattern (n):
 		# cloaks
 		if host.startswith('gateway/'):
 			h = host.split('/')
-			# gateway/type/(domain|account) ?/random
+			# gateway/type/(domain|account) [?/random]
 			p = ''
 			if len(h) > 3:
 				p = '/*'
-			h = h[:2]
-			host = '%s%s' % ('/'.join(h),p)
+				h = h[:3]
+				host = '%s%s' % ('/'.join(h),p)		
 		elif host.startswith('nat/'):
 			h = host.replace('nat/','')
 			if h.find('/') != -1:
 				host = 'nat/%s/*' % h.split('/')[0]
-		if not ircutils.userFromHostmask(n.prefix).startswith('~'):
+		if not ircutils.userFromHostmask(n.prefix).startswith('~') and not host.startswith('unaffiliated/'):
 			ident = ircutils.userFromHostmask(n.prefix)
-		if host.find('gateway/') != -1 and host.find('/x-'):
-			# uneeded random chars
+		if host.find('gateway/') != -1 and host.find('/x-') != -1:
 			host = '%s/*' % host.split('/x-')[0]
 	results.append('*!%s@%s' % (ident,host))
 	if n.account:
@@ -219,6 +240,7 @@ def getBestPattern (n):
 	return results
 
 def clearExtendedBanPattern (pattern):
+	# a little method to cleanup extended pattern
 	if pattern.startswith('$'):
 		pattern = pattern[1:]
 		if pattern.startswith('~'):
@@ -235,6 +257,69 @@ def floatToGMT (t):
 	except:
 		return None
 	return time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(f))
+
+class SpamQueue(object):
+	timeout = 0
+	def __init__(self, timeout=None, queues=None):
+		if timeout is not None:
+			self.timeout = timeout
+		if queues is None:
+			queues = ircutils.IrcDict()
+		self.queues = queues
+
+	def __repr__(self):
+		return 'SpamQueue(timeout=%r,queues=%s)' % (self.timeout,repr(self.queues))
+
+	def reset (self,data):
+		q = self._getQueue(data,insert=False)
+		if q is not None:
+			q.reset()
+			key = self.key(data)
+			self.queues[key] = q
+
+	def key (self,data):
+		return data[0]
+
+	def getTimeout(self):
+		if callable(self.timeout):
+			return self.timeout()
+		else:
+			return self.timeout
+
+	def _getQueue(self,data,insert=True):
+		try:
+			return self.queues[self.key(data)]
+		except KeyError:
+			if insert:
+				getTimeout = lambda : self.getTimeout()
+				q = utils.structures.TimeoutQueue(getTimeout)
+				self.queues[self.key(data)] = q
+				return q
+			else:
+				return None
+
+	def enqueue(self,data,what=None):
+		if what is None:
+			what = data
+		q = self._getQueue(data)
+		q.enqueue(what)
+
+	def len (self,data):
+		q = self._getQueue(data,insert=False)
+		if q is not None:
+			return len(q)
+		else:
+			return 0
+
+	def has (self,data,what):
+		q = self._getQueue(data,insert=False)
+		if q is not None:
+			if what is None:
+				what = data
+			for elt in q:
+				if elt == what:
+					return True
+		return False
 
 class Ircd (object):
 	# define an ircd, keeps Chan and Nick items
@@ -253,10 +338,10 @@ class Ircd (object):
 		# return active item
 		if not irc or not uid:
 			return None
-		for channel in self.channels:
+		for channel in self.channels.keys():
 			chan = self.getChan(irc,channel)
 			items = chan.getItems()
-			for type in items:
+			for type in items.keys():
 				for value in items[type]:
 					item = items[type][value]
 					if item.uid == uid:
@@ -372,7 +457,7 @@ class Ircd (object):
 		c.close()
 		return results
 	
-	def add (self,irc,channel,mode,value,seconds,prefix,db,logFunction):
+	def add (self,irc,channel,mode,value,seconds,prefix,db,logFunction,addOnly):
 		# add new eIqb item
 		if not ircdb.checkCapability(prefix,'%s,op' % channel):
 			if prefix != irc.prefix:
@@ -385,6 +470,8 @@ class Ircd (object):
 		if len(L):
 			# item exists, so edit it
 			c.close()
+			if addOnly:
+				return False
 			return self.edit(irc,channel,mode,value,seconds,prefix,db,logFunction,False)
 		else:
 			if channel in self.channels:
@@ -435,7 +522,6 @@ class Ircd (object):
 			glob = '*%s*' % pattern
 			like = '%'+pattern+'%'
 		elif ircutils.isUserHostmask(pattern): 
-			# or pattern.startswith('$') ... todo 
 			(n,i,h) = ircutils.splitHostmask(pattern)
 			if n == '*':
 				n = None
@@ -557,7 +643,6 @@ class Ircd (object):
 	
 	def edit (self,irc,channel,mode,value,seconds,prefix,db,logFunction,massremoval):
 		# edit eIqb duration
-		log.debug('ircd.edit %s %s %s %s %s' % (channel,mode,value,seconds,prefix))
 		if not channel or not mode or not value or not prefix:
 			return False
 		if not ircdb.checkCapability(prefix,'%s,op' % channel):
@@ -640,7 +725,7 @@ class Ircd (object):
 	
 class Chan (object):
 	# in memory and in database stores +eIqb list -ov
-	# no user action from here
+	# no user action from here, only ircd messages
 	def __init__(self,ircd,name):
 		object.__init__(self)
 		self.ircd = ircd
@@ -659,6 +744,10 @@ class Chan (object):
 		self.syn = False
 		self.opAsked = False
 		self.deopAsked = False
+		# now stuff here is related to protection
+		self.spam = {}
+		self.repeatLogs = {}
+		self.massPattern = {}
 		
 	def getItems (self):
 		# [X][Item.value] is Item
@@ -670,7 +759,7 @@ class Chan (object):
 		return self._lists[mode]
 
 	def addItem (self,mode,value,by,when,db):
-		# eqIb(+*) (-ov) pattern prefix when
+		# eqIb(+*) (-ov) pattern prefix when 
 		# mode : eqIb -ov + ?
 		l = self.getItemsFor(mode)
 		if not value in l:
@@ -739,15 +828,22 @@ class Chan (object):
 		c.execute("""SELECT id,oper,begin_at,end_at FROM bans WHERE channel=? AND kind=? AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""",(self.name,mode,value))
 		L = c.fetchall()
 		removed_at = time.time()
+		i = self.getItem(mode,value)
 		if len(L):
 			(uid,by,when,expire) = L[0]
 			c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (removed_at,by,int(uid)))
 			db.commit()
 			c.close()
-		i = self.getItem(mode,value)
+			if i:
+				i.uid = uid
+				i.mode = mode
+				i.by = by
+				i.when = when
+				i.expire = expire				
 		# item can be None, if someone typoed a -eqbI value
 		if i:
 			self._lists[mode].pop(value)
+			
 			i.removed_by = by
 			i.removed_at = removed_at
 		return i
@@ -795,7 +891,7 @@ class Nick (object):
 		return self
 	
 	def setIp (self,ip):
-		if not ip == self.ip and not ip == '255.255.255.255':
+		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and isIp(ip):
 			self.ip = ip
 		return self
 	
@@ -865,29 +961,6 @@ def getTs (irc, msg, args, state):
 
 addConverter('getTs', getTs)
 
-class maybe(commands.any):
-	def __init__(self, spec, continueOnError=False):
-		self.__parent = super(commands.any, self)
-		self.__parent.__init__(spec)
-		self.continueOnError = continueOnError
-
-	def __call__(self, irc, msg, args, state):
-		st = state.essence()
-		n = 0
-		try:
-			while args:
-				self.__parent.__call__(irc, msg, args, st)
-				n = n + 1
-		except IndexError:
-			pass
-		except (callbacks.ArgumentError, callbacks.Error), e:
-			if not self.continueOnError:
-				raise
-			else:
-				pass
-		state.args.append(st.args[n:])
-
-
 import threading
 import supybot.world as world
 
@@ -897,7 +970,9 @@ def getDuration (seconds):
 	return seconds[0]
 
 class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
-	"""This plugin keeps records of channel mode changes and permits to manage them over time"""
+	"""This plugin keeps records of channel mode changes and permits to manage them over time
+	it also have some channel protection features
+	"""
 	threaded = True
 	noIgnore = True
 	
@@ -910,9 +985,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self.forceTickle = True
 		self._ircs = {}
 		self.getIrc(irc)
+		self.recaps = re.compile("[A-Z]")
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
-		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever\n\nchange expiration of an active ban/quiet/exempt/Invite item"""
+		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever
+
+		change expiration of some active modes"""
 		i = self.getIrc(irc)
 		b = True
 		for id in ids:
@@ -931,7 +1009,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	edit = wrap(edit,['user',commalist('int'),any('getTs')])
 	
 	def info (self,irc,msg,args,user,id):
-		"""<id>\n\nsummary of a mode change"""
+		"""<id>
+
+		summary of a mode change"""
 		i = self.getIrc(irc)
 		results = i.info(irc,id,msg.prefix,self.getDb(irc.network))
 		if len(results):
@@ -943,7 +1023,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	info = wrap(info,['user','int'])
 	
 	def detail (self,irc,msg,args,user,uid):
-		"""<id>\n\nlogs of a mode change"""
+		"""<id>
+
+		logs of a mode change"""
 		i = self.getIrc(irc)
 		results = i.log (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
@@ -955,7 +1037,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	detail = wrap(detail,['user','int'])
 	
 	def affect (self,irc,msg,args,user,uid):
-		"""<id>\n\nlist users affected by a mode change"""
+		"""<id>
+
+		list users affected by a mode change"""
 		i = self.getIrc(irc)
 		results = i.affect (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
@@ -967,7 +1051,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	affect = wrap(affect, ['user','int'])
 	
 	def mark(self,irc,msg,args,user,ids,message):
-		"""<id> [,<id>]\n\nadd comment on a mode change"""
+		"""<id> [,<id>]
+
+		add comment on a mode change"""
 		i = self.getIrc(irc)
 		b = True
 		for id in ids:
@@ -982,20 +1068,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	mark = wrap(mark,['user',commalist('int'),'text'])
 	
 	def query (self,irc,msg,args,user,text):
-		"""<pattern|hostmask>\n\nreturns matched items"""
-		# method renamed for conflict with Config.search
+		"""<pattern|hostmask>
+
+		returns known mode changes with deep search"""
+		# method renamed due to conflict with Config.search
 		i = self.getIrc(irc)
 		irc.reply(i.search(irc,text,msg.prefix,self.getDb(irc.network)))
 	query = wrap(query,['user','text'])
 	
-	def pending (self, irc, msg, args, op, channel, mode, pattern):
-		"""[<channel>] [<mode>] [<hostmask>]\n\nreturns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
+	def pending (self, irc, msg, args, channel, mode, pattern):
+		"""[<channel>] [<mode>] [<hostmask>]
+
+		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
 		i = self.getIrc(irc)
 		if not mode:
 			results = []
 			modes = self.registryValue('modesToAskWhenOpped') + self.registryValue('modesToAsk')
 			for m in modes:
-				log.debug('pending for %s' % m)
 				r = i.pending(irc,channel,m,msg.prefix,pattern,self.getDb(irc.network))
 				if len(r):
 					for line in r:
@@ -1007,136 +1096,140 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				irc.queueMsg(ircmsgs.privmsg(msg.nick,line))
 		else:
 			irc.error('no results')
-	pending = wrap(pending,['op','channel',additional('letter'),additional('hostmask')])
+	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
 	
-	#def todo (self,irc,msg,args,channel,text):
-		#"""[<channel>] <modes> [<values>] sets modes for channels"""
-		## -bb+o-i values
-		#try:
-			#items = ircutils.separateModes(text.split(' '))
-			#chan = self.getChan(irc,channel)
-			#if items and len(items):
-				#for item in items:
-					#chan.queue.enqueue((item[0],item[1]))
-		#except:
-			#irc.error()
-		#self.forceTickle = True
-		#self._tickle(irc)
-	#todo = wrap(todo,['op','channel','text'])
-	
-	def do (self,irc,msg,args,op,channel,mode,items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n +mode targets for duration reason is mandatory"""
+	def do (self,irc,msg,args,channel,mode,items,seconds,reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+		+mode targets for duration reason is mandatory"""
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason)
 			if not msg.nick == irc.nick:
+				# why msg.nick == irc.nick, it because with that it can be used with BanHammer plugin
 				if b:
 					irc.replySuccess()
 					return
 				irc.error('item already active or not enough rights')
 		else:
 			irc.error('selected mode is not supported by config')
-	do = wrap(do,['op','channel','letter',commalist('something'),any('getTs',True),rest('text')])
+	do = wrap(do,['op','letter',commalist('something'),any('getTs',True),rest('text')])
 	
-	def q (self,irc,msg,args,op,channel,items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+q targets for duration reason is mandatory"""
+	def q (self,irc,msg,args,channel,items,seconds,reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+		+q targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
 			irc.error('item already active or not enough rights')
-	q = wrap(q,['op','channel',commalist('something'),any('getTs',True),rest('text')])
+	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def b (self, irc, msg, args, op, channel, items, seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+b targets for duration reason is mandatory"""
+	def b (self, irc, msg, args, channel, items, seconds,reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+		+b targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
 			irc.error('item already active or not enough rights')
-	b = wrap(b,['op','channel',commalist('something'),any('getTs',True),rest('text')])
+	b = wrap(b,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def i (self, irc, msg, args, op, channel, items, seconds):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+I targets for duration reason is mandatory"""
+	def i (self, irc, msg, args, channel, items, seconds):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+		+I targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
 			irc.error('item already active or not enough rights')
-	i = wrap(i,['op','channel',commalist('something'),any('getTs',True),rest('text')])
+	i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def e (self, irc, msg, args, op, channel, items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>\n\n+e targets for duration reason is mandatory"""
+	def e (self, irc, msg, args, channel, items,seconds,reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+		+e targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
 			irc.error('item already active or not enough rights')
-	e = wrap(e,['op','channel',commalist('something'),any('getTs'),rest('text')])
+	e = wrap(e,['op',commalist('something'),any('getTs'),rest('text')])
 	
-	def undo (self, irc, msg, args, op, channel, mode, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -q on them, * remove them all"""
-		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
-			b = self._removes(irc,msg,args,channel,mode,items)
-			if not msg.nick == irc.nick:
-				if b:
-					irc.replySuccess()
-					return
-				irc.error('item not found or not enough rights')
-		else:
-			irc.error('selected mode is not supported by config')
-	undo = wrap(undo,['op','channel','letter',many('something')])
+	def undo (self, irc, msg, args, channel, mode, items):
+		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
+
+		sets -q on them, if * found, remove them all"""
+		b = self._removes(irc,msg,args,channel,mode,items)
+		if not msg.nick == irc.nick:
+			if b:
+				irc.replySuccess()
+				return
+			irc.error('item not found or not enough rights or unsupported mode')
+	undo = wrap(undo,['op','letter',many('something')])
 	
-	def uq (self, irc, msg, args, op, channel, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -q on them, * remove them all"""
+	def uq (self, irc, msg, args, channel, items):
+		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
+
+		sets -q on them, if * found, remove them all"""
 		b = self._removes(irc,msg,args,channel,'q',items)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('item not found or not enough rights')
-	uq = wrap(uq,['op','channel',many('something')])
+			irc.error('item not found or not enough rights or unsupported mode')
+	uq = wrap(uq,['op',many('something')])
 	
-	def ub (self, irc, msg, args, op, channel, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask>]\n\nsets -b on them, * remove them all"""
+	def ub (self, irc, msg, args, channel, items):
+		"""[<channel>] <nick|hostmask|*> [<nick|hostmask>]
+
+		sets -b on them, if * found, remove them all"""
 		b = self._removes(irc,msg,args,channel,'b',items)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('item not found or not enough rights')
-	ub = wrap(ub,['op','channel',many('something')])
+			irc.error('item not found or not enough rights or unsupported mode')
+	ub = wrap(ub,['op',many('something')])
 	
-	def ui (self, irc, msg, args, op, channel, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -I on them, * remove them all"""
+	def ui (self, irc, msg, args, channel, items):
+		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
+
+		sets -I on them, if * found, remove them all"""
 		b = self._removes(irc,msg,args,channel,'I',items)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('item not found or not enough rights')
-	ui = wrap(ui,['op','channel',many('something')])
+			irc.error('item not found or not enough rights or unsupported mode')
+	ui = wrap(ui,['op',many('something')])
 	
-	def ue (self, irc, msg, args, op, channel, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]\n\nsets -e on them, * remove them all"""
+	def ue (self, irc, msg, args, channel, items):
+		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
+
+		sets -e on them, if * found, remove them all"""
 		b = self._removes(irc,msg,args,channel,'e',items)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('item not found or not enough rights')
-	ue = wrap(ue,['op','channel',many('something')])
+			irc.error('item not found or not enough rights or unsupported mode')
+	ue = wrap(ue,['op',many('something')])
 	
-	def check (self,irc,msg,args,op,channel,pattern):
-		"""[<channel>] <pattern> returns a list of affected users by a pattern"""
-		# returns affected users by the given pattern
+	def check (self,irc,msg,args,channel,pattern):
+		"""[<channel>] <pattern> 
+
+		returns a list of affected users by a pattern"""
 		if ircutils.isUserHostmask(pattern) or pattern.startswith('$'):
 			results = []
 			i = self.getIrc(irc)
-			for nick in irc.state.channels[channel].users:
+			for nick in irc.state.channels[channel].users.keys():
 				if nick in i.nicks:
 					n = self.getNick(irc,nick)
 					m = match(pattern,n)
@@ -1148,30 +1241,45 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				irc.error('nothing found')
 		else:
 			irc.error('invalid pattern')
-	check = wrap (check,['op','channel','text'])
+	check = wrap (check,['op','text'])
 	
-	def getmask (self,irc,msg,args,nick):
-		"""<nick> returns a list of pattern, best first, mostly used for debug"""
+	def getmask (self,irc,msg,args,prefix):
+		"""<nick|hostmask> 
+
+		returns a list of hostmask's pattern, best first, mostly used for debug"""
 		# returns patterns for a given nick
 		i = self.getIrc(irc)
-		if nick in i.nicks:
-			irc.reply(', '.join(getBestPattern(self.getNick(irc,nick))))
+		if prefix in i.nicks:
+			irc.reply(', '.join(getBestPattern(self.getNick(irc,prefix))))
 		else:
+			n = Nick(0)
+			if prefix.find('#') != -1:
+				a = prefix.split('#')
+				username = a[1]
+				prefix = a[0]
+				n.setPrefix(prefix)
+				n.setUsername(username)
+			else:
+				n.setPrefix(prefix)
+			if ircutils.isUserHostmask(prefix):
+				irc.reply(', '.join(getBestPattern(n)))
+				return
 			irc.error('nick not found')
-	getmask = wrap(getmask,['owner','nick'])
+	getmask = wrap(getmask,['owner','text'])
 	
 	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
 		i = self.getIrc(irc)
 		targets = []
-		for item in items:
-			if ircutils.isUserHostmask(item) or item.startswith('$'):
-				targets.append(item)
-			elif channel in irc.state.channels and item in irc.state.channels[channel].users:
-				n = self.getNick(irc,item)
-				targets.append(getBestPattern(n)[0])
+		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+			for item in items:
+				if ircutils.isUserHostmask(item) or item.startswith('$'):
+					targets.append(item)
+				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
+					n = self.getNick(irc,item)
+					targets.append(getBestPattern(n)[0])
 		n = 0
 		for item in targets:
-			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network),self._logChan):
+			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network),self._logChan,False):
 				if reason:
 					i.submark(irc,channel,mode,item,reason,msg.prefix,self.getDb(irc.network),self._logChan)
 				n = n+1
@@ -1184,27 +1292,28 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		chan = self.getChan(irc,channel)
 		targets = []
 		massremove = False
-		for item in items:
-			if ircutils.isUserHostmask(item) or item.startswith('$'):
-				targets.append(item)
-			elif channel in irc.state.channels and item in irc.state.channels[channel].users:
-				n = self.getNick(irc,item)
-				L = chan.getItemsFor(mode)
-				# here we check active items against Nick and add everything pattern which matchs him
-				for pattern in L:
-					m = match(pattern,n)
-					if m:
-						targets.append(pattern)
-			elif item == '*':
-				massremove = True
-				if channel in irc.state.channels:
-					L = chan.getItemsFor(mode)
-					for pattern in L:
-						targets.append(pattern)
 		n = 0
-		for item in targets:
-			if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),self._logChan,massremove):
-				n = n + 1
+		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+			for item in items:
+				if ircutils.isUserHostmask(item) or item.startswith('$'):
+					targets.append(item)
+				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
+					n = self.getNick(irc,item)
+					L = chan.getItemsFor(mode)
+					# here we check active items against Nick and add everything pattern which matchs him
+					for pattern in L:
+						m = match(pattern,n)
+						if m:
+							targets.append(pattern)
+				elif item == '*':
+					massremove = True
+					if channel in irc.state.channels.keys():
+						L = chan.getItemsFor(mode)
+						for pattern in L:
+							targets.append(pattern)
+			for item in targets:
+				if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),self._logChan,massremove):
+					n = n + 1
 		self.forceTickle = True
 		self._tickle(irc)
 		return len(items) == n or massremove
@@ -1315,59 +1424,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.sendMsg(i.queue.dequeue())
 		def f(L):
 			return ircmsgs.modes(channel,L)
-		for channel in irc.state.channels:
+		for channel in irc.state.channels.keys():
 			chan = self.getChan(irc,channel)
 			# check expired items
-			for mode in chan.getItems():
-				for value in chan._lists[mode]:
+			for mode in chan.getItems().keys():
+				for value in chan._lists[mode].keys():
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
 						chan.queue.enqueue(('-'+item.mode,item.value))
 						# avoid adding it multi times until servers returns changes
 						item.asked = True
 						retickle = True
-			# check items to update - duration
-			# that allows to set mode, and apply duration to Item created after mode changes
-			# otherwise, we should create db records before applying mode changes ... which, well don't do that :p
-			if len(chan.update):
-				overexpire = self.registryValue('autoExpire',channel=channel)
-				if overexpire > 0:
-					# won't override duration pushed by someone else if default is forever
-					# [mode,value,seconds,prefix]
-					L = []
-					for update in chan.update:
-						L.append(chan.update[update])
-					o = {}
-					index = 0
-					for k in L:
-						(m,value,expire,prefix) = L[index]
-						if expire == -1 or expire == None:
-							if overexpire != expire:
-								chan.update['%s%s' % (m,value)] = [m,value,overexpire,irc.prefix]
-						index = index + 1
-				L = []
-				for update in chan.update:
-					L.append(chan.update[update])
-				for update in L:
-					(m,value,expire,prefix) = update
-					item = chan.getItem(m,value)
-					if item and item.expire != expire:
-						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._logChan,False)
-						key = '%s%s' % (m,value)
-						del chan.update[key]
-			# update marks
-			if len(chan.mark):
-				L = []
-				for mark in chan.mark:
-					L.append(chan.mark[mark])
-				for mark in L:
-					(m,value,reason,prefix) = mark
-					item = chan.getItem(m,value)
-					if item:
-						i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),self._logChan)
-						key = '%s%s' % (item.mode,value)
-						del chan.mark[key]
-					
 			# dequeue pending actions
 			if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel) and chan.syn:
 				# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
@@ -1392,15 +1459,66 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if len(r):
 						# create IrcMsg
 						self._sendModes(irc,r,f)
-			if not len(chan.queue) and irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
+			if not len(i.queue) and not len(chan.queue) and irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
 				# no more actions, no op needed
 				chan.deopAsked = True
-				chan.queue.enqueue(('-o',irc.nick))
+				def deop ():
+					# due to issues with op devoiced himself before applying -v-o on targeted users, must delay a bit here ...
+					chan.queue.enqueue(('-o',irc.nick))
+					retickle = True
+					self._tickle(irc)
+				schedule.addEvent(deop,time.time()+7)
 				retickle = True
 		# send waiting msgs
 		while len(i.queue):
 			# sendMsg vs queueMsg 
 			irc.sendMsg(i.queue.dequeue())
+		for channel in irc.state.channels.keys():
+			chan = self.getChan(irc,channel)
+			# check items to update - duration
+			# that allows to set mode, and apply duration to Item created after mode changes
+			# otherwise, we should create db records before applying mode changes ... which, well don't do that :p
+			if len(chan.update):
+				overexpire = self.registryValue('autoExpire',channel=channel)
+				if overexpire > 0:
+					# won't override duration pushed by someone else if default is forever
+					# [mode,value,seconds,prefix]
+					L = []
+					for update in chan.update.keys():
+						L.append(chan.update[update])
+					o = {}
+					index = 0
+					for k in L:
+						(m,value,expire,prefix) = L[index]
+						if expire == -1 or expire == None:
+							if overexpire != expire:
+								chan.update['%s%s' % (m,value)] = [m,value,overexpire,irc.prefix]
+						index = index + 1
+				L = []
+				for update in chan.update.keys():
+					L.append(chan.update[update])
+				for update in L:
+					(m,value,expire,prefix) = update
+					item = chan.getItem(m,value)
+					if item and item.expire != expire:
+						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._logChan,False)
+						key = '%s%s' % (m,value)
+						del chan.update[key]
+						retickle = True
+						
+			# update marks
+			if len(chan.mark):
+				L = []
+				for mark in chan.mark.keys():
+					L.append(chan.mark[mark])
+				for mark in L:
+					(m,value,reason,prefix) = mark
+					item = chan.getItem(m,value)
+					if item:
+						i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),self._logChan)
+						key = '%s%s' % (item.mode,value)
+						del chan.mark[key]
+		
 		if retickle:
 			self.forceTickle = True
 		else:
@@ -1502,7 +1620,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				irc.queueMsg(ircmsgs.privmsg(logChannel,message))
 	
 	def doJoin (self,irc,msg):
-		isBot = msg.nick == irc.nick
 		channels = msg.args[0].split(',')
 		n = self.getNick(irc,msg.nick)
 		i = self.getIrc(irc)
@@ -1510,31 +1627,58 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if 'LIST' in i.caps and 'extended-join' in i.caps['LIST'] and len(msg.args) == 3:
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
+		best = getBestPattern(n)[0]
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
 				n.addLog(channel,'has joined')
+				if best:
+					isCycle = self._isSomething(irc,channel,best,'cycle')
+					if isCycle:
+						isBad = self._isSomething(irc,channel,best,'bad')
+						kind = None
+						if isBad:
+							kind = 'bad'
+						else:
+							kind = 'cycle'
+						mode = self.registryValue('%sMode' % kind,channel=channel)
+						if len(mode) > 1:
+							mode = mode[0]
+						duration = self.registryValue('%sDuration' % kind,channel=channel)
+						comment = self.registryValue('%sComment' % kind,channel=channel)
+						self._act(irc,channel,mode,best,duration,comment)
+						self.forceTickle = True
+		if msg.nick == irc.nick:
+			self.forceTickle = True
 		self._tickle(irc)
 	
 	def doPart (self,irc,msg):
 		isBot = msg.nick == irc.nick
 		channels = msg.args[0].split(',')
 		i = self.getIrc(irc)
-		n = self.getNick(irc,msg.nick)
+		n = None
+		if msg.nick in i.nicks:
+			n = self.getNick(irc,msg.nick)
 		reason = ''
 		if len(msg.args) == 2:
 			reason = msg.args[1].lstrip().rstrip()
+		canRemove = True
 		for channel in channels:
-			if ircutils.isChannel(channel):
+			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				if isBot and channel in i.channels:
 					del i.channels[channel]
 					continue
 				if len(reason):
 					n.addLog(channel,'has left [%s]' % (reason))
 					if reason.startswith('requested by'):
-						self._logChan(irc,channel,'[%s] %s has left %s' % (channel,msg.prefix,reason))
+						self._logChan(irc,channel,'[%s] %s has left (%s)' % (channel,msg.prefix,reason))
 				else:
 					n.addLog(channel,'has left')
+				if not isBot:
+					if msg.nick in irc.state.channels[channel].users:
+						canRemove = False
+		if canRemove:
+			self._rmNick(irc,n)
 		self._tickle(irc)
 	
 	def doKick (self,irc,msg):
@@ -1545,59 +1689,62 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			reason = ''
 		isBot = target == irc.nick
 		if isBot:
-			if ircutils.isChannel(channel):
-				if isBot and channel in i.channels:
-					del i.channels[channel]
-					return
+			if ircutils.isChannel(channel) and channel in i.channels:
+				del i.channels[channel]
+				return
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,target,msg.prefix,reason))
 		self._tickle(irc)
-		
+
+	def _rmNick (self,irc,n):
+		def nrm():
+			patterns = getPattern(n)
+			i = self.getIrc(irc)
+			if not len(patterns):
+				return
+			found = False
+			(nick,ident,hostmask) = ircutils.splitUserHostmask(n.prefix)
+			for channel in irc.state.channels:
+				if nick in irc.state.channels[channel].users:
+					 found = True
+			if not found:
+				if nick in i.nicks:
+					del i.nicks[nick]
+				best = patterns[0]
+				for channel in irc.state.channels:
+					if channel in i.channels:
+						chan = i.getChan(channel)
+						if best in chan.repeatLogs:
+							del chan.repeatLogs[best]
+		schedule.addEvent(nrm,time.time()+300)
+	
 	def doQuit (self,irc,msg):
 		isBot = msg.nick == irc.nick
 		reason = None
 		if len(msg.args) == 1:
 			reason = msg.args[0].lstrip().rstrip()
+		removeNick = True
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
 			if reason:
 				n.addLog('ALL','has quit [%s]' % reason)
 			else:
 				n.addLog('ALL','has quit')
-			if reason and reason == 'Changing host':
-				# recloak
-				log.debug('%s recloaked' % irc.prefix)
-			else:
+			if reason and reason in ['Changing host','Excess Flood','MaxSendQ']:
+				removeNick = False
+			elif reason and reason.startswith('Killed (') or reason.startswith('K-Lined'):
+				if not reason.find('Nickname regained by services') != -1:
+					for channel in irc.state.channels:
+						for nick in irc.state.channels[channel].users:
+							if nick == msg.nick:
+								self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
+			if removeNick:
 				i = self.getIrc(irc)
 				if msg.nick in i.nicks:
-					del i.nicks[msg.nick]
+					n = i.nicks[msg.nick]
+					self._rmNick(irc,n)
 			self._tickle(irc)
-	
-	def doPrivmsg (self,irc,msg):
-		isCtcp = ircmsgs.isCtcp(msg)
-		(recipients, text) = msg.args
-		isAction = ircmsgs.isAction(msg)
-		if isAction:
-			text = ircmsgs.unAction(msg)
-		n = None
-		if ircutils.isUserHostmask(msg.prefix):
-			n = self.getNick(irc,msg.nick)
-		if not n:
-			# server msgs
-			self.log.warn("%s isn't a valid sender" % msg.prefix)
-			self._tickle(irc)
-			return
-		for channel in recipients.split(','):
-			if irc.isChannel(channel) and channel in irc.state.channels:
-				message = text
-				if isCtcp and not isAction:
-					message = 'CTCP | %s' % text
-					self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
-				elif isAction:
-					message = '- %s -' % text
-				n.addLog(channel,message)
-		self._tickle(irc)
 	
 	def doNick (self,irc,msg):
 		oldNick = msg.prefix.split('!')[0]
@@ -1611,8 +1758,31 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				prefixNew = '%s!%s' % (newNick,n.prefix.split('!')[1:])
 				n.setPrefix(prefixNew)
 			i.nicks[newNick] = n
-		n = self.getNick(irc,newNick)
-		n.addLog('ALL','%s is now known as %s' % (oldNick,newNick))
+			n = self.getNick(irc,newNick)
+			n.addLog('ALL','%s is now known as %s' % (oldNick,newNick))
+			best = None
+			patterns = getBestPattern(n)
+			if len(patterns):
+				best = patterns[0]
+			if not best:
+				return
+			for channel in irc.state.channels:
+				if newNick in irc.state.channels[channel].users:
+					isNick = self._isSomething(irc,channel,best,'nick')
+					if isNick:
+						isBad = self._isBad(irc,channel,best)
+						kind = None
+						if isBad:
+							kind = 'bad'
+						else:
+							kind = 'nick'
+						mode = self.registryValue('%sMode' % kind,channel=channel)
+						if len(mode) > 1:
+							mode = mode[0]
+						duration = self.registryValue('%sDuration' % kind,channel=channel)
+						comment = self.registryValue('%sComment' % kind,channel=channel)
+						self._act(irc,channel,mode,best,duration,comment)
+						self.forceTickle = True
 		self._tickle(irc)
 	
 	def doCap (self,irc,msg):
@@ -1659,6 +1829,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def doNotice (self,irc,msg):
 		(targets, text) = msg.args
+		if not ircutils.isUserHostmask(irc.prefix):
+			return
 		if targets == irc.nick:
 			b = False
 			if text == 'You are not authorized to perform this operation.':
@@ -1673,11 +1845,171 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			#if text.startswith('*** Message to ') and text.endswith(' throttled due to flooding'):
 				# as bot floods, todo schedule info to owner
 		else:
+			if msg.nick == irc.nick:
+				return
 			n = self.getNick(irc,msg.nick)
+			patterns = getBestPattern(n)
+			best = False
+			if len(patterns):
+				best = patterns[0]
 			for channel in targets.split(','):
 				if irc.isChannel(channel) and channel in irc.state.channels:
+					chan = self.getChan(irc,channel)
 					n.addLog(channel,'NOTICE | %s' % text)
-					self._logChan(irc,channel,'[%s] %s notices "%s"' % (channel,msg.prefix,text))
+					# why flood logChannel ..
+					#self._logChan(irc,channel,'[%s] %s notices "%s"' % (channel,msg.prefix,text))
+					# checking if message matchs living massRepeatPattern
+					for pattern in chan.massPattern:
+						if self._strcompare(pattern,text) >= self.registryValue('massRepeatPercent',channel=channel):
+							kind = 'massRepeat'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							self._act(irc,channel,mode,best,duration,comment)
+							self.forceTickle = True
+							best = None
+					if best:
+						isNotice = self._isSomething(irc,channel,best,'notice')
+						isMass = False
+						if len(text) >= self.registryValue('massRepeatChars',channel=channel):
+							isMass = self._isSomething(irc,channel,text,'massRepeat')
+						if isNotice:
+							isBad = self._isSomething(irc,channel,best,'bad')
+							kind = None
+							if isBad:
+								kind = 'bad'
+							elif isMass:
+								kind = 'massRepeat'
+								if not text in chan.massPattern:
+									chan.massPattern[text] = text
+									def unpattern ():
+										if text in chan.massPattern:
+											del chan.massPattern[text]
+									# remove pattern after massRepeatDuration, maybe add another config value ?
+									schedule.addEvent(unpattern,time.time()+self.registryValue('massRepeatDuration',channel=channel))
+							else:
+								kind = 'notice'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							if len(mode) > 1:
+								mode = mode[0]
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							self._act(irc,channel,mode,best,duration,comment)
+							self.forceTickle = True
+		self._tickle(irc)
+	
+	def doPrivmsg (self,irc,msg):
+		if msg.nick == irc.nick:
+			self._tickle(irc)
+			return
+		(recipients, text) = msg.args
+		isAction = ircmsgs.isAction(msg)
+		isCtcpMsg = ircmsgs.isCtcp(msg)
+		if isAction:
+			text = ircmsgs.unAction(msg)
+		n = None
+		best = None
+		if ircutils.isUserHostmask(msg.prefix):
+			n = self.getNick(irc,msg.nick)
+			patterns = getBestPattern(n)
+			if len(patterns):
+				best = patterns[0]
+			# if it fails here stacktrace
+		if not n or not best:
+			# server msgs or plugin reload, or state not ready
+			self._tickle(irc)
+			return
+		for channel in recipients.split(','):
+			if irc.isChannel(channel) and channel in irc.state.channels:
+				chan = self.getChan(irc,channel)
+				message = text
+				if isCtcpMsg and not isAction:
+					message = 'CTCP | %s' % text
+					self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
+				elif isAction:
+					message = '- %s -' % text
+				n.addLog(channel,message)
+				# protection features
+				
+				# checking if message matchs living massRepeatPattern
+				for pattern in chan.massPattern:
+					if self._strcompare(pattern,text) >= self.registryValue('massRepeatPercent',channel=channel):
+						kind = 'massRepeat'
+						mode = self.registryValue('%sMode' % kind,channel=channel)
+						duration = self.registryValue('%sDuration' % kind,channel=channel)
+						comment = self.registryValue('%sComment' % kind,channel=channel)
+						self._act(irc,channel,mode,best,duration,comment)
+						self.forceTickle = True
+						# no needs to check others protection
+						continue
+						
+				isCtcp = False
+				if isCtcpMsg:
+					isCtcp = self._isSomething(irc,channel,best,'ctcp')
+				isFlood = self._isFlood(irc,channel,best)
+				isLowFlood = self._isLowFlood(irc,channel,best)
+				isRepeat = self._isRepeat(irc,channel,best,text)
+				isHilight = self._isHilight(irc,channel,best,text)
+				isCap = self._isCap(irc,channel,best,text)
+				isMass = False
+				if len(text) >= self.registryValue('massRepeatChars',channel=channel):
+					isMass = self._isSomething(irc,channel,text,'massRepeat')
+				if isFlood or isHilight or isRepeat or isCap or isCtcp or isLowFlood or isMass:
+					isBad = self._isBad(irc,channel,best)
+					kind = None
+					duration = 0
+					if isBad:
+						kind = 'bad'
+						duration = self.registryValue('badDuration',channel=channel)
+					else:
+						# todo select the hardest duration / mode
+						if isMass:
+							kind = 'massRepeat'
+							duration = self.registryValue('massRepeatDuration',channel=channel)
+							if not text in chan.massPattern:
+								chan.massPattern[text] = text
+								def unpattern ():
+									if text in chan.massPattern:
+										del chan.massPattern[text]
+								# remove pattern after massRepeatDuration, maybe add another config value ?
+								schedule.addEvent(unpattern,time.time()+duration)
+						if isFlood:
+							d = self.registryValue('floodDuration',channel=channel)
+							if d > duration:
+								kind = 'flood'
+								duration = d
+						if isLowFlood:
+							d = self.registryValue('lowFloodDuration',channel=channel)
+							if d > duration:
+								kind = 'lowFlood'
+								duration = d
+						if isRepeat:
+							d = self.registryValue('repeatDuration',channel=channel)
+							if d > duration:
+								kind = 'repeat'
+								duration = d
+						if isHilight:
+							d = self.registryValue('hilightDuration',channel=channel)
+							if d > duration:
+								kind = 'hilight'
+								duration = d
+						if isCap:
+							d = self.registryValue('capDuration',channel=channel)
+							if d > duration:
+								kind = 'cap'
+								duration = d
+						if isCtcp:
+							d = self.registryValue('ctcpDuration',channel=channel)
+							if d > duration:
+								kind = 'ctcp'
+								duration = d
+					mode = self.registryValue('%sMode' % kind,channel=channel)
+					if len(mode) > 1:
+						mode = mode[0]
+					duration = self.registryValue('%sDuration' % kind,channel=channel)
+					comment = self.registryValue('%sComment' % kind,channel=channel)
+					self._act(irc,channel,mode,best,duration,comment)
+					self.forceTickle = True
 		self._tickle(irc)
 	
 	def doTopic(self, irc, msg):
@@ -1721,13 +2053,26 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									# an op do something, and over expires is enabled, announce or not ? currently not. change last flag
 									i.edit(irc,channel,m,value,overexpire,irc.prefix,self.getDb(irc.network),self._logChan,True)
 									self.forceTickle = True
-						# not sure i will keep this "feature" as the plugin is a bantracker plugin, and should be only that
-						if m in self.registryValue('kickMode',channel=channel):
-							if item and len(item.affects): 
-								for affected in item.affects:
-									nick = affected.split('!')[0]
+						# here bot could add others mode changes or actions
+						if item and len(item.affects):
+							for affected in item.affects:
+								nick = affected.split('!')[0]
+								kicked = False
+								if m in self.registryValue('kickMode',channel=channel):
 									if nick in irc.state.channels[channel].users:
-										i.queue.enqueue(ircmsgs.kick(channel,affected.split('!')[0],self.registryValue('kickMessage')))
+										i.queue.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
+										self.forceTickle = True
+										kicked = True
+								if not kicked and m in self.registryValue('modesToAsk'):
+									acts = []
+									if nick in irc.state.channels[channel].ops:
+										acts.append(('-o',nick))
+									if nick in irc.state.channels[channel].voices:
+										acts.append(('-v',nick))
+									if len(acts):
+										irc.sendMsg(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
+										self.forceTickle = True
+						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
 							ms = ''
@@ -1738,11 +2083,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if len(ms):
 								# update missed list, using sendMsg, as the bot may ask for -o just after
 								irc.sendMsg(ircmsgs.IrcMsg('MODE %s %s' % (channel,ms)))
-							# flush pending queue
+							# flush pending queue, if items are waiting
 							self.forceTickle = True
 					else:
 						m = mode[1:]
 						if m == 'o' and value == irc.nick:
+							# prevent bot to sent many -o modes when server takes time to reply
 							chan.deopAsked = False
 						if m in self.registryValue('modesToAskWhenOpped') or m in self.registryValue('modesToAsk'):
 							item = chan.removeItem(m,value,msg.prefix,self.getDb(irc.network))
@@ -1770,8 +2116,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					msgs.append(mode)
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
-			self._tickle(irc)
 			self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
+			self._tickle(irc)	
 	
 	def do478(self,irc,msg):
 		# message when ban list is full after adding something to eqIb list
@@ -1779,6 +2125,93 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if info == 'Channel ban list is full':
 			self._logChan(irc,channel,'[%s] %s' % (channel,info.upper()))
 		self._tickle(irc)
+	
+	 # protection features
+	
+	def _act (self,irc,channel,mode,mask,duration,reason):
+		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+			i = self.getIrc(irc)
+			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network),self._logChan,True):
+				if reason and len(reason):
+					i.submark(irc,channel,mode,mask,reason,irc.prefix,self.getDb(irc.network),self._logChan)
+			self.forceTickle = True
+			self._tickle(irc)
+		else:
+			log.error('%s %s %s %s %s unsupported mode' % (channel,mode,mask,duration,reason))
+	
+	def _isSomething (self,irc,channel,key,prop):
+		limit = self.registryValue('%sPermit' % prop,channel=channel)
+		if limit == -1:
+			return False
+		chan = self.getChan(irc,channel)
+		life = self.registryValue('%sLife' % prop,channel=channel)
+		if not prop in chan.spam or chan.spam[prop].timeout != life:
+			# reset queue if config has changed
+			chan.spam[prop] = SpamQueue(life)
+		chan.spam[prop].enqueue(key)
+		if chan.spam[prop].len(key) > limit:
+			chan.spam[prop].reset(key)
+			return True
+		return False
+	
+	def _isBad (self,irc,channel,key):
+		return self._isSomething(irc,channel,key,'bad')
+	
+	def _isFlood(self,irc,channel,key):
+		return self._isSomething(irc,channel,key,'flood')
+	
+	def _isLowFlood(self,irc,channel,key):
+		return self._isSomething(irc,channel,key,'lowFlood')
+	
+	def _isHilight (self,irc,channel,key,message):
+		limit = self.registryValue('hilightPermit',channel=channel)
+		if limit == -1:
+			return False
+		count = 0
+		for user in irc.state.channels[channel].users:
+			count = count + message.count(user)
+		return count > limit
+	
+	def _isRepeat(self,irc,channel,key,message):
+		limit = self.registryValue('repeatPermit',channel=channel)	
+		if limit == -1:
+			return False
+		chan = self.getChan(irc,channel)
+		## needed to compare with previous text
+		if not key in chan.repeatLogs:
+			chan.repeatLogs[key] = utils.structures.MaxLengthQueue(limit*2)
+		logs = chan.repeatLogs[key]
+		if limit*2 != logs.length:
+			logs = chan.repeatLogs[key] = utils.structures.MaxLengthQueue(limit*2)
+		trigger = self.registryValue('repeatPercent',channel=channel)
+		result = False
+		if len(logs) > 0:
+			flag = False
+			for entry in logs:
+				if self._strcompare(message,entry) >= trigger:
+					flag = True
+					break
+			if flag:
+				result = self._isSomething(irc,channel,key,'repeat')
+		logs.enqueue(message)
+		return result
+	
+	def _isCap(self,irc,channel,key,message):
+		limit = self.registryValue('capPermit',channel=channel)
+		if limit == -1:
+			return False
+		trigger = self.registryValue('capPercent',channel=channel)
+		matchs = self.recaps.findall(message)
+		percent = len(matchs) / len(message)
+		if percent >= trigger:
+			return self._isSomething(irc,channel,key,'cap')
+		return False
+	
+	def _strcompare (self,a,b):
+		# return [0 - 1] ratio between two string
+		# jaccard algo
+		c = [x for x in a if x in b]
+		return float(len(c)) / (len(a) + len(b) - len(c))
 
 
 Class = ChanTracker
