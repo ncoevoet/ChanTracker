@@ -1112,6 +1112,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				irc.error('item already active or not enough rights')
 		else:
 			irc.error('selected mode is not supported by config')
+			
 	do = wrap(do,['op','letter',commalist('something'),any('getTs',True),rest('text')])
 	
 	def q (self,irc,msg,args,channel,items,seconds,reason):
@@ -1699,7 +1700,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 	def _rmNick (self,irc,n):
 		def nrm():
-			patterns = getPattern(n)
+			patterns = getBestPattern(n)
 			i = self.getIrc(irc)
 			if not len(patterns):
 				return
