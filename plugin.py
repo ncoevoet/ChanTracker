@@ -1664,10 +1664,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			reason = msg.args[1].lstrip().rstrip()
 		canRemove = True
 		for channel in channels:
+			if isBot and channel in i.channels:
+				del i.channels[channel]
+				continue
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
-				if isBot and channel in i.channels:
-					del i.channels[channel]
-					continue
 				if len(reason):
 					n.addLog(channel,'has left [%s]' % (reason))
 					if reason.startswith('requested by'):
