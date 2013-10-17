@@ -1467,6 +1467,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		while len(i.queue):
 			# sendMsg vs queueMsg 
 			irc.sendMsg(i.queue.dequeue())
+		# updates duration
 		for channel in irc.state.channels.keys():
 			chan = self.getChan(irc,channel)
 			# check items to update - duration
@@ -1513,6 +1514,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						key = '%s%s' % (item.mode,value)
 						del chan.mark[key]
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending:
+				# ask for deop, delay it a bit
 				self.unOp(irc,channel)
 		if retickle:
 			self.forceTickle = True
@@ -1535,6 +1537,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			i = self.getIrc(irc)
 			i.resync(irc,channel,mode,self.getDb(irc.network),self._logChan)
 			if b:
+				# maybe comment that ?
 				self._logChan(irc,channel,"[%s][%s] %s items parsed, ready %s" % (channel,mode,len(chan.getItemsFor(mode)),''.join(chan.dones)))
 		self._tickle(irc)
 	
@@ -1609,6 +1612,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	
 	def _logChan (self,irc,channel,message):
+		# send messages to logChannel if configured for
 		if channel in irc.state.channels:
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
@@ -1623,6 +1627,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
 		best = getBestPattern(n)[0]
+		log.debug('%s --> %s' % (msg.prefix,best))
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
@@ -1710,7 +1715,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				best = patterns[0]
 				for channel in irc.state.channels:
 					if channel in i.channels:
-						chan = i.getChan(channel)
+						chan = i.getChan(irc,channel)
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
 		schedule.addEvent(nrm,time.time()+300)
@@ -2027,17 +2032,18 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if chan.deopPending:
 				return
 			def unOpBot():
-				if not len(i.queue) and not len(chan.queue):
-					if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
-						if not chan.deopAsked:
-							chan.deopAsked = True
-							chan.queue.enqueue(('-o',irc.nick))
-							self.forceTicke = True
-				else:
-					# reask for deop
-					if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
-						self.deopPending = False
-						self.unOp(irc,channel)
+				if channel in irc.state.channels:
+					if not len(i.queue) and not len(chan.queue):
+						if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
+							if not chan.deopAsked:
+								chan.deopAsked = True
+								chan.queue.enqueue(('-o',irc.nick))
+								self.forceTicke = True
+					else:
+						# reask for deop
+						if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
+							self.deopPending = False
+							self.unOp(irc,channel)
 			self.deopPending = True
 			schedule.addEvent(unOpBot,float(time.time()+10))
 	
@@ -2193,7 +2199,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return False
 		count = 0
 		for user in irc.state.channels[channel].users:
-			count = count + message.count(user)
+			count = count + message.count(key)
 		return count > limit
 	
 	def _isRepeat(self,irc,channel,key,message):
