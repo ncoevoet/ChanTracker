@@ -1715,7 +1715,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				best = patterns[0]
 				for channel in irc.state.channels:
 					if channel in i.channels:
-						chan = i.getChan(irc,channel)
+						chan = self.getChan(irc,channel)
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
 		schedule.addEvent(nrm,time.time()+300)
