@@ -207,7 +207,7 @@ def getBestPattern (n):
 		if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('unaffiliated/'):
 			ident = '*'
 	if n.ip != None:
-		if len(n.ip.split('::')) > 4:
+		if len(n.ip.split(':')) > 4:
 			# large ipv6
 			a = n.ip.split(':')
 			m = a[0]+':'+a[1]+':'+a[2]+':'+a[3]+':*'
