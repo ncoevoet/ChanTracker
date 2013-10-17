@@ -744,6 +744,7 @@ class Chan (object):
 		self.syn = False
 		self.opAsked = False
 		self.deopAsked = False
+		self.deopPending = False
 		# now stuff here is related to protection
 		self.spam = {}
 		self.repeatLogs = {}
@@ -926,22 +927,20 @@ def getTs (irc, msg, args, state):
 	for arg in args:
 		if not arg or arg[-1] not in 'ywdhms':
 			try:
-				n = int(args[0])
-				state.args.append(n)
+				n = int(arg)
 				args.pop(0)
+				state.args.append(n)
 			except:
-				if len(args) > 1:
-					if seconds != -1:
-						args.pop(0)
-					state.args.append(float(seconds))
-					raise callbacks.ArgumentError
-				else:
-					raise callbacks.ArgumentError
+				log.debug('A getTs %s' % arg)
+				state.args.append(float(seconds))
+				raise callbacks.ArgumentError
 			return
 		(s, kind) = arg[:-1], arg[-1]
 		try:
 			i = int(s)
 		except ValueError:
+			log.debug('B getTs %s' % s)
+			state.args.append(float(seconds))
 			raise callbacks.ArgumentError
 			return
 		if kind == 'y':
@@ -955,7 +954,10 @@ def getTs (irc, msg, args, state):
 		elif kind == 'm':
 			seconds += i*60
 		elif kind == 's':
+			if i == 0:
+				i = 1
 			seconds += i
+		log.debug('C getTs %s - %s' % (seconds,i))
 	args.pop(0)
 	state.args.append(float(seconds))
 
@@ -965,7 +967,8 @@ import threading
 import supybot.world as world
 
 def getDuration (seconds):
-	if not seconds or not len(seconds):
+	log.debug('%s' % seconds)
+	if not len(seconds):
 		return -1
 	return seconds[0]
 
@@ -1293,7 +1296,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		chan = self.getChan(irc,channel)
 		targets = []
 		massremove = False
-		n = 0
+		count = 0
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			for item in items:
 				if ircutils.isUserHostmask(item) or item.startswith('$'):
@@ -1314,10 +1317,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							targets.append(pattern)
 			for item in targets:
 				if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),self._logChan,massremove):
-					n = n + 1
+					count = count + 1
 		self.forceTickle = True
 		self._tickle(irc)
-		return len(items) == n or massremove
+		return len(items) == count or massremove
 	
 	def getIrc (self,irc):
 		# init irc db
@@ -1460,16 +1463,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if len(r):
 						# create IrcMsg
 						self._sendModes(irc,r,f)
-			if not len(i.queue) and not len(chan.queue) and irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
-				# no more actions, no op needed
-				chan.deopAsked = True
-				def deop ():
-					# due to issues with op devoiced himself before applying -v-o on targeted users, must delay a bit here ...
-					chan.queue.enqueue(('-o',irc.nick))
-					retickle = True
-					self._tickle(irc)
-				schedule.addEvent(deop,time.time()+7)
-				retickle = True
 		# send waiting msgs
 		while len(i.queue):
 			# sendMsg vs queueMsg 
@@ -1519,7 +1512,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),self._logChan)
 						key = '%s%s' % (item.mode,value)
 						del chan.mark[key]
-		
+			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending:
+				self.unOp(irc,channel)
 		if retickle:
 			self.forceTickle = True
 		else:
@@ -1690,6 +1684,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			reason = ''
 		isBot = target == irc.nick
 		if isBot:
+			i = self.getIrc(irc)
 			if ircutils.isChannel(channel) and channel in i.channels:
 				del i.channels[channel]
 				return
@@ -1705,7 +1700,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not len(patterns):
 				return
 			found = False
-			(nick,ident,hostmask) = ircutils.splitUserHostmask(n.prefix)
+			(nick,ident,hostmask) = ircutils.splitHostmask(n.prefix)
 			for channel in irc.state.channels:
 				if nick in irc.state.channels[channel].users:
 					 found = True
@@ -2024,6 +2019,28 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n.addLog(channel,'sets topic "%s"' % msg.args[1])
 			self._logChan(irc,channel,'[%s] %s sets topic "%s"' % (channel,msg.prefix,msg.args[1]))
 	
+	def unOp (self,irc,channel):
+		# remove irc.nick from op, if nothing pending
+		if channel in irc.state.channels:
+			i = self.getIrc(irc)
+			chan = self.getChan(irc,channel)
+			if chan.deopPending:
+				return
+			def unOpBot():
+				if not len(i.queue) and not len(chan.queue):
+					if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
+						if not chan.deopAsked:
+							chan.deopAsked = True
+							chan.queue.enqueue(('-o',irc.nick))
+							self.forceTicke = True
+				else:
+					# reask for deop
+					if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
+						self.deopPending = False
+						self.unOp(irc,channel)
+			self.deopPending = True
+			schedule.addEvent(unOpBot,float(time.time()+10))
+	
 	def doMode(self, irc, msg):
 		channel = msg.args[0]
 		now = time.time()
@@ -2060,15 +2077,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								nick = affected.split('!')[0]
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel):
-									if nick in irc.state.channels[channel].users:
+									if nick in irc.state.channels[channel].users and nick != irc.nick:
 										i.queue.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
 										self.forceTickle = True
 										kicked = True
 								if not kicked and m in self.registryValue('modesToAsk'):
 									acts = []
-									if nick in irc.state.channels[channel].ops:
+									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
 										acts.append(('-o',nick))
-									if nick in irc.state.channels[channel].voices:
+									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 										acts.append(('-v',nick))
 									if len(acts):
 										irc.sendMsg(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
@@ -2076,6 +2093,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
+							self.deopPending = False
 							ms = ''
 							asked = self.registryValue('modesToAskWhenOpped')
 							for k in asked:
@@ -2120,6 +2138,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
 			self._tickle(irc)	
 	
+	def do474(self,irc,msg):
+		# bot banned from a channel it's trying to join
+		# server 474 irc.nick #channel :Cannot join channel (+b) - you are banned
+		self._tickle(irc)
+		
 	def do478(self,irc,msg):
 		# message when ban list is full after adding something to eqIb list
 		(nick,channel,ban,info) = msg.args
