@@ -43,7 +43,6 @@ import supybot.ircdb as ircdb
 import supybot.log as log
 import supybot.schedule as schedule
 from string import Template
-from sets import Set
 import socket
 import re
 import sqlite3
@@ -1469,7 +1468,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					while len(chan.queue):
 						L.append(chan.queue.pop())
 					# remove duplicates ( should not happens but .. )
-					S = Set(L)
+					S = set(L)
 					r = []
 					for item in L:
 						r.append(item)
