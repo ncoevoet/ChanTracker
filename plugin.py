@@ -2084,6 +2084,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						m = mode[1:]
 						if m in self.registryValue('modesToAskWhenOpped') or m in self.registryValue('modesToAsk'):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
+							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
+								irc.queueMsg(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ?' % (item.uid,m,value,channel)))
 							if overexpire > 0:
 								# overwrite expires
 								if msg.nick != irc.nick:
