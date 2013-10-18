@@ -1349,6 +1349,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# restore channel state, loads lists
 			modesToAsk = ''.join(self.registryValue('modesToAsk'))
 			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped'))
+			modesToAsk = modeToAsk.replace(',','')
+			modesWhenOpped = modesWhenOpped(',','')
 			if channel in irc.state.channels:
 				if irc.nick in irc.state.channels[channel].ops and len(modesWhenOpped):
 					i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesWhenOpped)))
@@ -2116,6 +2118,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							self.deopPending = False
 							ms = ''
 							asked = self.registryValue('modesToAskWhenOpped')
+							asked = asked(',','')
 							for k in asked:
 								if not k in chan.dones:
 									ms = ms + k
