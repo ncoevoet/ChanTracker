@@ -478,12 +478,25 @@ class Ircd (object):
 				chan = self.getChan(irc,channel)
 				item = chan.getItem(mode,value)
 				if not item:
-					hash = '%s%s' % (mode,value)
-					# prepare item update after being set ( we don't have id yet )
-					chan.update[hash] = [mode,value,seconds,prefix]
-					# enqueue mode changes
-					chan.queue.enqueue(('+%s' % mode,value))
-					return True
+					if not chan.deopAsked:
+						hash = '%s%s' % (mode,value)
+						# prepare item update after being set ( we don't have id yet )
+						chan.update[hash] = [mode,value,seconds,prefix]
+						# enqueue mode changes
+						chan.queue.enqueue(('+%s' % mode,value))
+						return True
+					else:
+						# deop is asked so ircd will not allows touching mode
+						#def retry():
+							#if channel in irc.state.channels:
+								#if not chan.deopAsked:
+									#hash = '%s%s' % (mode,value)
+									#chan.update[hash] = [mode,value,seconds,prefix]
+									#chan.queue.enqueue(('+%s' % mode,value))
+								#else:
+									#self.add(irc,channel,mode,value,seconds,prefix,db,logFunction,addOnly)
+						#schedule.addEvent(retry,time.time()+2)
+						return False
 		return False
 	
 	def mark (self,irc,uid,message,prefix,db,logFunction):
@@ -1233,7 +1246,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if ircutils.isUserHostmask(pattern) or pattern.startswith('$'):
 			results = []
 			i = self.getIrc(irc)
-			for nick in irc.state.channels[channel].users.keys():
+			for nick in irc.state.channels[channel].users:
 				if nick in i.nicks:
 					n = self.getNick(irc,nick)
 					m = match(pattern,n)
