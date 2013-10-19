@@ -5,6 +5,3 @@ It also has a lot of channel protection features, flood, repeat, uppercase, ctcp
 
 It works with any version of supybot, vannila, limnoria etc
 
-After first load, you must type !config supybot.plugins.ChanTracker.CAPS account-notify,extended-join
-and reload the plugin
-
