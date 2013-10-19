@@ -1817,10 +1817,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				# ['account-notify','extended-join']
 				# targeted caps
 				CAPS = self.registryValue('caps')
-				CAPS = ''.join(CAPS)
-				CAPS = CAPS.split(',')
 				for cap in CAPS:
-					if cap in i.caps['LS'] and not cap in i.caps['LIST']:
+					# len(cap) == 1 prevents weired behaviour with CommaSeparatedListOfStrings
+					if len(cap) != 1 and cap in i.caps['LS'] and not cap in i.caps['LIST']:
 						r.append(cap)
 				if len(r):
 					# apply missed caps
