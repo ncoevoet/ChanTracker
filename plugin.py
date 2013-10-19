@@ -1349,7 +1349,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# restore channel state, loads lists
 			modesToAsk = ''.join(self.registryValue('modesToAsk'))
 			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped'))
-			modesToAsk = modeToAsk.replace(',','')
+			modesToAsk = modesToAsk.replace(',','')
 			modesWhenOpped = modesWhenOpped.replace(',','')
 			if channel in irc.state.channels:
 				if irc.nick in irc.state.channels[channel].ops and len(modesWhenOpped):
