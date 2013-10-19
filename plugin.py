@@ -2119,6 +2119,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							self.deopPending = False
 							ms = ''
 							asked = self.registryValue('modesToAskWhenOpped')
+							asked = ''.join(asked)
 							asked = asked.replace(',','')
 							for k in asked:
 								if not k in chan.dones:
