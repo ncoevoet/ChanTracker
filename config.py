@@ -46,13 +46,13 @@ conf.registerGlobalValue(ChanTracker, 'pool',
     registry.Integer(60, """delay between two check about mode removal, in seconds, note, it's also based on irc activity, so removal may be delayed a bit"""))
 
 conf.registerGlobalValue(ChanTracker, 'modesToAsk',
-    registry.CommaSeparatedListOfStrings("b,q", """sync lists for those modes on join"""))
+    registry.CommaSeparatedListOfStrings(['b','q'], """sync lists for those modes on join"""))
     
 conf.registerGlobalValue(ChanTracker, 'modesToAskWhenOpped',
-    registry.CommaSeparatedListOfStrings("e,I", """sync lists for those modes when opped, only asked one time"""))
+    registry.CommaSeparatedListOfStrings(['e','I'], """sync lists for those modes when opped, only asked one time"""))
 
 conf.registerGlobalValue(ChanTracker, 'CAPS',
-    registry.CommaSeparatedListOfStrings("account-notify,extended-join", """CAP asked to ircd, that permits to track username and account changes"""))
+    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked to ircd, that permits to track username and account changes"""))
 
 conf.registerGlobalValue(ChanTracker, 'logsSize',
     registry.PositiveInteger(60, """number of messages to keep, per nick - not per nick per channel"""))
