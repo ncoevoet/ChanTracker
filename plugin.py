@@ -42,7 +42,6 @@ import supybot.callbacks as callbacks
 import supybot.ircdb as ircdb
 import supybot.log as log
 import supybot.schedule as schedule
-from string import Template
 import socket
 import re
 import sqlite3
@@ -1818,6 +1817,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				# ['account-notify','extended-join']
 				# targeted caps
 				CAPS = self.registryValue('caps')
+				CAPS = ''.join(CAPS)
+				CAPS = CAPS.split(',')
 				for cap in CAPS:
 					if cap in i.caps['LS'] and not cap in i.caps['LIST']:
 						r.append(cap)
