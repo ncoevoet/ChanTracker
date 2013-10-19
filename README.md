@@ -4,3 +4,6 @@ it stores affected users, permits to do deep search on them, review actives mode
 It also has a lot of channel protection features, flood, repeat, uppercase, ctcps, notices, hilight, join/part flood, etc all of those settings configurable per channel
 
 It works with any version of supybot, vannila, limnoria etc
+
+After first load, or until it's done, you must update "config supybot.plugins.ChanTracker.CAPS account-notify,extended-join"
+and reload the plugin
