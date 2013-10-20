@@ -73,7 +73,7 @@ conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
 
 conf.registerChannelValue(ChanTracker, 'kickMode',
-    registry.CommaSeparatedListOfStrings("b", """bot will kick affected users when mode is triggered, use if with caution, if ops do something wrong be prepared, please report any bugs related"""))
+    registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, use if with caution, if ops do something wrong be prepared, please report any bugs related"""))
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))

@@ -366,9 +366,9 @@ class Ircd (object):
 		results.append('[%s][%s], %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
 		if not removed_at:
 			if begin_at == end_at:
-				results.append('setted forever')
+				results.append('set forever')
 			else:
-				results.append('setted for %s' % utils.timeElapsed(end_at-begin_at))
+				results.append('set for %s' % utils.timeElapsed(end_at-begin_at))
 				results.append('with %s more' % utils.timeElapsed(end_at-current))
 				results.append('ends at [%s]' % floatToGMT(end_at))
 		else:
@@ -801,7 +801,10 @@ class Chan (object):
 				# leave channel's users list management to supybot
 				ns = []
 				if self.name in self.ircd.irc.state.channels:
+					L = []
 					for nick in self.ircd.irc.state.channels[self.name].users:
+						L.append(nick)
+					for nick in L:
 						if nick in self.ircd.nicks:
 							n = self.ircd.getNick(self.ircd.irc,nick)
 							m = match(value,n)
@@ -1178,9 +1181,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	e = wrap(e,['op',commalist('something'),any('getTs'),rest('text')])
 	
 	def undo (self, irc, msg, args, channel, mode, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
+		"""[<channel>] <mode> <nick|hostmask|*> [<nick|hostmask|*>]
 
-		sets -q on them, if * found, remove them all"""
+		sets -<mode> on them, if * found, remove them all"""
 		b = self._removes(irc,msg,args,channel,mode,items)
 		if not msg.nick == irc.nick:
 			if b:
@@ -1291,7 +1294,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					targets.append(item)
 				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
-					targets.append(getBestPattern(n)[0])
+					patterns = getBestPattern(n)
+					# when resync patterns may be empty, until the bot computed WHO
+					if len(patterns):
+						targets.append(patterns[0])
 		n = 0
 		for item in targets:
 			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network),self._logChan,False):
@@ -2264,5 +2270,3 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 Class = ChanTracker
 
-
-# vim:set shiftwidth=4 softtabstop=4 expandtab textwidth=79:
