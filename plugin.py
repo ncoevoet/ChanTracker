@@ -45,6 +45,7 @@ import supybot.schedule as schedule
 import socket
 import re
 import sqlite3
+import collections
 
 def isIp(s):
 	# return true if string is a valid ip address
@@ -76,7 +77,7 @@ def is_valid_ipv6_address(address):
 	return True
 
 def matchHostmask (pattern,n):
-	# return the machted pattern for pattern, for Nick
+	# return the machted pattern for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
 		return None
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
@@ -102,7 +103,9 @@ def matchHostmask (pattern,n):
 						# don't use ip, otherwise it could not match
 						n.setIp(L[0])
 			except:
-				n.setIp(None)
+				# don't remove ip, may be usefull
+				# n.setIp(None)
+				log.debug("%s can't be computed as ip" % n.prefix)
 		if isIp(host):
 			n.setIp(host)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
@@ -279,7 +282,7 @@ class SpamQueue(object):
 		return data[0]
 
 	def getTimeout(self):
-		if callable(self.timeout):
+		if isinstance(self.timeout, collections.Callable):
 			return self.timeout()
 		else:
 			return self.timeout
@@ -336,10 +339,10 @@ class Ircd (object):
 		# return active item
 		if not irc or not uid:
 			return None
-		for channel in self.channels.keys():
+		for channel in list(self.channels.keys()):
 			chan = self.getChan(irc,channel)
 			items = chan.getItems()
-			for type in items.keys():
+			for type in list(items.keys()):
 				for value in items[type]:
 					item = items[type][value]
 					if item.uid == uid:
@@ -814,6 +817,7 @@ class Chan (object):
 								index = 0
 								logs = []
 								logs.append('%s matched by %s' % (n,m))
+								logs.append('%s ip:%s $a:%s $r:%s' % (n.prefix,n.ip,n.account,n.realname))
 								for line in n.logs:
 									(ts,target,message) = n.logs[index]
 									index += 1
@@ -858,7 +862,6 @@ class Chan (object):
 		# item can be None, if someone typoed a -eqbI value
 		if i:
 			self._lists[mode].pop(value)
-			
 			i.removed_by = by
 			i.removed_at = removed_at
 		return i
@@ -1328,7 +1331,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							targets.append(pattern)
 				elif item == '*':
 					massremove = True
-					if channel in irc.state.channels.keys():
+					if channel in list(irc.state.channels.keys()):
 						L = chan.getItemsFor(mode)
 						for pattern in L:
 							targets.append(pattern)
@@ -1447,11 +1450,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.sendMsg(i.queue.dequeue())
 		def f(L):
 			return ircmsgs.modes(channel,L)
-		for channel in irc.state.channels.keys():
+		for channel in list(irc.state.channels.keys()):
 			chan = self.getChan(irc,channel)
 			# check expired items
-			for mode in chan.getItems().keys():
-				for value in chan._lists[mode].keys():
+			for mode in list(chan.getItems().keys()):
+				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
 						chan.queue.enqueue(('-'+item.mode,item.value))
@@ -1487,7 +1490,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# sendMsg vs queueMsg 
 			irc.sendMsg(i.queue.dequeue())
 		# updates duration
-		for channel in irc.state.channels.keys():
+		for channel in list(irc.state.channels.keys()):
 			chan = self.getChan(irc,channel)
 			# check items to update - duration
 			# that allows to set mode, and apply duration to Item created after mode changes
@@ -1498,7 +1501,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					# won't override duration pushed by someone else if default is forever
 					# [mode,value,seconds,prefix]
 					L = []
-					for update in chan.update.keys():
+					for update in list(chan.update.keys()):
 						L.append(chan.update[update])
 					o = {}
 					index = 0
@@ -1509,7 +1512,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								chan.update['%s%s' % (m,value)] = [m,value,overexpire,irc.prefix]
 						index = index + 1
 				L = []
-				for update in chan.update.keys():
+				for update in list(chan.update.keys()):
 					L.append(chan.update[update])
 				for update in L:
 					(m,value,expire,prefix) = update
@@ -1523,7 +1526,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# update marks
 			if len(chan.mark):
 				L = []
-				for mark in chan.mark.keys():
+				for mark in list(chan.mark.keys()):
 					L.append(chan.mark[mark])
 				for mark in L:
 					(m,value,reason,prefix) = mark

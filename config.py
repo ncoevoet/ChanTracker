@@ -221,6 +221,18 @@ registry.PositiveInteger(86400,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'badComment',
 registry.String('bad detected',"""comment added on mode changes database, empty for no comment"""))
 
+# if you enable this, each time someone trigger bad in a channel will increase this queue
+conf.registerChannelValue(ChanTracker, 'attackPermit',
+registry.Integer(-1,"""Number of bad action allowed, -1 to disable, advice 2, each time bot flags user as bad, it increase this item"""))
+conf.registerChannelValue(ChanTracker, 'attackLife',
+registry.Integer(600,"""Duration in seconds before item are removed from count, advice 600"""))
+conf.registerChannelValue(ChanTracker, 'attackDuration',
+registry.PositiveInteger(1800,"""punition in seconds"""))
+conf.registerChannelValue(ChanTracker, 'attackMode',
+registry.String('+rq $~a',"""mode used by the bot when attack is triggered"""))
+conf.registerChannelValue(ChanTracker, 'attackUnMode',
+registry.String('-rq $~a',"""mode used by the bot when attackDuration is finished"""))
+
 # TODO : banevade, massjoin, clones
 
 
