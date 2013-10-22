@@ -58,28 +58,32 @@ conf.registerGlobalValue(ChanTracker, 'logsSize',
     registry.PositiveInteger(60, """number of messages to keep, per nick - not per nick per channel"""))
 
 conf.registerGlobalValue(ChanTracker, 'opCommand',
-    registry.String("CS OP $channel $nick", """command used to grant op for the bot"""))
+    registry.String("CS OP $channel $nick", """command used by the op to grant op"""))
 
 # per channel settings
 # related to ban tracking
 
 conf.registerChannelValue(ChanTracker, 'autoExpire',
-    registry.Integer(-1, """-1 means disabled, otherwise it's in seconds"""))
+    registry.Integer(-1, """-1 means disabled, otherwise it's in seconds, only affects new change"""))
     
 conf.registerChannelValue(ChanTracker, 'logChannel',
-    registry.String("", """where bot annonces op's actions"""))
-    
+    registry.String("", """where bot annonces op's actions, various usefull messages are send, you should set one"""))
+
+conf.registerChannelValue(ChanTracker, 'forwardMessage',
+    registry.Boolean(False,"""forward quieted/banned users messages to logChannel, usefull when bot stay opped, with a channel mode +z"""))
+
 conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
 
 conf.registerChannelValue(ChanTracker, 'kickMode',
-    registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, use if with caution, if ops do something wrong be prepared, please report any bugs related"""))
+    registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, 
+    use if with caution, if an op ban *!*@*, bot will kick everyone on the channel"""))
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
     
 conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
-    registry.Boolean(False,"Ask the op who added a mode changes in pm about duration and comment"""))
+    registry.Boolean(False,"""Ask the op who added a mode changes in pm about duration and comment"""))
 
 # related to channle's protection
 
@@ -109,7 +113,8 @@ registry.String('low flood detected',"""comment added on mode changes database, 
 
 # repeat detection
 conf.registerChannelValue(ChanTracker, 'repeatPermit',
-registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, note, first message doesn't count, so if you want to trigger it after 3 repeat, you must set it to 1, advice 4"""))
+registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, note, first message doesn't count, 
+so if you want to trigger it after 3 repeat, you must set it to 1, advice 4"""))
 conf.registerChannelValue(ChanTracker, 'repeatLife',
 registry.PositiveInteger(120,"""Duration of messages's life in lowFlood counter, advice 120, in seconds"""))
 conf.registerChannelValue(ChanTracker, 'repeatPercent',
@@ -125,9 +130,12 @@ registry.String('repeat detected',"""comment added on mode changes database, emp
 conf.registerChannelValue(ChanTracker, 'massRepeatChars',
 registry.PositiveInteger(20,"""number of chars needed to enter massRepeat detection"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPermit',
-registry.Integer(-1,"""a bit different to repeat, because it doesn't track user but channel messages, if repeat comes from differences sources that helps, it also add a pattern that will match future repeat, during massRepeatDuration, Number of repeated text allowed, -1 to disable, note, the first two message doesn't count, so if you want to trigger it after 3 repeat, you must set it to 1"""))
+registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, a bit different to repeat, because it doesn't track user but channel messages, 
+if repeat comes from differences sources that helps, it also add a pattern that will match future repeat, 
+during massRepeatDuration, note, the first two message doesn't count, 
+so if you want to trigger it after 3 repeat, you must set it to 1"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatLife',
-registry.PositiveInteger(60,"""Duration of messages's life in lowFlood counter, advice 120, in seconds"""))
+registry.PositiveInteger(60,"""Duration of messages's life in massRepeat counter, advice 120, in seconds"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPercent',
 registry.Probability(0.95,"""percent of similarity needed between previous and current message to trigger a repeat count"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatMode',
@@ -209,7 +217,7 @@ registry.PositiveInteger(300,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'nickComment',
 registry.String('nick changes flood detected',"""comment added on mode changes database, empty for no comment"""))
 
-# if you enable this, each time someone trigger other protection will increase this queue
+# if you enable this, each time someone trigger other protection that will increase this queue
 conf.registerChannelValue(ChanTracker, 'badPermit',
 registry.Integer(-1,"""Number of bad action allowed, -1 to disable, advice 2, each time bot had to acts on a user, it increase this item"""))
 conf.registerChannelValue(ChanTracker, 'badLife',
@@ -221,7 +229,7 @@ registry.PositiveInteger(86400,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'badComment',
 registry.String('bad detected',"""comment added on mode changes database, empty for no comment"""))
 
-# if you enable this, each time someone trigger bad in a channel will increase this queue
+# if you enable this, each time someone trigger bad in a channel that will increase this queue
 conf.registerChannelValue(ChanTracker, 'attackPermit',
 registry.Integer(-1,"""Number of bad action allowed, -1 to disable, advice 2, each time bot flags user as bad, it increase this item"""))
 conf.registerChannelValue(ChanTracker, 'attackLife',
