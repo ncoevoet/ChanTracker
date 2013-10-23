@@ -1088,8 +1088,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for m in modes:
 				r = i.pending(irc,channel,m,msg.prefix,pattern,self.getDb(irc.network))
 				if len(r):
-				for line in r:
-					results.append(line)
+					for line in r:
+						results.append(line)
 			if len(results):
 				irc.replies(results, joiner=' ')
 			else:

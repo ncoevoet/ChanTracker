@@ -1,39 +1,43 @@
-This supybot plugin keeps records of channel mode changes, in a sqlite database and permits to manage them over time.
-it stores affected users, permits to do deep search on them, review actives ones, edit, log, mark lot of them in row.
+This supybot plugin keeps records of channel mode changes, in a sqlite database and permits to manage them over time. \
+It stores affected users, permits to do deep search on them, review actives ones, edit, log, mark lot of them in row.
 
 By default, bot will not stay opped, but you can configure that globaly or per channel :
 
-!config supybot.plugins.ChanTracker.keepOp False
-!config channel #myChannel supybot.plugins.ChanTracker.keepOp True
+	!config supybot.plugins.ChanTracker.keepOp False
+	!config channel #myChannel supybot.plugins.ChanTracker.keepOp True
 
 Tracked modes are currently defined here ( +qbeI by default ):
 
-!config supybot.plugins.ChanTracker.modesToAsk
-!config supybot.plugins.ChanTracker.modesToAskWhenOpped
+	!config supybot.plugins.ChanTracker.modesToAsk
+	!config supybot.plugins.ChanTracker.modesToAskWhenOpped
 
 The command used by the bot to op itself is editeable here :
 
-!config supybot.plugins.ChanTracker.opCommand by default it's "CS OP $channel $nick" where $channel and $nick will be replaced by targeted channel and bot's nick at runtime
+	!config supybot.plugins.ChanTracker.opCommand by default it's "CS OP $channel $nick" 
+
+Where $channel and $nick will be replaced by targeted channel and bot's nick at runtime
 
 You should set !config supybot.reply.format.time.elapsed.short True, it's a bit more readable.
 
 You may want to change the delay between mode removal checker :
 
-!config supybot.plugins.ChanTracker.pool ( by default 60 seconds ), so that means if you set duration of something to less than that, removal may occurs after 60s + random irc activity
+	!config supybot.plugins.ChanTracker.pool 
+
+( by default 60 seconds ), so that means if you set duration of something to less than that, removal may occurs after 60s + random irc activity
 
 A lot of fancy informations can be send by the bot about your #channel activity to #logChannel, if set up, globaly or per channel, bot must be in both, obloviously:
 
-!config channel #myChannel supybot.plugins.ChanTracker.logChannel #mySecretChannelForOp
+	!config channel #myChannel supybot.plugins.ChanTracker.logChannel #mySecretChannelForOp
 
 Bot can send a private message to an op who sets a tracked mode, if configured for :
 
-!config channel #myChannel supybot.plugins.ChanTracker.askOpAboutMode True
+	!config channel #myChannel supybot.plugins.ChanTracker.askOpAboutMode True
 
 Bot can set a duration for new tracked mode changes, in order to auto remove them :
 
-!config channel #myChannel supybot.plugins.ChanTracker.autoExpire 3600 ( 1h )
+	!config channel #myChannel supybot.plugins.ChanTracker.autoExpire 3600 ( 1h )
 
-If ircd is great, bot can track account changes and get gecos/username informations when someone joins a channel, it supports ircd CAP features
+If ircd is great, bot can track account changes and get gecos/username informations when someone joins a channel, it supports ircd CAP features, details can be found here : http://tools.ietf.org/html/draft-mitchell-irc-capabilities-01
 
 It also has a lot of channel protection features, with per channel settings :
 
@@ -51,20 +55,21 @@ It also has a lot of channel protection features, with per channel settings :
     under attack channel
     etc
 
-Users who matchs patterns presents on supybot.plugins.ChanTracker.modesToAskWhenOpped are exempted from those triggers :
-In that case you should set bot to keep op, in order to tracks exempted users.
+Users who matchs patterns presents on supybot.plugins.ChanTracker.modesToAskWhenOpped are exempted from those triggers : \
+In that case you should set bot to keep op, in order to tracks of exempted users.
 
 An example about flood control :
-You want to ban for 3 minutes anyone that send more than 3 messages in 7 seconds in your #channel :
-!config channel #channel supybot.plugins.ChanTracker.floodPermit 3
-!config channel #channel supybot.plugins.ChanTracker.floodLife 7
-!config channel #channel supybot.plugins.ChanTracker.floodMode b
-!config channel #channel supybot.plugins.ChanTracker.floodDuration 180
+You want to ban for 3 minutes anyone that send more than 4 messages in 7 seconds in your #channel :
 
-Bot will not kick by default, see :
+	!config channel #channel supybot.plugins.ChanTracker.floodPermit 4
+	!config channel #channel supybot.plugins.ChanTracker.floodLife 7
+	!config channel #channel supybot.plugins.ChanTracker.floodMode b
+	!config channel #channel supybot.plugins.ChanTracker.floodDuration 180
 
-!config supybot.plugins.ChanTracker.kickMode
-!config supybot.plugins.ChanTracker.kickMessage
+Bot will kick by users affected by +b see :
+
+	!config supybot.plugins.ChanTracker.kickMode
+	!config supybot.plugins.ChanTracker.kickMessage
 
 Note : if an op sets mode +b *!*@* on #channel by mistake and bot has kickMode enabled in it, it will kick everyone, be warned.
 
