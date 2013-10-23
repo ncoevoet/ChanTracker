@@ -331,8 +331,10 @@ class Ircd (object):
 		self.channels = {}
 		self.nicks = {}
 		self.caps = {}
-		# contains IrcMsg
+		# contains IrcMsg, kicks, modes, etc
 		self.queue = utils.structures.smallqueue()
+		# contains less important IrcMsgs ( sync, logChannel )
+		self.lowQueue = utils.structures.smallqueue()
 		self.logsSize = logsSize
 	
 	def getItem (self,irc,uid):
@@ -401,14 +403,15 @@ class Ircd (object):
 			if prefix != irc.prefix:
 				return []
 		chan = self.getChan(irc,channel)
-		items = chan.getItemsFor(mode)
 		results = []
 		r = []
 		c = db.cursor()
-		if len(items):
-			for item in items:
-				item = items[item]
-				r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+		for m in mode:
+			items = chan.getItemsFor(m)
+			if len(items):
+				for item in items:
+					item = items[item]
+					r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
 		r.sort(reverse=True)
 		if len(r):
 			for item in r:
@@ -1016,7 +1019,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.info(irc,id,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results, joiner=' ')
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1029,7 +1032,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.log (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results, joiner=' ')
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1042,7 +1045,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.affect (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results, joiner=' ')
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1072,32 +1075,26 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.search(irc,text,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results, joiner=' ')
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.error('nothing found')
 	query = wrap(query,['user','text'])
 	
 	def pending (self, irc, msg, args, channel, mode, pattern):
-		"""[<channel>] [<mode>] [<hostmask>]
+		"""[<channel>] [<mode>] [<nick|hostmask>]
 
 		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
 		i = self.getIrc(irc)
+		if pattern in i.nicks:
+			pattern = self.getNick(pattern).prefix
+		results = []
 		if not mode:
-			results = []
 			modes = self.registryValue('modesToAskWhenOpped') + self.registryValue('modesToAsk')
-			for m in modes:
-				r = i.pending(irc,channel,m,msg.prefix,pattern,self.getDb(irc.network))
-				if len(r):
-					for line in r:
-						results.append(line)
-			if len(results):
-				irc.replies(results, joiner=' ')
-			else:
-				irc.error('no results')
+			results = i.pending(irc,channel,modes,msg.prefix,pattern,self.getDb(irc.network))
 		else:
 			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results, joiner=' ')
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.error('no results')
 	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
@@ -1347,11 +1344,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if irc.nick in irc.state.channels[channel].ops and len(modesWhenOpped):
 					i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesWhenOpped)))
 				if len(modesToAsk):
-					i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
+					i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
 				# loads extended who
-				i.queue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42'))
-				# fallback, TODO maybe uneeded as supybot do it by itself, but necessary on plugin reload ...
-				i.queue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
+				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
+				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
 		return i.getChan (irc,channel)
 	
 	def getNick (self,irc,nick):
@@ -1433,8 +1430,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		retickle = False
 		# send waiting msgs, here we mostly got kick messages
 		while len(i.queue):
-			# sendMsg vs queueMsg 
-			irc.sendMsg(i.queue.dequeue())
+			irc.queueMsg(i.queue.dequeue())
 		def f(L):
 			return ircmsgs.modes(channel,L)
 		for channel in list(irc.state.channels.keys()):
@@ -1459,14 +1455,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
 					# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
 					chan.opAsked = True
-					irc.sendMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
+					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
 					retickle = True
 				if len(chan.queue) or len(chan.action):
 					if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked:
 						# pending actions, but not opped
 						if not chan.deopAsked:
 							chan.opAsked = True
-							irc.sendMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
+							irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
 							retickle = True
 					elif irc.nick in irc.state.channels[channel].ops:
 						if not chan.deopAsked:
@@ -1487,8 +1483,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									i.queue.enqueue(chan.action.pop())
 		# send waiting msgs
 		while len(i.queue):
-			# sendMsg vs queueMsg 
-			irc.sendMsg(i.queue.dequeue())
+			irc.queueMsg(i.queue.dequeue())
 		# updates duration
 		for channel in list(irc.state.channels.keys()):
 			chan = self.getChan(irc,channel)
@@ -1537,6 +1532,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending and not chan.deopAsked:
 				# ask for deop, delay it a bit
 				self.unOp(irc,channel)
+			# moslty logChannel, and maybe few sync msgs
+			if len(i.lowQueue):
+				retickle = True
+				while len(i.lowQueue):
+					irc.queueMsg(i.lowQueue.dequeue())
 		if retickle:
 			self.forceTickle = True
 		else:
@@ -1635,7 +1635,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if channel in irc.state.channels:
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
-				irc.queueMsg(ircmsgs.privmsg(logChannel,message))
+				i = self.getIrc(irc)
+				i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
+				self.forceTickle = True
 	
 	def doJoin (self,irc,msg):
 		channels = msg.args[0].split(',')
@@ -2156,7 +2158,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 										acts.append(('-v',nick))
 									if len(acts):
-										irc.sendMsg(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
+										irc.queueMsg(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
 										self.forceTickle = True
 						# bot just got op
 						if m == 'o' and value == irc.nick:
@@ -2170,8 +2172,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if not k in chan.dones:
 									ms = ms + k
 							if len(ms):
-								# update missed list, using sendMsg, as the bot may ask for -o just after
-								irc.sendMsg(ircmsgs.IrcMsg('MODE %s %s' % (channel,ms)))
+								# update missed list, the bot may ask for -o just after
+								irc.queueMsg(ircmsgs.IrcMsg('MODE %s %s' % (channel,ms)))
 							# flush pending queue, if items are waiting
 							self.forceTickle = True
 					else:
