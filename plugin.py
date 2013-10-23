@@ -584,8 +584,8 @@ class Ircd (object):
 				(uid,mask,kind,channel) = results[i]
 				msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,channel))
 				i = i+1
-			return ', '.join(msgs)
-		return 'nothing found'
+			return msgs
+		return []
 	
 	def submark (self,irc,channel,mode,value,message,prefix,db,logFunction):
 		# add mark to an item which is not already in lists
@@ -1016,8 +1016,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.info(irc,id,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			for line in results:
-				irc.queueMsg(ircmsgs.privmsg(msg.nick,line))
+			irc.replies(results, joiner=' ')
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1030,8 +1029,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.log (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			for line in results:
-				irc.queueMsg(ircmsgs.privmsg(msg.nick,line))
+			irc.replies(results, joiner=' ')
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1044,8 +1042,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.affect (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			for line in results:
-				irc.queueMsg(ircmsgs.privmsg(msg.nick,line))
+			irc.replies(results, joiner=' ')
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
@@ -1073,7 +1070,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 		returns known mode changes with deep search, channel's ops can only see items for their channels"""
 		i = self.getIrc(irc)
-		irc.reply(i.search(irc,text,msg.prefix,self.getDb(irc.network)))
+		results = i.search(irc,text,msg.prefix,self.getDb(irc.network))
+		if len(results):
+			irc.replies(results, joiner=' ')
+		else:
+			irc.error('nothing found')
 	query = wrap(query,['user','text'])
 	
 	def pending (self, irc, msg, args, channel, mode, pattern):
@@ -1087,13 +1088,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for m in modes:
 				r = i.pending(irc,channel,m,msg.prefix,pattern,self.getDb(irc.network))
 				if len(r):
-					for line in r:
-						results.append(line)
+				for line in r:
+					results.append(line)
+			if len(results):
+				irc.replies(results, joiner=' ')
+			else:
+				irc.error('no results')
 		else:
 			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network))
 		if len(results):
-			for line in results:
-				irc.queueMsg(ircmsgs.privmsg(msg.nick,line))
+			irc.replies(results, joiner=' ')
 		else:
 			irc.error('no results')
 	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
