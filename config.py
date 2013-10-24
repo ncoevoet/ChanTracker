@@ -65,12 +65,53 @@ conf.registerGlobalValue(ChanTracker, 'opCommand',
 
 conf.registerChannelValue(ChanTracker, 'autoExpire',
     registry.Integer(-1, """-1 means disabled, otherwise it's in seconds, only affects new change"""))
+
+# related to logChannel
     
 conf.registerChannelValue(ChanTracker, 'logChannel',
     registry.String("", """where bot annonces op's actions, various usefull messages are send, you should set one"""))
 
-conf.registerChannelValue(ChanTracker, 'forwardMessage',
-    registry.Boolean(False,"""forward quieted/banned users messages to logChannel, usefull when bot stay opped, with a channel mode +z"""))
+conf.registerChannelValue(ChanTracker, 'announceOthers',
+    registry.Boolean(True,"""forward quieted/banned users messages to logChannel, used when bot stay opped and channel is +z,
+messages from user flagged as bad, or when channel is under attack will not be forwarded"""))
+
+conf.registerChannelValue(ChanTracker, 'announceMode',
+    registry.Boolean(True,"""announce mode changes to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceModeSync',
+    registry.Boolean(False,"""announce mode sync to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceKick',
+    registry.Boolean(True,"""announce kick,remove,kill and kline to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceTopic',
+    registry.Boolean(True,"""announce topic changes to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceEdit',
+    registry.Boolean(True,"""announce item edit to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceMark',
+    registry.Boolean(True,"""announce item mark to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceInTimeEditAndMark',
+    registry.Boolean(False,"""announce just placed edit and mark to logChannel when using do, q, b, e, i commands"""))
+
+conf.registerChannelValue(ChanTracker, 'announceMassRemoval',
+    registry.Boolean(False,"""announce undo * ( edit ) changes to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceBotEdit',
+    registry.Boolean(False,"""announce item autoExpire, bot's triggered protection to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceBotMark',
+    registry.Boolean(False,"""announce item autoExpire, bot's triggered protection to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceNotice',
+    registry.Boolean(True,"""announce channel's notices to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceCtcp',
+    registry.Boolean(True,"""announce channel's ctcps to logChannel"""))
+
+# others settings
 
 conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
@@ -237,9 +278,9 @@ registry.Integer(600,"""Duration in seconds before item are removed from count, 
 conf.registerChannelValue(ChanTracker, 'attackDuration',
 registry.PositiveInteger(1800,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'attackMode',
-registry.String('+rq $~a',"""mode used by the bot when attack is triggered"""))
+registry.String('+rq-z $~a',"""mode used by the bot when attack is triggered"""))
 conf.registerChannelValue(ChanTracker, 'attackUnMode',
-registry.String('-rq $~a',"""mode used by the bot when attackDuration is finished"""))
+registry.String('-rq+z $~a',"""mode used by the bot when attackDuration is finished"""))
 
 # TODO : banevade, massjoin, clones
 
