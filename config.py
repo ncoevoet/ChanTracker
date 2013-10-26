@@ -126,6 +126,9 @@ conf.registerChannelValue(ChanTracker, 'kickMessage',
 conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
     registry.Boolean(False,"""Ask the op who added a mode changes in pm about duration and comment"""))
 
+conf.registerChannelValue(ChanTracker, 'checkEvade',
+    registry.Boolean(True,"""bot will apply same duration and mode than the ban evaded, currently only work when someone identify to an account, and has ip computed"""))
+
 # related to channle's protection
 
 # flood detection settings
@@ -236,7 +239,7 @@ registry.String('ctcp detected',"""comment added on mode changes database, empty
 
 # channel join/part flood
 conf.registerChannelValue(ChanTracker, 'cyclePermit',
-registry.Integer(-1,"""Number of messages allowed, -1 to disable, advice 3"""))
+registry.Integer(-1,"""Number of messages allowed, -1 to disable, count part and quit"""))
 conf.registerChannelValue(ChanTracker, 'cycleLife',
 registry.PositiveInteger(180,"""Duration in seconds before messages are removed from count, advice 180"""))
 conf.registerChannelValue(ChanTracker, 'cycleMode',
@@ -245,6 +248,18 @@ conf.registerChannelValue(ChanTracker, 'cycleDuration',
 registry.PositiveInteger(1800,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'cycleComment',
 registry.String('cycle detected',"""comment added on mode changes database, empty for no comment"""))
+
+# channel massJoin from an host
+conf.registerChannelValue(ChanTracker, 'massJoinPermit',
+registry.Integer(-1,"""Number of messages allowed, -1 to disable, note, it could mixup a bit with cycle detection"""))
+conf.registerChannelValue(ChanTracker, 'massJoinLife',
+registry.PositiveInteger(60,"""Duration in seconds before messages are removed from count"""))
+conf.registerChannelValue(ChanTracker, 'massJoinMode',
+registry.String('b',"""mode used by the bot when ctcp is triggered"""))
+conf.registerChannelValue(ChanTracker, 'massJoinDuration',
+registry.PositiveInteger(900,"""punition in seconds"""))
+conf.registerChannelValue(ChanTracker, 'massJoinComment',
+registry.String('massJoin detected',"""comment added on mode changes database, empty for no comment"""))
 
 # nick changes flood
 conf.registerChannelValue(ChanTracker, 'nickPermit',
@@ -282,7 +297,3 @@ registry.String('+rq-z $~a',"""mode used by the bot when attack is triggered""")
 conf.registerChannelValue(ChanTracker, 'attackUnMode',
 registry.String('-rq+z $~a',"""mode used by the bot when attackDuration is finished"""))
 
-# TODO : banevade, massjoin, clones
-
-
-# vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:

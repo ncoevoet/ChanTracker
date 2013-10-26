@@ -1730,14 +1730,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan = self.getChan(irc,channel)
 				n.addLog(channel,'has joined')
 				if best and not self._isVip(irc,channel,n):
-					isCycle = self._isSomething(irc,channel,best,'cycle')
+					isMassJoin = self._isSomething(irc,channel,best,'massJoin')
 					if isCycle:
 						isBad = self._isSomething(irc,channel,best,'bad')
 						kind = None
 						if isBad:
 							kind = 'bad'
 						else:
-							kind = 'cycle'
+							kind = 'massJoin'
 						mode = self.registryValue('%sMode' % kind,channel=channel)
 						if len(mode) > 1:
 							mode = mode[0]
@@ -1756,7 +1756,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = None
 		if msg.nick in i.nicks:
 			n = self.getNick(irc,msg.nick)
+			n.setPrefix(msg.prefix)
 		reason = ''
+		best = None
+		if n:
+			best = getBestPattern(n)[0]
 		if len(msg.args) == 2:
 			reason = msg.args[1].lstrip().rstrip()
 		canRemove = True
@@ -1774,6 +1778,22 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if not isBot:
 					if msg.nick in irc.state.channels[channel].users:
 						canRemove = False
+			if best and not self._isVip(irc,channel,n):
+				isCycle = self._isSomething(irc,channel,best,'cycle')
+				if isCycle:
+					isBad = self._isSomething(irc,channel,best,'bad')
+					kind = None
+					if isBad:
+						kind = 'bad'
+					else:
+						kind = 'cycle'
+					mode = self.registryValue('%sMode' % kind,channel=channel)
+					if len(mode) > 1:
+						mode = mode[0]
+					duration = self.registryValue('%sDuration' % kind,channel=channel)
+					comment = self.registryValue('%sComment' % kind,channel=channel)
+					self._act(irc,channel,mode,best,duration,comment)
+					self.forceTickle = True
 		if canRemove:
 			self._rmNick(irc,n)
 		self._tickle(irc)
@@ -1842,6 +1862,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if nick == msg.nick:
 									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
 									break
+			best = getBestPattern(n)[0]
+			if best and not self._isVip(irc,channel,n):
+				isCycle = self._isSomething(irc,channel,best,'cycle')
+				if isCycle:
+					isBad = self._isSomething(irc,channel,best,'bad')
+					kind = None
+					if isBad:
+						kind = 'bad'
+					else:
+						kind = 'cycle'
+					mode = self.registryValue('%sMode' % kind,channel=channel)
+					if len(mode) > 1:
+						mode = mode[0]
+					duration = self.registryValue('%sDuration' % kind,channel=channel)
+					comment = self.registryValue('%sComment' % kind,channel=channel)
+					self._act(irc,channel,mode,best,duration,comment)
+					self.forceTickle = True
 			if removeNick:
 				i = self.getIrc(irc)
 				if msg.nick in i.nicks:
@@ -1922,15 +1959,46 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def doAccount (self,irc,msg):
 		# update nick's model
+		n = None
 		if ircutils.isUserHostmask(msg.prefix):
 			nick = ircutils.nickFromHostmask(msg.prefix)
 			n = self.getNick(irc,nick)
-			old = n.account;
 			acc = msg.args[0]
 			if acc == '*':
 				acc = None
 			n.setAccount(acc)
 			n.addLog('ALL','%s is now identified as %s' % (old,acc))
+		else:
+			return
+		if n and n.account and n.ip:
+			i = self.getIrc(irc)
+			for channel in irc.state.channels:
+				if self.registryValue('checkEvade',channel=channel):
+					if nick in irc.state.channels[channel].users:
+						modes = self.registryValue('modesToAsk')
+						found = False
+						chan = self.getChan(irc,channel)
+						for mode in modes:
+							items = chan.getItemsFor(mode)
+							for item in items:
+								f = match(items[item].value,n)
+								if f:
+									found = items[item]
+								if found:
+									break
+							if found:
+								break
+						if found:
+							duration = -1
+							if found.expire and found.expire != found.when:
+								duration = int(found.expire-found.when)
+							self._act (irc,channel,found.mode,getBestPattern(n)[0],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
+							f = None
+							if self.registryValue('announceBotMark',channel=found.channel):
+								f = self._logChan
+							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n)[0]),irc.prefix,self.getDb(irc.network),f)
+							self.forceTickle = True
+						
 		self._tickle(irc)
 	
 	def doNotice (self,irc,msg):
@@ -2082,7 +2150,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							continue
 							
 					isCtcp = False
-					if isCtcpMsg:
+					if isCtcpMsg and not isAction:
 						isCtcp = self._isSomething(irc,channel,best,'ctcp')
 					isFlood = self._isFlood(irc,channel,best)
 					isLowFlood = self._isLowFlood(irc,channel,best)
@@ -2149,7 +2217,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						self._act(irc,channel,mode,best,duration,comment)
 						self.forceTickle = True
 				if not chan.isWrong(best):
-					if self.registryValue('announceCtcp',channel=channel) and isCtcpMsg:
+					if self.registryValue('announceCtcp',channel=channel) and isCtcpMsg and not isAction:
 						self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
 						self.forceTickle = True
 					else:
