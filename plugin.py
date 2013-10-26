@@ -47,35 +47,6 @@ import re
 import sqlite3
 import collections
 
-def isIp(s):
-	# return true if string is a valid ip address
-	if is_valid_ipv4_address(s) or is_valid_ipv6_address(s):
-		return True
-	return False
-
-def is_valid_ipv4_address(address):
-	# return true if string is a valid ipv4 address
-	try:
-		socket.inet_pton(socket.AF_INET, address)
-	except AttributeError:
-		try:
-			socket.inet_aton(address)
-		except socket.error:
-			return False
-		return address.count('.') == 3
-	except socket.error:  
-		return False
-
-	return True
-
-def is_valid_ipv6_address(address):
-	# return true if string is a valid ipv6 address
-	try:
-		socket.inet_pton(socket.AF_INET6, address)
-	except socket.error:  
-		return False
-	return True
-
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
@@ -88,7 +59,7 @@ def matchHostmask (pattern,n):
 			n.setIp(host.split('ip.')[1])
 	else:
 		# trying to get ip
-		if n.ip == None and not isIp(host):
+		if n.ip == None and not utils.net.isIP(host):
 			try:
 				r = socket.getaddrinfo(host,None)
 				if r != None:
@@ -106,7 +77,7 @@ def matchHostmask (pattern,n):
 				# don't remove ip, may be usefull
 				# n.setIp(None)
 				log.debug("%s can't be computed as ip" % n.prefix)
-		if isIp(host):
+		if utils.net.isIP(host):
 			n.setIp(host)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
@@ -784,8 +755,8 @@ class Chan (object):
 		self.massPattern = {}
 	
 	def isWrong (self,pattern):
-		for key in self.spam:
-			if self.spam[key].len(pattern) > 0:
+		if 'bad' in self.spam:
+			if self.spam['bad'].len(pattern) > 0:
 				return True
 		return False
 		
@@ -934,7 +905,7 @@ class Nick (object):
 		return self
 	
 	def setIp (self,ip):
-		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and isIp(ip):
+		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
 			self.ip = ip
 		return self
 	
@@ -1780,7 +1751,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	
 	def doPart (self,irc,msg):
-		isBot = msg.nick == irc.nick
+		isBot = msg.prefix == irc.prefix
 		channels = msg.args[0].split(',')
 		i = self.getIrc(irc)
 		n = None
@@ -1819,6 +1790,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			i = self.getIrc(irc)
 			if ircutils.isChannel(channel) and channel in i.channels:
 				del i.channels[channel]
+				self._tickle(irc)
 				return
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
@@ -2181,27 +2153,31 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if self.registryValue('announceCtcp',channel=channel) and isCtcpMsg:
 						self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
 						self.forceTickle = True
-					elif self.registryValue('announceOthers') and irc.nick in irc.state.channels[channel].ops:
-						if 'z' in irc.state.channels[channel].modes and not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
-							modes = self.registryValue('modesToAsk')
-							found = False
-							for mode in modes:
-								items = chan.getItemsFor(mode)
-								for item in items:
-									f = match(items[item].value,n)
-									if f:
-										found = [items[item],f]
+					else:
+						if self.registryValue('announceOthers',channel=channel) and irc.nick in irc.state.channels[channel].ops and 'z' in irc.state.channels[channel].modes:
+							message = None
+							if 'm' in irc.state.channels[channel].modes:
+								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
+									message = '[%s][+m] <%s> %s' % (channel,msg.prefix,text)
+							if not message:
+								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
+									modes = self.registryValue('modesToAsk')
+									found = False
+									for mode in modes:
+										items = chan.getItemsFor(mode)
+										for item in items:
+											f = match(items[item].value,n)
+											if f:
+												found = [items[item],f]
+											if found:
+												break
+										if found:
+											break
 									if found:
-										break
-								if found:
-									break
-							if found:
-								self._logChan(irc,channel,'[%s][#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text))
-								
-						elif 'm' in irc.state.channels[channel].modes:
-							if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
-								self._logChan(irc,channel,'[%s][+m] <%s> %s' % (channel,msg.prefix,text))
-						
+										message = '[%s][#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
+							if message:
+								self._logChan(irc,channel,message)
+		
 		self._tickle(irc)
 	
 	def doTopic(self, irc, msg):
@@ -2375,6 +2351,20 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if self.registryValue('announceBotMark',channel=channel):
 							f = self._logChan
 					i.submark(irc,channel,mode,mask,reason,irc.prefix,self.getDb(irc.network),f)
+			else:
+				# increase duration, until the wrong action stopped
+				f = None
+				if self.registryValue('announceBotEdit',channel=channel):
+					f = self._logChan
+				chan = self.getChan(irc,channel)
+				item = chan.getItem(mode,mask)
+				oldDuration = int(item.expire-item.when)
+				i.edit(irc,channel,mode,mask,int(oldDuration+duration),irc.prefix,self.getDb(irc.network),self._schedule,f)
+				if reason and len(reason):
+					f = None
+					if self.registryValue('announceBotMark',channel=channel):
+						f = self._logChan
+					i.mark(irc,item.uid,reason,irc.prefix,self.getDb(irc.network),f)
 			self.forceTickle = True
 			self._tickle(irc)
 		else:
@@ -2391,6 +2381,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			chan.spam[prop] = SpamQueue(life)
 		chan.spam[prop].enqueue(key)
 		if chan.spam[prop].len(key) > limit:
+			log.debug('[%s] %s is detected as %s' % (channel,key,prop))
 			chan.spam[prop].reset(key)
 			return True
 		return False
