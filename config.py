@@ -255,11 +255,11 @@ registry.Integer(-1,"""Number of messages allowed, -1 to disable, note, it could
 conf.registerChannelValue(ChanTracker, 'massJoinLife',
 registry.PositiveInteger(60,"""Duration in seconds before messages are removed from count"""))
 conf.registerChannelValue(ChanTracker, 'massJoinMode',
-registry.String('b',"""mode used by the bot when ctcp is triggered"""))
+registry.String('+rq-z $~a',"""mode used by the bot when ctcp is triggered"""))
 conf.registerChannelValue(ChanTracker, 'massJoinDuration',
-registry.PositiveInteger(900,"""punition in seconds"""))
-conf.registerChannelValue(ChanTracker, 'massJoinComment',
-registry.String('massJoin detected',"""comment added on mode changes database, empty for no comment"""))
+registry.PositiveInteger(300,"""punition in seconds"""))
+conf.registerChannelValue(ChanTracker, 'massJoinUnMode',
+registry.String('-rq+z $~a',"""mode used by the bot when attackDuration is finished"""))
 
 # nick changes flood
 conf.registerChannelValue(ChanTracker, 'nickPermit',

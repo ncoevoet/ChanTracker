@@ -371,13 +371,17 @@ class Ircd (object):
 			for com in L:
 				(oper,comment,at) = com
 				results.append('"%s" by %s on %s' % (comment,oper,floatToGMT(at)))
-		c.execute("""SELECT ban_id,full FROM nicks WHERE ban_id=?""",(uid,))
+		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
 		if len(L):
 			results.append('targeted:')
 			for affected in L:
-				(uid,mask) = affected
-				results.append('- %s' % mask)
+				(full,log) = item
+				message = full
+				for line in log.split('\n'):
+					message = '%s -> %s' % (message,line)
+					break
+				results.append(message)
 		c.close()
 		return results
 	
@@ -1730,20 +1734,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan = self.getChan(irc,channel)
 				n.addLog(channel,'has joined')
 				if best and not self._isVip(irc,channel,n):
-					isMassJoin = self._isSomething(irc,channel,best,'massJoin')
-					if isCycle:
-						isBad = self._isSomething(irc,channel,best,'bad')
-						kind = None
-						if isBad:
-							kind = 'bad'
-						else:
-							kind = 'massJoin'
-						mode = self.registryValue('%sMode' % kind,channel=channel)
-						if len(mode) > 1:
-							mode = mode[0]
-						duration = self.registryValue('%sDuration' % kind,channel=channel)
-						comment = self.registryValue('%sComment' % kind,channel=channel)
-						self._act(irc,channel,mode,best,duration,comment)
+					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
+					if isMassJoin:
+						chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
+						def unAttack():
+							if channel in list(irc.state.channels.keys()):
+								chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
+						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 						self.forceTickle = True
 		if msg.nick == irc.nick:
 			self.forceTickle = True
