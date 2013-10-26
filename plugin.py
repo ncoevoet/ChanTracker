@@ -343,16 +343,15 @@ class Ircd (object):
 		if not uid or not prefix:
 			return []
 		c = db.cursor()
-		c.execute("""SELECT channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(uid,))
+		c.execute("""SELECT channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? LIMIT 1""",(uid,))
 		L = c.fetchall()
 		if not len(L):
 			c.close()
 			return []
 		(channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = L[0]
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
-			if prefix != irc.prefix:
-				c.close()
-				return []
+			c.close()
+			return []
 		results = []
 		current = time.time()
 		results.append('[%s][%s], %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
@@ -387,8 +386,7 @@ class Ircd (object):
 		if not channel or not mode or not prefix:
 			return []
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
-			if prefix != irc.prefix:
-				return []
+			return []
 		chan = self.getChan(irc,channel)
 		results = []
 		r = []
@@ -431,9 +429,8 @@ class Ircd (object):
 			return []
 		(channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = L[0]
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
-			if prefix != irc.prefix:
-				c.close()
-				return []
+			c.close()
+			return []
 		results = []
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
@@ -514,7 +511,7 @@ class Ircd (object):
 				items = c.fetchall()
 				for item in items:
 					(uid,mask,kind,channel) = item
-					if isOwner or ircdb.checkCapability(prefix, '%s,op' % channel) or prefix != irc.prefix:
+					if isOwner or ircdb.checkCapability(prefix, '%s,op' % channel):
 						results.append([uid,mask,kind,channel])
 		if len(results):
 			results.sort(reverse=True)
@@ -539,16 +536,19 @@ class Ircd (object):
 			return []
 		(channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = L[0]
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
-			if prefix != irc.prefix:
-				c.close()
-				return []
+			c.close()
+			return []
 		results = []
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
 		if len(L):
 			for item in L:
 				(full,log) = item
-				results.append(full)
+				message = full
+				for line in log.split('\n'):
+					message = '%s -> %s' % (message,line)
+					break
+				results.append(message)
 		else:
 			results.append('nobody affected')
 		c.close()
@@ -813,7 +813,6 @@ class Chan (object):
 								index = 0
 								logs = []
 								logs.append('%s matched by %s' % (n,m))
-								logs.append('%s ip:%s $a:%s $r:%s' % (n.prefix,n.ip,n.account,n.realname))
 								for line in n.logs:
 									(ts,target,message) = n.logs[index]
 									index += 1
