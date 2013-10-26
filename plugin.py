@@ -1030,11 +1030,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.info(irc,id,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.reply(', '.join(results), private=True)
+			irc.replies(results,None,None,False,None,True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
-	info = wrap(info,['user','int'])
+	info = wrap(info,['private','user','int'])
 	
 	def detail (self,irc,msg,args,user,uid):
 		"""<id>
@@ -1043,11 +1043,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.log (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.reply(', '.join(results), private=True)
+			irc.replies(results,None,None,False,None,True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
-	detail = wrap(detail,['user','int'])
+	detail = wrap(detail,['private','user','int'])
 	
 	def affect (self,irc,msg,args,user,uid):
 		"""<id>
@@ -1056,11 +1056,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.affect (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.reply(', '.join(results), private=True)
+			irc.replies(results,None,None,False,None,True)
 		else:
 			irc.error('item not found or not enough rights')
 		self._tickle(irc)
-	affect = wrap(affect, ['user','int'])
+	affect = wrap(affect, ['private','user','int'])
 	
 	def mark(self,irc,msg,args,user,ids,message):
 		"""<id> [,<id>]
@@ -1095,10 +1095,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.search(irc,text,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.reply(', '.join(results), private=True)
+			irc.replies(results,None,None,False,None,True)
 		else:
 			irc.error('nothing found')
-	query = wrap(query,['user','text'])
+	query = wrap(query,['private','user','text'])
 	
 	def pending (self, irc, msg, args, channel, mode, pattern):
 		"""[<channel>] [<mode>] [<nick|hostmask>]
