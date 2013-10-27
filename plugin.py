@@ -2007,16 +2007,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not ircutils.isUserHostmask(irc.prefix):
 			return
 		if targets == irc.nick:
-			b = False
-			if text == 'You are not authorized to perform this operation.':
-				b = True
-			if b:
-				i = self.getIrc(irc)
-				for nick in i.nicks:
-					n = i.getNick(irc,nick)
-					if n.prefix and ircdb.checkCapability(n.prefix, 'owner') and n.prefix != irc.prefix:
-						irc.queueMsg(ircmsgs.privmsg(n.prefix.split('!')[0],'Warning got %s notice: %s' % (msg.prefix,text)))
-						break
+			#b = False
+			#if text == 'You are not authorized to perform this operation.':
+				#b = True
+			#if b:
+				#i = self.getIrc(irc)
+				#for nick in i.nicks:
+					#n = i.getNick(irc,nick)
+					#if n.prefix and ircdb.checkCapability(n.prefix, 'owner') and n.prefix != irc.prefix:
+						#irc.queueMsg(ircmsgs.privmsg(n.prefix.split('!')[0],'Warning got %s notice: %s' % (msg.prefix,text)))
+						#break
 			#if text.startswith('*** Message to ') and text.endswith(' throttled due to flooding'):
 				# as bot floods, todo schedule info to owner
 		else:
@@ -2403,8 +2403,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		# message when ban list is full after adding something to eqIb list
 		(nick,channel,ban,info) = msg.args
 		if info == 'Channel ban list is full':
-			self._logChan(irc,channel,'[%s] %s' % (channel,info.upper()))
-			# TODO maybe hilight all people in logChannel ?
+			if self.registryValue('logChannel',channel=channel) in irc.state.channels:
+				L = []
+				for user in irc.state.channels[self.registryValue('logChannel',channel=channel)].users:
+					L.append(user)
+				self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,', '.join(L)))
 		self._tickle(irc)
 	
 	 # protection features
