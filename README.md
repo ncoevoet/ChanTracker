@@ -17,13 +17,9 @@ The command used by the bot to op itself is editeable here :
 
 Where $channel and $nick will be replaced by targeted channel and bot's nick at runtime
 
-You should set !config supybot.reply.format.time.elapsed.short True, it's a bit more readable.
+For more fancy date, you should change this :
 
-You may want to change the delay between mode removal checker :
-
-	!config supybot.plugins.ChanTracker.pool 
-
-( by default 60 seconds ), so that means if you set duration of something to less than that, removal may occurs after 60s + random irc activity
+	!config supybot.reply.format.time.elapsed.short True, 
 
 A lot of fancy informations can be send by the bot about your #channel activity to #logChannel, if set up, globaly or per channel, bot must be in both, obloviously:
 
@@ -37,34 +33,39 @@ Bot can set a duration for new tracked mode changes, in order to auto remove the
 
 	!config channel #myChannel supybot.plugins.ChanTracker.autoExpire 3600 ( 1h )
 
-If ircd is great, bot can track account changes and get gecos/username informations when someone joins a channel, it supports ircd CAP features, details can be found here : http://tools.ietf.org/html/draft-mitchell-irc-capabilities-01
+If ircd is great, bot can track account changes and get gecos/username informations when someone joins a channel, \
+it supports ircd CAP features, details can be found here : http://tools.ietf.org/html/draft-mitchell-irc-capabilities-01
 
-It also has a lot of channel protection features, with per channel settings :
+It also has a lot of channel protection features, with per channel settings, take a look at config.py for details :
 
-    flood
-    low flood ( mostly irc's client with trottle features )
-    repeat spam
-    repeat spam from multi source
-    uppercase spam
-    ctcps spam
-    notices spam
-    hilight spam
-    nick changes flood
-    join/part
-    bad user flag
-    under attack channel
-    etc
+	flood
+	low flood ( mostly irc's client with trottle features )
+	repeat spam
+	repeat spam from multi source
+	uppercase spam
+	ctcps spam
+	notices spam
+	hilight spam
+	nick changes flood
+	join/part flood
+	mass join
+	bad user flag
+	under attack channel
 
 Users who matchs patterns presents on supybot.plugins.ChanTracker.modesToAskWhenOpped are exempted from those triggers : \
 In that case you should set bot to keep op, in order to tracks of exempted users.
 
-An example about flood control :
-You want to ban for 3 minutes anyone that send more than 4 messages in 7 seconds in your #channel :
+An example about flood control : \
+You want to quiet for 1 minute anyone that send more than 4 messages in 7 seconds in your #channel, and if the user continue to flood, ban him
 
 	!config channel #channel supybot.plugins.ChanTracker.floodPermit 4
 	!config channel #channel supybot.plugins.ChanTracker.floodLife 7
-	!config channel #channel supybot.plugins.ChanTracker.floodMode b
-	!config channel #channel supybot.plugins.ChanTracker.floodDuration 180
+	!config channel #channel supybot.plugins.ChanTracker.floodMode q
+	!config channel #channel supybot.plugins.ChanTracker.floodDuration 60
+	
+	!config channel #channel supybot.plugins.ChanTracker.badPermit 2
+	
+That means if the bot will quiet anyone who flood, and if the user flood more than 2 times during badLife, bot will use badMode on him
 
 Bot will kick by users affected by +b see :
 
@@ -76,9 +77,4 @@ Note : if an op sets mode +b *!*@* on #channel by mistake and bot has kickMode e
 It works with any version of supybot, vannila, limnoria etc
 
 BUGS & FEATURES requests can be reported on https://github.com/ncoevoet/ChanTracker or in private message to niko, on chat.freenode.net
-
-TODO :
-
-    CIDR masks support
-    handling of quieted/banned/unvoiced(when channel is +m) users messages to logChannel when channel has mode +z, without flooding with flooder's messages
     

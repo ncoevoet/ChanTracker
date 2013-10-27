@@ -913,6 +913,8 @@ class Nick (object):
 		return self
 	
 	def setAccount (self,account):
+		if account == '*':
+			account = None
 		self.account = account
 		return self
 		
@@ -1015,6 +1017,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotEdit',channel=item.channel):
 					f = self._logChan
+				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=channel):
+					f = None
 				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
 			else:
 				b = False
@@ -1736,10 +1740,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if best and not self._isVip(irc,channel,n):
 					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
 					if isMassJoin:
-						chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
+						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
 						def unAttack():
 							if channel in list(irc.state.channels.keys()):
-								chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
+								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 						self.forceTickle = True
 		if msg.nick == irc.nick:
@@ -2456,10 +2460,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self._isSomething(irc,channel,channel,'attack'):
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
 				chan = self.getChan(irc,channel)
-				chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
+				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():
 					if channel in list(irc.state.channels.keys()):
-						chan.action.enqueue(ircmsgs.ircmsgs('MODE %s %s' % (channel,self.registryValue('attackUnMode',channel=channel))))
+						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackUnMode',channel=channel))))
 				schedule.addEvent(unAttack,float(time.time()+self.registryValue('attackDuration',channel=channel)))
 		return b
 	
