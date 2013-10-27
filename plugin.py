@@ -1128,7 +1128,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
 	
 	def do (self,irc,msg,args,channel,mode,items,seconds,reason):
-		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+<mode> targets for duration <reason> is mandatory"""
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
@@ -1144,7 +1144,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	do = wrap(do,['op','letter',commalist('something'),any('getTs',True),rest('text')])
 	
 	def q (self,irc,msg,args,channel,items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+q targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
@@ -1156,7 +1156,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def b (self, irc, msg, args, channel, items, seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+b targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
@@ -1168,7 +1168,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	b = wrap(b,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def i (self, irc, msg, args, channel, items, seconds):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+I targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
@@ -1180,7 +1180,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def e (self, irc, msg, args, channel, items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+e targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
@@ -1848,6 +1848,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		removeNick = True
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
+			best = getBestPattern(n)[0]
 			if reason:
 				n.addLog('ALL','has quit [%s]' % reason)
 			else:
@@ -1863,23 +1864,22 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if nick == msg.nick:
 									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
 									break
-			best = getBestPattern(n)[0]
-			if best and not self._isVip(irc,channel,n):
-				isCycle = self._isSomething(irc,channel,best,'cycle')
-				if isCycle:
-					isBad = self._isSomething(irc,channel,best,'bad')
-					kind = None
-					if isBad:
-						kind = 'bad'
-					else:
-						kind = 'cycle'
-					mode = self.registryValue('%sMode' % kind,channel=channel)
-					if len(mode) > 1:
-						mode = mode[0]
-					duration = self.registryValue('%sDuration' % kind,channel=channel)
-					comment = self.registryValue('%sComment' % kind,channel=channel)
-					self._act(irc,channel,mode,best,duration,comment)
-					self.forceTickle = True
+						if best and not self._isVip(irc,channel,n):
+							isCycle = self._isSomething(irc,channel,best,'cycle')
+							if isCycle:
+								isBad = self._isSomething(irc,channel,best,'bad')
+								kind = None
+								if isBad:
+									kind = 'bad'
+								else:
+									kind = 'cycle'
+								mode = self.registryValue('%sMode' % kind,channel=channel)
+								if len(mode) > 1:
+									mode = mode[0]
+								duration = self.registryValue('%sDuration' % kind,channel=channel)
+								comment = self.registryValue('%sComment' % kind,channel=channel)
+								self._act(irc,channel,mode,best,duration,comment)
+								self.forceTickle = True
 			if removeNick:
 				i = self.getIrc(irc)
 				if msg.nick in i.nicks:
