@@ -1965,6 +1965,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			nick = ircutils.nickFromHostmask(msg.prefix)
 			n = self.getNick(irc,nick)
 			acc = msg.args[0]
+			old = n.account
 			if acc == '*':
 				acc = None
 			n.setAccount(acc)
@@ -2007,6 +2008,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not ircutils.isUserHostmask(irc.prefix):
 			return
 		if targets == irc.nick:
+			b = False
 			#b = False
 			#if text == 'You are not authorized to perform this operation.':
 				#b = True
