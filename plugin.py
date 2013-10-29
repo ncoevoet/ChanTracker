@@ -783,7 +783,7 @@ class Chan (object):
 			i.mode = mode
 			i.value = value
 			uid = None
-			expire = None
+			expire = when
 			c = db.cursor()
 			c.execute("""SELECT id,oper,begin_at,end_at FROM bans WHERE channel=? AND kind=? AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""",(self.name,mode,value))
 			L = c.fetchall()
@@ -829,8 +829,8 @@ class Chan (object):
 			c.close()
 			i.uid = uid
 			i.by = by
-			i.when = when
-			i.expire = expire
+			i.when = float(when)
+			i.expire = float(expire)
 			l[value] = i
 		return l[value]
 		
@@ -840,29 +840,29 @@ class Chan (object):
 				return self._lists[mode][value]
 		return None
 		
-	def removeItem (self,mode,value,by,db):
-		# flag item as removed in database
-		c = db.cursor()
-		c.execute("""SELECT id,oper,begin_at,end_at FROM bans WHERE channel=? AND kind=? AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""",(self.name,mode,value))
-		L = c.fetchall()
-		removed_at = time.time()
+	def removeItem (self,mode,value,by,c):
+		# flag item as removed in database, we use a cursor as argument because otherwise database tends to be locked
+		removed_at = float(time.time())
 		i = self.getItem(mode,value)
-		if len(L):
-			(uid,by,when,expire) = L[0]
-			c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (removed_at,by,int(uid)))
-			db.commit()
-			c.close()
-			if i:
+		created = False
+		if not i:
+			c.execute("""SELECT id,oper,begin_at,end_at FROM bans WHERE channel=? AND kind=? AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""",(self.name,mode,value))
+			L = c.fetchall()
+			if len(L):
+				(uid,by,when,expire) = L[0]
+				i = Item()
 				i.uid = uid
 				i.mode = mode
+				i.value = value
+				i.channel = self.named
 				i.by = by
-				i.when = when
-				i.expire = expire
-		# item can be None, if someone typoed a -eqbI value
+				i.when = float(when)
+				i.expire = float(expire)
 		if i:
-			self._lists[mode].pop(value)
+			c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (removed_at,by,int(i.uid)))
 			i.removed_by = by
 			i.removed_at = removed_at
+			self._lists[mode].pop(value)
 		return i
 	
 class Item (object):
@@ -1424,7 +1424,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def makeDb(self, filename):
 		"""Create a database and connect to it."""
 		if os.path.exists(filename):
-			db = sqlite3.connect(filename)
+			db = sqlite3.connect(filename,timeout=10)
 			db.text_factory = str
 			return db
 		db = sqlite3.connect(filename)
@@ -1432,7 +1432,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		c = db.cursor()
 		c.execute("""CREATE TABLE bans (
 				id INTEGER PRIMARY KEY,
-				channel VARCHAR(100) NOT NULL,
+				channel VARCHAR(1000) NOT NULL,
 				oper VARCHAR(1000) NOT NULL,
 				kind VARCHAR(1) NOT NULL,
 				mask VARCHAR(1000) NOT NULL,
@@ -1512,13 +1512,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						item.asked = True
 						retickle = True
 			# dequeue pending actions
-			#log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.nick in irc.state.channels[channel].ops,chan.opAsked,chan.deopAsked,chan.deopPending))
+			# log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.nick in irc.state.channels[channel].ops,chan.opAsked,chan.deopAsked,chan.deopPending))
 			if chan.syn:
 				if not irc.nick in irc.state.channels[channel].ops:
 					chan.deopAsked = False
 					chan.deopPending = False
-				else:
-					chan.deopAsked = False
 				if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
 					# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
 					chan.opAsked = True
@@ -1548,6 +1546,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if len(chan.action):
 								while len(chan.action):
 									i.queue.enqueue(chan.action.pop())
+						else:
+							retickle = True
 		# send waiting msgs
 		while len(i.queue):
 			irc.queueMsg(i.queue.dequeue())
@@ -1625,7 +1625,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		# bqeI* -ov
 		if irc.isChannel(channel) and channel in irc.state.channels:
 			chan = self.getChan(irc,channel)
-			chan.addItem(mode,value,prefix,date,self.getDb(irc.network))
+			chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network))
 	
 	def _endList (self,irc,msg,channel,mode):
 		if irc.isChannel(channel) and channel in irc.state.channels:
@@ -1727,8 +1727,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def doJoin (self,irc,msg):
 		channels = msg.args[0].split(',')
 		n = self.getNick(irc,msg.nick)
-		i = self.getIrc(irc)
 		n.setPrefix(msg.prefix)
+		i = self.getIrc(irc)
 		if 'LIST' in i.caps and 'extended-join' in i.caps['LIST'] and len(msg.args) == 3:
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
@@ -1848,7 +1848,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		removeNick = True
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
-			best = getBestPattern(n)[0]
+			patterns = getBestPattern(n)
+			if len(patterns):
+				best = patterns[0]
 			if reason:
 				n.addLog('ALL','has quit [%s]' % reason)
 			else:
@@ -2277,11 +2279,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 							if not chan.deopAsked:
 								chan.deopPending = False
-								chan.queue.enqueue(('-o',irc.nick))
+								chan.deopAsked = True
+								irc.queueMsg(ircmsgs.IrcMsg('MODE %s -o %s' % (channel,irc.nick)))
 								# little trick here, tickle before setting deopFlag
 								self.forceTickle = True
 								self._tickle(irc)
-								chan.deopAsked = True
 					else:
 						# reask for deop
 						if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
@@ -2300,6 +2302,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n = self.getNick(irc,msg.nick)
 			n.setPrefix(msg.prefix)
 		# umode otherwise
+		db = self.getDb(irc.network)
+		c = db.cursor()
+		toCommit = False
 		if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels:
 			modes = ircutils.separateModes(msg.args[1:])
 			chan = self.getChan(irc,channel)
@@ -2366,29 +2371,34 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							# prevent bot to sent many -o modes when server takes time to reply
 							chan.deopAsked = False
 						if m in self.registryValue('modesToAskWhenOpped') or m in self.registryValue('modesToAsk'):
-							item = chan.removeItem(m,value,msg.prefix,self.getDb(irc.network))
+							toCommit = True
+							item = chan.removeItem(m,value,msg.prefix,c)
 					if n:
 						n.addLog(channel,'sets %s %s' % (mode,value))
 					if item:
 						if '+' in mode:
 							if len(item.affects) != 1:
-								msgs.append('[#%s %s %s - %s users]' % (item.uid,mode,value,len(item.affects)))
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
 							else:
-								msgs.append('[#%s %s %s - %s]' % (item.uid,mode,value,item.affects[0]))
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
 						else:
 							if len(item.affects) != 1:
-								# something odds appears during tests, when channel is not sync, and there is some removal, item.remove_at or item.when aren't Float
-								# TODO check before string format maybe
-								# left as it is, trying to reproduce
-								msgs.append('[#%s %s %s - %s users, %s]' % (item.uid,mode,value,len(item.affects),utils.timeElapsed(item.removed_at-item.when)))
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 							else:
-								msgs.append('[#%s %s %s - %s, %s]' % (item.uid,mode,value,item.affects[0],utils.timeElapsed(item.removed_at-item.when)))
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 					else:
 						msgs.append('[%s %s]' % (mode,value))
 				else:
 					if n:
 						n.addLog(channel,'sets %s' % mode)
 					msgs.append(mode)
+			if toCommit:
+				db.commit()
+			c.close()
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
 			if self.registryValue('announceMode',channel=channel):
