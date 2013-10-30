@@ -1017,7 +1017,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotEdit',channel=item.channel):
 					f = self._logChan
-				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=channel):
+				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=item.channel):
 					f = None
 				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
 			else:
