@@ -335,9 +335,11 @@ class Ircd (object):
 				for value in items[type]:
 					item = items[type][value]
 					if item.uid == uid:
-						return item	
+						return item
+		# TODO maybe uid under modes that needs op to be shown ?
+		
 		return None
-	
+
 	def info (self,irc,uid,prefix,db):
 		# return mode changes summary
 		if not uid or not prefix:
@@ -677,7 +679,7 @@ class Ircd (object):
 		if len(L):
 			(uid,channel,kind,mask,begin_at,end_at) = L[0]
 			chan = self.getChan(irc,channel)
-			current = time.time()
+			current = float(time.time())
 			if begin_at == end_at:
 				text = 'was forever'
 			else:
@@ -685,6 +687,9 @@ class Ircd (object):
 			if seconds < 0:
 				newEnd = begin_at
 				reason = 'never expires'
+			elif seconds == 0:
+				newEnd = current-1 # force expires for next tickle
+				reason = 'expires at [%s], for %s in total' % (floatToGMT(newEnd),utils.timeElapsed(newEnd-begin_at))
 			else:
 				newEnd = current+seconds
 				reason = 'expires at [%s], for %s in total' % (floatToGMT(newEnd),utils.timeElapsed(newEnd-begin_at))
@@ -698,7 +703,8 @@ class Ircd (object):
 					i.expire = None
 				else:
 					i.expire = newEnd
-					scheduleFunction(irc,newEnd)
+					if scheduleFunction:
+						scheduleFunction(irc,newEnd)
 			if logFunction:
 				logFunction(irc,channel,'[%s][#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
@@ -855,7 +861,7 @@ class Chan (object):
 				i.mode = mode
 				i.value = value
 				i.channel = self.named
-				i.by = by
+				i.by = oper
 				i.when = float(when)
 				i.expire = float(expire)
 		if i:
@@ -900,6 +906,7 @@ class Nick (object):
 	
 	def setPrefix (self,prefix):
 		if not prefix == self.prefix:
+			log.debug('setPrefix %s -> %s' % (self.prefix,prefix))
 			self.prefix = prefix
 			# recompute ip
 			if self.prefix:
@@ -909,6 +916,7 @@ class Nick (object):
 	
 	def setIp (self,ip):
 		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
+			log.debug('%s setIp %s' % (self.prefix,ip))
 			self.ip = ip
 		return self
 	
@@ -1021,7 +1029,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = None
 				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
 			else:
-				b = False
+				b = False;
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
@@ -1384,7 +1392,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotEdit',channel=channel):
 					f = self._logChan
 			for item in targets:
-				if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),self._schedule,f):
+				if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),None,f):
 					count = count + 1
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1405,13 +1413,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# restore channel state, loads lists
 			modesToAsk = ''.join(self.registryValue('modesToAsk'))
 			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped'))
-			modesToAsk = modesToAsk.replace(',','')
-			modesWhenOpped = modesWhenOpped.replace(',','')
 			if channel in irc.state.channels:
-				if irc.nick in irc.state.channels[channel].ops and len(modesWhenOpped):
-					i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesWhenOpped)))
-				if len(modesToAsk):
+				if irc.nick in irc.state.channels[channel].ops:
+					if len(modesToAsk) or len(modesWhenOpped):
+						modes = modesToAsk+modesWhenOpped
+						i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
+				elif len(modesToAsk):
 					i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
+					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
 				# loads extended who
 				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
 				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
@@ -1746,6 +1755,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 						self.forceTickle = True
+					if not isMassJoin and self.registryValue('checkEvade',channel=channel):
+						modes = self.registryValue('modesToAsk')
+						found = False
+						for mode in modes:
+							items = chan.getItemsFor(mode)
+							for item in items:
+								f = match(items[item].value,n)
+								if f:
+									found = items[item]
+								if found:
+									break
+							if found:
+								break
+						if found:
+							duration = -1
+							if found.expire and found.expire != found.when:
+								duration = int(found.expire-time.time())
+							self._act (irc,channel,found.mode,best,duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
+							f = None
+							if self.registryValue('announceBotMark',channel=found.channel):
+								f = self._logChan
+							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f)
+							self.forceTickle = True
 		if msg.nick == irc.nick:
 			self.forceTickle = True
 		self._tickle(irc)
@@ -1831,6 +1863,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					 found = True
 			if not found:
 				if nick in i.nicks:
+					log.debug('removing nick %s' % nick)
 					del i.nicks[nick]
 				best = patterns[0]
 				for channel in irc.state.channels:
@@ -1995,7 +2028,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if found:
 							duration = -1
 							if found.expire and found.expire != found.when:
-								duration = int(found.expire-found.when)
+								duration = int(found.expire-time.time())
 							self._act (irc,channel,found.mode,getBestPattern(n)[0],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
 							f = None
 							if self.registryValue('announceBotMark',channel=found.channel):
@@ -2087,10 +2120,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	
 	def _schedule(self,irc,end):
-		def do():
+		if end > time.time():
+			def do():
+				self.forceTickle = True
+				self._tickle(irc)
+			schedule.addEvent(do,end)
+		else:
 			self.forceTickle = True
 			self._tickle(irc)
-		schedule.addEvent(do,end)
 		
 	def _isVip (self,irc,channel,n):
 		chan = self.getChan(irc,channel)
