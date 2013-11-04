@@ -1420,7 +1420,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
 				elif len(modesToAsk):
 					i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
-					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
 				# loads extended who
 				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
 				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
@@ -1742,6 +1741,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
 		best = getBestPattern(n)[0]
+		if msg.nick == irc.nick:
+			return
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
