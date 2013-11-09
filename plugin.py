@@ -1932,7 +1932,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n = self.getNick(irc,oldNick)
 			i.nicks.pop(oldNick)
 			if n.prefix:
-				prefixNew = '%s!%s' % (newNick,n.prefix.split('!')[1:])
+				prefixNew = '%s!%s' % (newNick,n.prefix.split('!')[1])
 				n.setPrefix(prefixNew)
 			i.nicks[newNick] = n
 			n = self.getNick(irc,newNick)
