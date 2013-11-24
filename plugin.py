@@ -378,7 +378,7 @@ class Ircd (object):
 		if len(L):
 			results.append('targeted:')
 			for affected in L:
-				(full,log) = item
+				(full,log) = affected
 				message = full
 				for line in log.split('\n'):
 					message = '%s -> %s' % (message,line)
@@ -1787,14 +1787,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		isBot = msg.prefix == irc.prefix
 		channels = msg.args[0].split(',')
 		i = self.getIrc(irc)
-		n = None
-		if msg.nick in i.nicks:
-			n = self.getNick(irc,msg.nick)
-			n.setPrefix(msg.prefix)
+		n = self.getNick(irc,msg.nick)
+		n.setPrefix(msg.prefix)
 		reason = ''
-		best = None
-		if n:
-			best = getBestPattern(n)[0]
+		best = getBestPattern(n)[0]
 		if len(msg.args) == 2:
 			reason = msg.args[1].lstrip().rstrip()
 		canRemove = True
@@ -1804,30 +1800,30 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				continue
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				if len(reason):
-					n.addLog(channel,'has left [%s]' % (reason))
 					if reason.startswith('requested by') and self.registryValue('announceKick',channel=channel):
 						self._logChan(irc,channel,'[%s] %s has left (%s)' % (channel,msg.prefix,reason))
+					n.addLog(channel,'has left [%s]' % (reason))
 				else:
 					n.addLog(channel,'has left')
 				if not isBot:
 					if msg.nick in irc.state.channels[channel].users:
 						canRemove = False
-			if best and not self._isVip(irc,channel,n):
-				isCycle = self._isSomething(irc,channel,best,'cycle')
-				if isCycle:
-					isBad = self._isSomething(irc,channel,best,'bad')
-					kind = None
-					if isBad:
-						kind = 'bad'
-					else:
-						kind = 'cycle'
-					mode = self.registryValue('%sMode' % kind,channel=channel)
-					if len(mode) > 1:
-						mode = mode[0]
-					duration = self.registryValue('%sDuration' % kind,channel=channel)
-					comment = self.registryValue('%sComment' % kind,channel=channel)
-					self._act(irc,channel,mode,best,duration,comment)
-					self.forceTickle = True
+					if not self._isVip(irc,channel,n):
+						isCycle = self._isSomething(irc,channel,best,'cycle')
+						if isCycle:
+							isBad = self._isSomething(irc,channel,best,'bad')
+							kind = None
+							if isBad:
+								kind = 'bad'
+							else:
+								kind = 'cycle'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							if len(mode) > 1:
+								mode = mode[0]
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							self._act(irc,channel,mode,best,duration,comment)
+							self.forceTickle = True
 		if canRemove:
 			self._rmNick(irc,n)
 		self._tickle(irc)
@@ -1898,6 +1894,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if self.registryValue('announceKick',channel=channel):
 							for nick in irc.state.channels[channel].users:
 								if nick == msg.nick:
+									#ch = ircutils.mircColor("[%s]" % channel, fg="dark-gray")
+									#rea = ircutils.mircColor("%s has quit (%s)" % (msg.prefix,reason), fg="purple")
 									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
 									break
 						if best and not self._isVip(irc,channel,n):
@@ -1930,7 +1928,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = None
 		if oldNick in i.nicks:
 			n = self.getNick(irc,oldNick)
-			i.nicks.pop(oldNick)
+			del i.nicks[oldNick]
 			if n.prefix:
 				prefixNew = '%s!%s' % (newNick,n.prefix.split('!')[1])
 				n.setPrefix(prefixNew)
@@ -2149,7 +2147,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if msg.nick == irc.nick:
 			self._tickle(irc)
 			return
-		(recipients, text) = msg.args
+		try:
+			(recipients, text) = msg.args
+		except:
+			return
 		isAction = ircmsgs.isAction(msg)
 		isCtcpMsg = ircmsgs.isCtcp(msg)
 		if isAction:
