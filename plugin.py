@@ -1175,7 +1175,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.error('unknown pattern, or pattern already active')
 	b = wrap(b,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def i (self, irc, msg, args, channel, items, seconds):
+	def i (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+I targets for duration reason is mandatory"""
