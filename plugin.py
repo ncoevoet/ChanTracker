@@ -2574,8 +2574,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _strcompare (self,a,b):
 		# return [0 - 1] ratio between two string
 		# jaccard algo
-		c = [x for x in a if x in b]
-		return float(len(c)) / (len(a) + len(b) - len(c))
+		sa, sb = set(a), set(b)
+		n = len(sa.intersection(sb))
+		jacc = n / float(len(sa) + len(sb) - n)
+#		self.log.debug('%s %s %s' % (a,b,jacc))
+		return jacc
 
 
 Class = ChanTracker
