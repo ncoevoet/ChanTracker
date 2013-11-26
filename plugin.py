@@ -382,7 +382,7 @@ class Ircd (object):
 				(full,log) = affected
 				message = full
 				for line in log.split('\n'):
-					message = '%s' % (message,line)
+					message = '%s' % line
 					break
 				results.append(message)
 		c.close()
@@ -2533,10 +2533,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not prop in chan.spam or chan.spam[prop].timeout != life:
 			# reset queue if config has changed
 			chan.spam[prop] = SpamQueue(life)
-		chan.spam[prop].enqueue(key)
-		if chan.spam[prop].len(key) > limit:
+		chan.spam[prop].enqueue([key])
+		if chan.spam[prop].len([key]) > limit:
 			log.debug('[%s] %s is detected as %s' % (channel,key,prop))
-			chan.spam[prop].reset(key)
+			chan.spam[prop].reset([key])
 			return True
 		return False
 	
