@@ -778,7 +778,7 @@ class Chan (object):
 	
 	def isWrong (self,pattern):
 		if 'bad' in self.spam:
-			if self.spam['bad'].len(pattern) > 0:
+			if self.spam['bad'].len([pattern]) > 0:
 				return True
 		return False
 		
