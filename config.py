@@ -60,6 +60,12 @@ conf.registerGlobalValue(ChanTracker, 'logsSize',
 conf.registerGlobalValue(ChanTracker, 'opCommand',
     registry.String("CS OP $channel $nick", """command used by the op to grant op"""))
 
+conf.registerGlobalValue(ChanTracker, 'quietCommand',
+    registry.String("CS QUIET $channel $hostmask","""$channel and $hostmask will be replaced at runtime"""))
+
+conf.registerGlobalValue(ChanTracker, 'unquietCommand',
+    registry.String("CS UNQUIET $channel $hostmask","""$channel and $hostmask will be replaced at runtime"""))
+
 # per channel settings
 # related to ban tracking
 
@@ -129,7 +135,10 @@ conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
 conf.registerChannelValue(ChanTracker, 'checkEvade',
     registry.Boolean(True,"""bot will apply same duration and mode than the ban evaded, currently only work when someone identify to an account, and has ip computed"""))
 
-# related to channle's protection
+conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
+    registry.Boolean(False,"""if bot is not opped, use services for quiet / unquiets"""))
+
+# related to channel's protection
 
 # flood detection settings
 conf.registerChannelValue(ChanTracker, 'floodPermit',

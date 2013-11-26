@@ -356,32 +356,33 @@ class Ircd (object):
 			return []
 		results = []
 		current = time.time()
-		results.append('[%s][%s], %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
+		results.append('[%s][%s] %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
 		if not removed_at:
 			if begin_at == end_at:
 				results.append('set forever')
 			else:
-				results.append('set for %s' % utils.timeElapsed(end_at-begin_at))
-				results.append('with %s more' % utils.timeElapsed(end_at-current))
-				results.append('ends at [%s]' % floatToGMT(end_at))
+				s = 'set for %s' % utils.timeElapsed(end_at-begin_at)
+				s = s + ' with %s more' % utils.timeElapsed(end_at-current)
+				s = s + ' and ends at [%s]' % floatToGMT(end_at)
+				results.append(s)
 		else:
-			results.append('was active %s and ended on [%s]' % (utils.timeElapsed(removed_at-begin_at),floatToGMT(removed_at)))
-			results.append('was set for %s' % utils.timeElapsed(end_at-begin_at))
-		c.execute("""SELECT oper, comment, at FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
+			s = 'was active %s and ended on [%s]' % (utils.timeElapsed(removed_at-begin_at),floatToGMT(removed_at))
+			s = s + ' for %s' % utils.timeElapsed(end_at-begin_at)
+			results.append(s)
+		c.execute("""SELECT oper, comment FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
 		L = c.fetchall()
 		if len(L):
 			for com in L:
-				(oper,comment,at) = com
-				results.append('"%s" by %s on %s' % (comment,oper,floatToGMT(at)))
+				(oper,comment) = com
+				results.append('"%s" by %s' % (comment,oper))
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
 		if len(L):
-			results.append('targeted:')
 			for affected in L:
 				(full,log) = affected
 				message = full
 				for line in log.split('\n'):
-					message = '%s -> %s' % (message,line)
+					message = '%s' % (message,line)
 					break
 				results.append(message)
 		c.close()
@@ -409,17 +410,17 @@ class Ircd (object):
 				(uid,mode,value,by,when,expire) = item
 				if pattern != None and not ircutils.hostmaskPatternEqual(pattern,by):
 					continue
-				c.execute("""SELECT oper, comment, at FROM comments WHERE ban_id=? ORDER BY at DESC LIMIT 1""",(uid,))
+				c.execute("""SELECT oper, comment FROM comments WHERE ban_id=? ORDER BY at DESC LIMIT 1""",(uid,))
 				L = c.fetchall()
 				if len(L):
-					(oper,comment,at) = L[0]
-					message = '"%s" by %s' % (comment,oper)
+					(oper,comment) = L[0]
+					message = ' "%s"' % comment
 				else: 
 					message = ''
 				if expire and expire != when:
-					results.append('[#%s +%s %s by %s expires at %s] %s' % (uid,mode,value,by,floatToGMT(expire),message))
+					results.append('[#%s +%s %s by %s expires at %s]%s' % (uid,mode,value,by,floatToGMT(expire),message))
 				else:
-					results.append('[#%s +%s %s by %s on %s] %s' % (uid,mode,value,by,floatToGMT(when),message))	
+					results.append('[#%s +%s %s by %s on %s]%s' % (uid,mode,value,by,floatToGMT(when),message))	
 		c.close()
 		return results
 	
@@ -438,6 +439,12 @@ class Ircd (object):
 			c.close()
 			return []
 		results = []
+		c.execute("""SELECT oper, comment, at FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
+		L = c.fetchall()
+		if len(L):
+			for com in L:
+				(oper,comment,at) = com
+				results.append('"%s" by %s on %s' % (comment,oper,at))
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
 		if len(L):
@@ -552,7 +559,7 @@ class Ircd (object):
 				(full,log) = item
 				message = full
 				for line in log.split('\n'):
-					message = '%s -> %s' % (message,line)
+					message = '%s' % line
 					break
 				results.append(message)
 		else:
@@ -639,7 +646,7 @@ class Ircd (object):
 					return True
 		return False
 	
-	def add (self,irc,channel,mode,value,seconds,prefix,db):
+	def add (self,irc,channel,mode,value,seconds,prefix,db,useService=False):
 		# add new eIqb item
 		if not ircdb.checkCapability(prefix,'%s,op' % channel):
 			if prefix != irc.prefix:
@@ -661,7 +668,10 @@ class Ircd (object):
 				# prepare item update after being set ( we don't have id yet )
 				chan.update[hash] = [mode,value,seconds,prefix]
 				# enqueue mode changes
-				chan.queue.enqueue(('+%s' % mode,value))
+				if useService:
+					chan.service.enqueue((mode,value))
+				else:
+					chan.queue.enqueue(('+%s' % mode,value))
 				return True
 		return False
 	
@@ -753,6 +763,8 @@ class Chan (object):
 		self.mark = {}
 		# contains IrcMsg ( mostly kick / fpart )
 		self.action = utils.structures.smallqueue()
+		# chanservs quiet/unquiet
+		self.service = utils.structures.smallqueue()
 		# looking for eqIb list ends
 		self.dones = []
 		self.syn = False
@@ -1515,13 +1527,27 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						chan.queue.enqueue(('-'+item.mode,item.value))
+						if mode === 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+							s = self.registryValue('unquietCommand')
+							s = s.replace('$channel',channel)
+							s = s.replace('$hostmask',item.value)
+							i.queue.enqueue(ircmsgs.IrcMsg(s))
+						else:
+							chan.queue.enqueue(('-'+item.mode,item.value))
 						# avoid adding it multi times until servers returns changes
 						item.asked = True
 						retickle = True
 			# dequeue pending actions
 			# log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.nick in irc.state.channels[channel].ops,chan.opAsked,chan.deopAsked,chan.deopPending))
 			if chan.syn:
+				if len(chan.service):
+					while len(chan.service):
+						(mode,value) = chan.service.pop()
+						if mode === 'q':
+							s = self.registryValue('quietCommand')
+							s = s.replace('$channel',channel)
+							s = s.replace('$hostmask',item.value)
+							i.queue.enqueue(ircmsgs.IrcMsg(s))
 				if not irc.nick in irc.state.channels[channel].ops:
 					chan.deopAsked = False
 					chan.deopPending = False
@@ -2466,7 +2492,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _act (self,irc,channel,mode,mask,duration,reason):
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			i = self.getIrc(irc)
-			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network)):
+			useService = False
+			if mode === 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+				useService = True
+			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network),useService):
 				if reason and len(reason):
 					f = None
 					if self.registryValue('announceInTimeEditAndMark',channel=channel):
