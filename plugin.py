@@ -1167,7 +1167,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+q targets for duration reason is mandatory"""
-		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
+		useService = False
+		if len(items) == 1 and not irc.nick in irc.state.channels[channel].ops and self.registryValue('useChanServForQuiets',channel=channel):
+			useService = True
+		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason,useService)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
@@ -1339,7 +1342,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			#irc.error('nick not found')
 	#isbad = wrap(isbad,['op','nick'])
 	
-	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
+	def _adds (self,irc,msg,args,channel,mode,items,duration,reason,useService=False):
 		i = self.getIrc(irc)
 		targets = []
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
@@ -1354,7 +1357,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						targets.append(patterns[0])
 		n = 0
 		for item in targets:
-			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network)):
+			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network),useService):
 				if reason:
 					f = None
 					if self.registryValue('announceInTimeEditAndMark',channel=channel):
@@ -1527,7 +1530,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode === 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+						if mode == 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
@@ -1543,10 +1546,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if len(chan.service):
 					while len(chan.service):
 						(mode,value) = chan.service.pop()
-						if mode === 'q':
+						if mode == 'q':
 							s = self.registryValue('quietCommand')
 							s = s.replace('$channel',channel)
-							s = s.replace('$hostmask',item.value)
+							s = s.replace('$hostmask',value)
 							i.queue.enqueue(ircmsgs.IrcMsg(s))
 				if not irc.nick in irc.state.channels[channel].ops:
 					chan.deopAsked = False
@@ -2493,7 +2496,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
 			i = self.getIrc(irc)
 			useService = False
-			if mode === 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+			if mode == 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
 				useService = True
 			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network),useService):
 				if reason and len(reason):
