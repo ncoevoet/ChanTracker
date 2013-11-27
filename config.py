@@ -83,6 +83,9 @@ messages from user flagged as bad, or when channel is under attack will not be f
 
 conf.registerChannelValue(ChanTracker, 'announceMode',
     registry.Boolean(True,"""announce mode changes to logChannel"""))
+    
+conf.registerChannelValue(ChanTracker, 'announceVoiceAndOpMode',
+    registry.Boolean(True,"""announce mode changes to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeSync',
     registry.Boolean(False,"""announce mode sync to logChannel"""))
