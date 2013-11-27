@@ -337,7 +337,6 @@ class Ircd (object):
 					if item.uid == uid:
 						return item
 		# TODO maybe uid under modes that needs op to be shown ?
-		
 		return None
 
 	def info (self,irc,uid,prefix,db):
@@ -1319,28 +1318,28 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.error('nick not found or wrong hostmask given')
 	getmask = wrap(getmask,['owner','text'])
 	
-	#def isvip (self,irc,msg,args,channel,nick):
-		#"""[<channel>] <nick> 
+	def isvip (self,irc,msg,args,channel,nick):
+		"""[<channel>] <nick> 
 
-		#tell is <nick> is vip in <channel>, mostly used for debug"""
-		#i = self.getIrc(irc)
-		#if nick in i.nicks:
-			#irc.reply(self._isVip(irc,channel,self.getNick(irc,nick)))
-		#else:
-			#irc.error('nick not found')
-	#isvip = wrap(isvip,['op','nick'])
+		tell if <nick> is vip in <channel>, mostly used for debug"""
+		i = self.getIrc(irc)
+		if nick in i.nicks:
+			irc.reply(self._isVip(irc,channel,self.getNick(irc,nick)))
+		else:
+			irc.error('nick not found')
+	isvip = wrap(isvip,['op','nick'])
 	
-	#def isbad (self,irc,msg,args,channel,nick):
-		#"""[<channel>] <nick> 
+	def isbad (self,irc,msg,args,channel,nick):
+		"""[<channel>] <nick> 
 
-		#tell is <nick> is flagged as bad in <channel>, mostly used for debug"""
-		#i = self.getIrc(irc)
-		#if nick in i.nicks:
-			#chan = self.getChan(irc,channel)
-			#irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick))[0]))
-		#else:
-			#irc.error('nick not found')
-	#isbad = wrap(isbad,['op','nick'])
+		tell if <nick> is flagged as bad in <channel>, mostly used for debug"""
+		i = self.getIrc(irc)
+		if nick in i.nicks:
+			chan = self.getChan(irc,channel)
+			irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick))[0]))
+		else:
+			irc.error('nick not found')
+	isbad = wrap(isbad,['op','nick'])
 	
 	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
 		i = self.getIrc(irc)
@@ -1426,6 +1425,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		if not channel in i.channels:
 			# restore channel state, loads lists
+			i.lowQueue.enqueue(ircmsgs.ping(channel))
 			modesToAsk = ''.join(self.registryValue('modesToAsk'))
 			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped'))
 			if channel in irc.state.channels:
@@ -1435,10 +1435,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
 				elif len(modesToAsk):
 					i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
-				# loads extended who
-				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
-				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
-				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+				# schedule that for later
+				def doLater():
+					# prevent the bot to disconnect itself is server takes too much time to answer
+					i.lowQueue.enqueue(ircmsgs.ping(channel))
+					# loads extended who
+					i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
+					# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
+					i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+				schedule.addEvent(doLater,time.time()+30)
+				
 		return i.getChan (irc,channel)
 	
 	def getNick (self,irc,nick):
@@ -1748,8 +1754,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if irc.isChannel(channel) and channel in irc.state.channels:
 			chan = self.getChan(irc,channel)
 			if not chan.syn:
-				# this flag is mostly used to wait for the full sync before moaming on owners when something wrong happened
-				# like not enough rights to take op
 				chan.syn = True
 				if self.registryValue('announceModeSync',channel=channel):
 					self._logChan(irc,channel,"[%s] is ready" % channel)
@@ -2293,6 +2297,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						self._act(irc,channel,mode,best,duration,comment)
 						self.forceTickle = True
 				if not chan.isWrong(best):
+					# prevent the bot to flood logChannel with bad user craps
 					if self.registryValue('announceCtcp',channel=channel) and isCtcpMsg and not isAction:
 						self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
 						self.forceTickle = True
