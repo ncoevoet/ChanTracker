@@ -822,6 +822,7 @@ class Chan (object):
 					for nick in L:
 						n = self.ircd.getNick(self.ircd.irc,nick)
 						m = match(value,n)
+						log.debug('%s :: %s :: %s' % (value,n,m))
 						if m:
 							i.affects.append(n.prefix)
 							# insert logs
@@ -911,9 +912,7 @@ class Nick (object):
 	
 	def setPrefix (self,prefix):
 		if not prefix == self.prefix:
-			log.debug('setPrefix %s -> %s' % (self.prefix,prefix))
 			self.prefix = prefix
-			# recompute ip
 			if self.prefix:
 				matchHostmask(self.prefix,self)
 				getBestPattern(self)
@@ -921,7 +920,6 @@ class Nick (object):
 	
 	def setIp (self,ip):
 		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
-			log.debug('%s setIp %s' % (self.prefix,ip))
 			self.ip = ip
 		return self
 	
@@ -1792,29 +1790,31 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 						self.forceTickle = True
-					if not isMassJoin and self.registryValue('checkEvade',channel=channel):
-						modes = self.registryValue('modesToAsk')
-						found = False
-						for mode in modes:
-							items = chan.getItemsFor(mode)
-							for item in items:
-								f = match(items[item].value,n)
-								if f:
-									found = items[item]
-								if found:
-									break
-							if found:
-								break
-						if found:
-							duration = -1
-							if found.expire and found.expire != found.when:
-								duration = int(found.expire-time.time())
-							self._act (irc,channel,found.mode,best,duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
-							f = None
-							if self.registryValue('announceBotMark',channel=found.channel):
-								f = self._logChan
-							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f)
-							self.forceTickle = True
+					
+					#if not isMassJoin and self.registryValue('checkEvade',channel=channel):
+						#modes = self.registryValue('modesToAsk')
+						#found = False
+						#for mode in modes:
+							#items = chan.getItemsFor(mode)
+							#for item in items:
+								#f = match(items[item].value,n)
+								#if f:
+									#found = items[item]
+								#if found:
+									#break
+							#if found:
+								#break
+						#if found and found.value != best:
+							#duration = -1
+							#if found.expire and found.expire != found.when:
+								#duration = int(found.expire-time.time())
+							#self._act (irc,channel,found.mode,best,duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
+							#f = None
+							#if self.registryValue('announceBotMark',channel=found.channel):
+								#f = self._logChan
+							#i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f)
+							#self.forceTickle = True
+							
 		if msg.nick == irc.nick:
 			self.forceTickle = True
 		self._tickle(irc)
@@ -2618,8 +2618,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		sa, sb = set(a), set(b)
 		n = len(sa.intersection(sb))
 		jacc = n / float(len(sa) + len(sb) - n)
-#		self.log.debug('%s %s %s' % (a,b,jacc))
 		return jacc
+
+	def doError (self,irc,msg):
+		self._ircs = {}
 
 
 Class = ChanTracker
