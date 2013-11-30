@@ -2443,7 +2443,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 										acts.append(('-v',nick))
 									if len(acts):
-										irc.queueMsg(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
+										chan.action.enqueue(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
 										self.forceTickle = True
 						# bot just got op
 						if m == 'o' and value == irc.nick:
