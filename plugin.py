@@ -51,6 +51,8 @@ import collections
 
 ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
 
+# cache = utils.structures.CacheDict(4000)
+
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
@@ -81,7 +83,7 @@ def matchHostmask (pattern,n):
 				# don't remove ip, may be usefull
 				# n.setIp(None)
 				log.debug("%s can't be computed as ip" % n.prefix)
-		if utils.net.isIP(host):
+		elif utils.net.isIP(host):
 			n.setIp(host)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
@@ -91,17 +93,18 @@ def matchHostmask (pattern,n):
 	
 def matchAccount (pattern,pat,negate,n):
 	# for $a, $~a, $a: extended pattern
+	result = None
 	if negate:
 		if not len(pat) and n.account == None:
-			return n.prefix
+			result = n.prefix
 	else:
 		if len(pat):
 			if n.account != None and ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.account):
-				return '$a:'+n.account
+				result = '$a:'+n.account
 		else:
 			if n.account != None:
-				return '$a:'+n.account
-	return None
+				result = '$a:'+n.account
+	return result
 
 def matchRealname (pattern,pat,negate,n):
 	# for $~r $r: extended pattern
@@ -156,6 +159,9 @@ def match (pattern,n):
 			return matchGecos (pattern,p,negate,n)
 		else:
 			log.error('%s unknown pattern' % pattern)
+	elif pattern.find(':') != -1:
+		p = pattern[(pattern.find(':')+1):]
+		return matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
 			return matchHostmask(pattern,n)
@@ -828,7 +834,6 @@ class Chan (object):
 					for nick in L:
 						n = self.ircd.getNick(self.ircd.irc,nick)
 						m = match(value,n)
-						log.debug('%s :: %s :: %s' % (value,n,m))
 						if m:
 							i.affects.append(n.prefix)
 							# insert logs
@@ -1143,7 +1148,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			pattern = self.getNick(pattern).prefix
 		results = []
 		if not mode:
-			modes = self.registryValue('modesToAskWhenOpped') + self.registryValue('modesToAsk')
+			modes = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
 			results = i.pending(irc,channel,modes,msg.prefix,pattern,self.getDb(irc.network))
 		else:
 			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network))
@@ -1157,7 +1162,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
 
 		+<mode> targets for duration <reason> is mandatory"""
-		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason)
 			if not msg.nick == irc.nick:
 				if b:
@@ -1294,7 +1299,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <pattern> 
 
 		returns a list of affected users by a pattern"""
-		if ircutils.isUserHostmask(pattern) or pattern.startswith('$'):
+		if ircutils.isUserHostmask(pattern) or pattern.find('$') != -1 or pattern.find(':') != -1:
 			results = []
 			i = self.getIrc(irc)
 			for nick in irc.state.channels[channel].users:
@@ -1362,9 +1367,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
 		i = self.getIrc(irc)
 		targets = []
-		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.startswith('$'):
+				if ircutils.isUserHostmask(item) or item.find(':') != -1 or item.find('$') != -1:
 					targets.append(item)
 				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
@@ -1394,9 +1399,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		targets = []
 		massremove = False
 		count = 0
-		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.startswith('$'):
+				if ircutils.isUserHostmask(item) or item.find(':') != -1 or item.find('$') != -1:
 					targets.append(item)
 				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
@@ -1444,8 +1449,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not channel in i.channels:
 			# restore channel state, loads lists
 			i.lowQueue.enqueue(ircmsgs.ping(channel))
-			modesToAsk = ''.join(self.registryValue('modesToAsk'))
-			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped'))
+			modesToAsk = ''.join(self.registryValue('modesToAsk',channel=channel))
+			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped',channel=channel))
 			if channel in irc.state.channels:
 				if irc.nick in irc.state.channels[channel].ops:
 					if len(modesToAsk) or len(modesWhenOpped):
@@ -1560,52 +1565,52 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						retickle = True
 			# dequeue pending actions
 			# log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.nick in irc.state.channels[channel].ops,chan.opAsked,chan.deopAsked,chan.deopPending))
-			if chan.syn:
-				if len(chan.queue):
-					index = 0
-					for item in list(chan.queue):
-						(mode,value) = item
-						if mode == '+q' and value.find('$') == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
-							s = self.registryValue('quietCommand')
-							s = s.replace('$channel',channel)
-							s = s.replace('$hostmask',value)
-							i.queue.enqueue(ircmsgs.IrcMsg(s))
-							chan.queue.pop(index)
-						index = index + 1
-				if not irc.nick in irc.state.channels[channel].ops:
-					chan.deopAsked = False
-					chan.deopPending = False
-				if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
-					# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
-					chan.opAsked = True
-					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
-					retickle = True
-				if len(chan.queue) or len(chan.action):
-					if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked:
-						# pending actions, but not opped
-						if not chan.deopAsked:
-							chan.opAsked = True
-							irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand').replace('$channel',channel).replace('$nick',irc.nick)))
-							retickle = True
-					elif irc.nick in irc.state.channels[channel].ops:
-						if not chan.deopAsked:
-							if len(chan.queue):
-								L = []
-								while len(chan.queue):
-									L.append(chan.queue.pop())
-								# remove duplicates ( should not happens but .. )
-								S = set(L)
-								r = []
-								for item in L:
-									r.append(item)
-								if len(r):
-									# create IrcMsg
-									self._sendModes(irc,r,f)
-							if len(chan.action):
-								while len(chan.action):
-									i.queue.enqueue(chan.action.pop())
-						else:
-							retickle = True
+			# if chan.syn: # remove syn mandatory for support to unreal which doesn't like q list 
+			if len(chan.queue):
+				index = 0
+				for item in list(chan.queue):
+					(mode,value) = item
+					if mode == '+q' and value.find('$') == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+						s = self.registryValue('quietCommand')
+						s = s.replace('$channel',channel)
+						s = s.replace('$hostmask',value)
+						i.queue.enqueue(ircmsgs.IrcMsg(s))
+						chan.queue.pop(index)
+					index = index + 1
+			if not irc.nick in irc.state.channels[channel].ops:
+				chan.deopAsked = False
+				chan.deopPending = False
+			if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
+				# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
+				chan.opAsked = True
+				irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
+				retickle = True
+			if len(chan.queue) or len(chan.action):
+				if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked:
+					# pending actions, but not opped
+					if not chan.deopAsked:
+						chan.opAsked = True
+						irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
+						retickle = True
+				elif irc.nick in irc.state.channels[channel].ops:
+					if not chan.deopAsked:
+						if len(chan.queue):
+							L = []
+							while len(chan.queue):
+								L.append(chan.queue.pop())
+							# remove duplicates ( should not happens but .. )
+							S = set(L)
+							r = []
+							for item in L:
+								r.append(item)
+							if len(r):
+								# create IrcMsg
+								self._sendModes(irc,r,f)
+						if len(chan.action):
+							while len(chan.action):
+								i.queue.enqueue(chan.action.pop())
+					else:
+						retickle = True
 		# send waiting msgs
 		while len(i.queue):
 			irc.queueMsg(i.queue.dequeue())
@@ -2061,7 +2066,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for channel in irc.state.channels:
 				if self.registryValue('checkEvade',channel=channel):
 					if nick in irc.state.channels[channel].users:
-						modes = self.registryValue('modesToAsk')
+						modes = self.registryValue('modesToAsk',channel=channel)
 						found = False
 						chan = self.getChan(irc,channel)
 						for mode in modes:
@@ -2181,7 +2186,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		
 	def _isVip (self,irc,channel,n):
 		chan = self.getChan(irc,channel)
-		ignoresModes = self.registryValue('modesToAskWhenOpped')
+		ignoresModes = self.registryValue('modesToAskWhenOpped',channel=channel)
 		vip = False
 		for ignore in ignoresModes:
 			items = chan.getItemsFor(ignore)
@@ -2324,7 +2329,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									message = '[%s][+m] <%s> %s' % (channel,msg.prefix,text)
 							if not message:
 								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
-									modes = self.registryValue('modesToAsk')
+									modes = self.registryValue('modesToAsk',channel=channel)
 									found = False
 									for mode in modes:
 										items = chan.getItemsFor(mode)
@@ -2408,7 +2413,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					item = None
 					if '+' in mode:
 						m = mode[1:]
-						if m in self.registryValue('modesToAskWhenOpped') or m in self.registryValue('modesToAsk'):
+						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
 								irc.queueMsg(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ?' % (item.uid,m,value,channel)))
@@ -2431,7 +2436,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
 										self.forceTickle = True
 										kicked = True
-								if not kicked and m in self.registryValue('modesToAsk'):
+								if not kicked and m in self.registryValue('modesToAsk',channel=channel):
 									acts = []
 									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
 										acts.append(('-o',nick))
@@ -2445,7 +2450,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							chan.opAsked = False
 							chan.deopPending = False
 							ms = ''
-							asked = self.registryValue('modesToAskWhenOpped')
+							asked = self.registryValue('modesToAskWhenOpped',channel=channel)
 							asked = ''.join(asked)
 							asked = asked.replace(',','')
 							for k in asked:
@@ -2461,7 +2466,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m == 'o' and value == irc.nick:
 							# prevent bot to sent many -o modes when server takes time to reply
 							chan.deopAsked = False
-						if m in self.registryValue('modesToAskWhenOpped') or m in self.registryValue('modesToAsk'):
+						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							toCommit = True
 							item = chan.removeItem(m,value,msg.prefix,c)
 					if n:
@@ -2520,7 +2525,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	 # protection features
 	
 	def _act (self,irc,channel,mode,mask,duration,reason):
-		if mode in self.registryValue('modesToAsk') or mode in self.registryValue('modesToAskWhenOpped'):
+		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			i = self.getIrc(irc)
 			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network)):
 				if reason and len(reason):
@@ -2637,12 +2642,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		return jacc
 	
 	def die(self):
-		log.debug('ChanTracker die')
 		self._ircs = ircutils.IrcDict()
 
 	def doError (self,irc,msg):
-		log.debug('ChanTracker doError: %s' % irc.network)
-		if irc.network in self._ircs:
+		if irc and irc.network in self._ircs:
 			del self._ircs[irc]
 		else:
 			self._ircs = ircutils.IrcDict()
