@@ -2589,7 +2589,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return False
 		count = 0
 		for user in irc.state.channels[channel].users:
-			count = count + message.count(key)
+			count = count + message.count(user)
 		return count > limit
 	
 	def _isRepeat(self,irc,channel,key,message):
@@ -2622,9 +2622,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return False
 		trigger = self.registryValue('capPercent',channel=channel)
 		matchs = self.recaps.findall(message)
-		percent = len(matchs) / len(message)
-		if percent >= trigger:
-			return self._isSomething(irc,channel,key,'cap')
+		if len(matchs) and len(message):
+			percent = len(matchs) / len(message)
+			if percent >= trigger:
+				return self._isSomething(irc,channel,key,'cap')
 		return False
 	
 	def _strcompare (self,a,b):
