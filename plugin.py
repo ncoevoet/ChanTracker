@@ -65,26 +65,33 @@ def matchHostmask (pattern,n):
 			n.setIp(host.split('ip.')[1])
 	else:
 		# trying to get ip
-		if n.ip == None and not utils.net.isIP(host):
-			try:
-				r = socket.getaddrinfo(host,None)
-				if r != None:
-					u = {}
-					L = []
-					for item in r:
-						if not item[4][0] in u:
-							u[item[4][0]] = item[4][0]
-							L.append(item[4][0])
-					if len(L) == 1:
-						# when more than one ip is returned for the domain,
-						# don't use ip, otherwise it could not match
-						n.setIp(L[0])
-			except:
-				# don't remove ip, may be usefull
-				# n.setIp(None)
-				log.debug("%s can't be computed as ip" % n.prefix)
-		elif utils.net.isIP(host):
-			n.setIp(host)
+		if host in cache:
+			n.ip = cache[host]
+		else:
+			if n.ip == None and not utils.net.isIP(host):
+				try:
+					r = socket.getaddrinfo(host,None)
+					if r != None:
+						u = {}
+						L = []
+						for item in r:
+							if not item[4][0] in u:
+								u[item[4][0]] = item[4][0]
+								L.append(item[4][0])
+						if len(L) == 1:
+							# when more than one ip is returned for the domain,
+							# don't use ip, otherwise it could not match
+							cache[host] = L[0]
+							n.setIp(L[0])
+						else:
+							cache[host] = None
+				except:
+					# don't remove ip, may be usefull
+					# n.setIp(None)
+					log.debug("%s can't be computed as ip" % n.prefix)
+			elif utils.net.isIP(host):
+				cache[host] = host
+				n.setIp(host)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -161,6 +168,7 @@ def match (pattern,n,irc):
 		if len(p):
 			# remove ':'
 			p = p[1:]
+		log.debug('match :: %s --> %s / %s / %s' % (pattern,t,p,negate))
 		if t == 'a':
 			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
@@ -168,17 +176,16 @@ def match (pattern,n,irc):
 		elif t == 'x':
 			cache[key] = matchGecos (pattern,p,negate,n,extprefix)
 		else:
-			log.error('%s pattern is not supported' % pattern)
-			p = pattern[(pattern.rfind(':')+1):]
-			cache[key] = matchHostmask(p,n)
+			k = pattern[(pattern.find(':')+1):]
+			cache[key] = matchHostmask(k,n)
 	elif pattern.find(':') != -1:
-		p = pattern[(pattern.rfind(':')+1):]
+		p = pattern[(pattern.find(':')+1):]
 		cache[key] = matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
 			cache[key] = matchHostmask(pattern,n)
 		else:
-			if pattern.find(extprefix):
+			if pattern.find(extprefix) != -1:
 				# channel forwards
 				pattern = pattern.split(extprefix)[0]
 				if ircutils.isUserHostmask(pattern):
@@ -1388,31 +1395,37 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
 	
-	#def supported (self,irc,msg,args):
-		#"""return supported modes by ircd """
-		#r = []
-		#for item in irc.state.supported:
-			#r.append('[%s: %s]' % (item,irc.state.supported[item]))
-		#irc.reply(', '.join(r))
-	#supported = wrap(supported,['owner'])
-	
+	def supported (self,irc,msg,args):
+		"""
+		
+		return supported modes by the ircd, for debug purpose"""
+		r = []
+		for item in irc.state.supported:
+			r.append('[%s: %s]' % (item,irc.state.supported[item]))
+		irc.reply(', '.join(r))
+	supported = wrap(supported,['owner'])
+
 	def getIrcdMode (self,irc,mode,pattern):
 		# here we try to know which kind of mode and pattern should be computed :
 		# based on supported modes and extbans on the ircd
-		if 'chanmodes' in irc.state.supported:
+		# works for q in charibys, and should work for unreal and inspire
+		if 'chanmodes' in irc.state.supported and mode == 'q':
 			cm = irc.state.supported['chanmodes'].split(',')[0]
 			if not mode in cm:
 				if 'extban' in irc.state.supported:
 					extban = irc.state.supported['extban']
-					prefix = extbans.split(',')[0]
-					modes = extbans.split(',')[1]
+					prefix = extban.split(',')[0]
+					modes = extban.split(',')[1]
 					if mode in modes:
+						# unreal
 						old = mode
 						mode = 'b'
-						pattern = prefix + old + ':' + pattern
-					elif mode == 'q' and 'm' in modes:
+						if pattern and pattern.find(prefix) != 0:
+							pattern = prefix + old + ':' + pattern
+					elif 'm' in modes:
 						# inspire ? 
-						pattern = prefix + 'm' + ':' + pattern
+						if pattern and pattern.find(prefix) != 0:
+							pattern = prefix + 'm' + ':' + pattern
 		return [mode,pattern]
 	
 	def getIrcdExtbansPrefix (self,irc):
@@ -1435,7 +1448,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						targets.append(patterns[0])
 		n = 0
 		for item in targets:
-			if i.add(irc,channel,mode,item,duration,msg.prefix,self.getDb(irc.network)):
+			r = self.getIrcdMode(irc,mode,item)
+			if i.add(irc,channel,r[0],r[1],duration,msg.prefix,self.getDb(irc.network)):
 				if reason:
 					f = None
 					if self.registryValue('announceInTimeEditAndMark',channel=channel):
@@ -1461,19 +1475,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					targets.append(item)
 				elif item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
-					L = chan.getItemsFor(mode)
+					L = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
 					# here we check active items against Nick and add everything pattern which matchs him
 					for pattern in L:
-						m = match(pattern,n,irc)
+						m = match(L[pattern].value,n,irc)
 						if m:
-							targets.append(pattern)
+							targets.append(L[pattern].value)
 				elif item == '*':
 					massremove = True
 					targets = []
 					if channel in list(irc.state.channels.keys()):
-						L = chan.getItemsFor(mode)
+						L = chan.getItemsFor(self.getIrcdMode(irc,mode,'*!*@*')[0])
 						for pattern in L:
-							targets.append(pattern)
+							targets.append(L[pattern].value)
 					break
 			f = None
 			if massremove:
@@ -1485,7 +1499,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotEdit',channel=channel):
 					f = self._logChan
 			for item in targets:
-				if i.edit(irc,channel,mode,item,0,msg.prefix,self.getDb(irc.network),None,f):
+				r = self.getIrcdMode(irc,mode,item)
+				if i.edit(irc,channel,r[0],r[1],0,msg.prefix,self.getDb(irc.network),None,f):
 					count = count + 1
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1869,30 +1884,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 						self.forceTickle = True
-					
-					#if not isMassJoin and self.registryValue('checkEvade',channel=channel):
-						#modes = self.registryValue('modesToAsk')
-						#found = False
-						#for mode in modes:
-							#items = chan.getItemsFor(mode)
-							#for item in items:
-								#f = match(items[item].value,n)
-								#if f:
-									#found = items[item]
-								#if found:
-									#break
-							#if found:
-								#break
-						#if found and found.value != best:
-							#duration = -1
-							#if found.expire and found.expire != found.when:
-								#duration = int(found.expire-time.time())
-							#self._act (irc,channel,found.mode,best,duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
-							#f = None
-							#if self.registryValue('announceBotMark',channel=found.channel):
-								#f = self._logChan
-							#i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f)
-							#self.forceTickle = True
 							
 		if msg.nick == irc.nick:
 			self.forceTickle = True
@@ -2130,15 +2121,18 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						found = False
 						chan = self.getChan(irc,channel)
 						for mode in modes:
-							items = chan.getItemsFor(mode)
-							for item in items:
-								f = match(items[item].value,n,irc)
-								if f:
-									found = items[item]
-								if found:
-									break
-							if found:
-								break
+							if mode == 'b':
+								items = chan.getItemsFor(mode)
+								for item in items:
+									# only check against ~a:,$a: bans
+									if items[item].value.startswith(self.getIrcdExtbansPrefix(irc)) and items[item].value[1] == 'a':
+										f = match(items[item].value,n,irc)
+										if f:
+											found = items[item]
+										if found:
+											break
+									if found:
+										break
 						if found:
 							duration = -1
 							if found.expire and found.expire != found.when:
