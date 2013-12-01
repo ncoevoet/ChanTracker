@@ -859,7 +859,7 @@ class Chan (object):
 							# insert logs
 							index = 0
 							logs = []
-							logs.append('%s matched by %s' % (getBestPattern(n,self.ircd.irc),m))
+							logs.append('%s matched by %s' % (n,m))
 							for line in n.logs:
 								(ts,target,message) = n.logs[index]
 								index += 1
@@ -978,7 +978,7 @@ class Nick (object):
 		realname = self.realname
 		if realname is None:
 			realname = ''
-		return '%s ip:%s $a:%s $r:%s' % (self.prefix,ip,account,realname)
+		return '%s ip:%s account:%s username:%s' % (self.prefix,ip,account,realname)
 
 # Taken from plugins.Time.seconds
 def getTs (irc, msg, args, state):
@@ -1384,13 +1384,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
 	
-	def supported (self,irc,msg,args):
-		"""return supported modes by ircd """
-		r = []
-		for item in irc.state.supported:
-			r.append('[%s: %s]' % (item,irc.state.supported[item]))
-		irc.reply(', '.join(r))
-	supported = wrap(supported,['owner'])
+	#def supported (self,irc,msg,args):
+		#"""return supported modes by ircd """
+		#r = []
+		#for item in irc.state.supported:
+			#r.append('[%s: %s]' % (item,irc.state.supported[item]))
+		#irc.reply(', '.join(r))
+	#supported = wrap(supported,['owner'])
 	
 	def getIrcdMode (self,irc,mode,pattern):
 		# here we try to know which kind of mode and pattern should be computed :
