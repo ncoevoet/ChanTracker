@@ -168,7 +168,6 @@ def match (pattern,n,irc):
 		if len(p):
 			# remove ':'
 			p = p[1:]
-		log.debug('match :: %s --> %s / %s / %s' % (pattern,t,p,negate))
 		if t == 'a':
 			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
@@ -176,10 +175,10 @@ def match (pattern,n,irc):
 		elif t == 'x':
 			cache[key] = matchGecos (pattern,p,negate,n,extprefix)
 		else:
-			k = pattern[(pattern.find(':')+1):]
+			k = pattern[(pattern.rfind(':')+1):]
 			cache[key] = matchHostmask(k,n)
 	elif pattern.find(':') != -1:
-		p = pattern[(pattern.find(':')+1):]
+		p = pattern[(pattern.rfind(':')+1):]
 		cache[key] = matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
