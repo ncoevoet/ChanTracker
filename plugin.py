@@ -237,9 +237,15 @@ def getBestPattern (n,irc):
 		results.append('%sr:%s' % (extprefix,n.realname.replace(' ','?')))
 	return results
 
-def clearExtendedBanPattern (pattern):
+def clearExtendedBanPattern (pattern,irc):
 	# a little method to cleanup extended pattern
-	if pattern.startswith('$'):
+	extprefix = ''
+	extmodes = ''
+	if 'extban' in irc.state.supported:
+		ext = irc.state.supported['extban']
+		extprefix = ext.split(',')[0]
+		extmodes = ext.split(',')[1]
+	if pattern.startswith(extprefix):
 		pattern = pattern[1:]
 		if pattern.startswith('~'):
 			pattern = pattern[1:]
@@ -493,7 +499,7 @@ class Ircd (object):
 		glob = '*%s*' % pattern
 		like = '%'+pattern+'%'
 		if pattern.startswith('$'):
-			pattern = clearExtendedBanPattern(pattern)
+			pattern = clearExtendedBanPattern(pattern,irc)
 			glob = '*%s*' % pattern
 			like = '%'+pattern+'%'
 		elif ircutils.isUserHostmask(pattern): 
