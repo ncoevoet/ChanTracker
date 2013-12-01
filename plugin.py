@@ -68,7 +68,10 @@ def matchHostmask (pattern,n):
 		if host in cache:
 			n.ip = cache[host]
 		else:
-			if n.ip == None and not utils.net.isIP(host):
+			n.setIp(host)
+			if n.ip != None:
+				cache[host] = n.ip
+			else:
 				try:
 					r = socket.getaddrinfo(host,None)
 					if r != None:
@@ -86,12 +89,11 @@ def matchHostmask (pattern,n):
 						else:
 							cache[host] = None
 				except:
+					cache[host] = None
 					# don't remove ip, may be usefull
 					# n.setIp(None)
 					log.debug("%s can't be computed as ip" % n.prefix)
-			elif utils.net.isIP(host):
-				cache[host] = host
-				n.setIp(host)
+				
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
