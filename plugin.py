@@ -51,7 +51,7 @@ import collections
 
 ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
 
-# cache = utils.structures.CacheDict(4000)
+cache = utils.structures.CacheDict(4000)
 
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
@@ -141,6 +141,10 @@ def matchGecos (pattern,pat,negate,n,extprefix):
 
 def match (pattern,n,irc):
 	# check if given pattern match an Nick
+	key = pattern + ' :: ' + str(n)
+	if key in cache:
+		return cache[key]
+	cache[key] = None
 	extprefix = ''
 	extmodes = ''
 	if 'extban' in irc.state.supported:
@@ -158,32 +162,32 @@ def match (pattern,n,irc):
 			# remove ':'
 			p = p[1:]
 		if t == 'a':
-			return matchAccount (pattern,p,negate,n,extprefix)
+			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
-			return matchRealname (pattern,p,negate,n,extprefix)
+			cache[key] = matchRealname (pattern,p,negate,n,extprefix)
 		elif t == 'x':
-			return matchGecos (pattern,p,negate,n,extprefix)
+			cache[key] = matchGecos (pattern,p,negate,n,extprefix)
 		else:
 			log.error('%s pattern is not supported' % pattern)
 			p = pattern[(pattern.rfind(':')+1):]
-			return matchHostmask(p,n)
+			cache[key] = matchHostmask(p,n)
 	elif pattern.find(':') != -1:
 		p = pattern[(pattern.rfind(':')+1):]
-		return matchHostmask(p,n)
+		cache[key] = matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
-			return matchHostmask(pattern,n)
+			cache[key] = matchHostmask(pattern,n)
 		else:
 			if pattern.find(extprefix):
 				# channel forwards
 				pattern = pattern.split(extprefix)[0]
 				if ircutils.isUserHostmask(pattern):
-					return matchHostmask(pattern,n)
+					cache[key] = matchHostmask(pattern,n)
 				else:
 					log.error('%s pattern is not supported' % pattern)
 			else:
 				log.error('%s pattern is not supported' % pattern)
-	return None
+	return cache[key]
 
 def getBestPattern (n,irc):
 	# return best pattern for a given Nick
