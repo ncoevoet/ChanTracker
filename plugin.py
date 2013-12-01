@@ -1197,7 +1197,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def q (self,irc,msg,args,channel,items,seconds,reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
-		+q targets for duration reason is mandatory"""
+		+q targets for duration <reason> is mandatory"""
 		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
@@ -1206,10 +1206,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('unknown pattern, or pattern already active')
 	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def b (self, irc, msg, args, channel, items, seconds,reason):
+	def b (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
-		+b targets for duration reason is mandatory"""
+		+b targets for duration <reason> is mandatory"""
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
@@ -1221,7 +1221,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def i (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
-		+I targets for duration reason is mandatory"""
+		+I targets for duration <reason> is mandatory"""
 		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
@@ -1230,10 +1230,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('unknown pattern, or pattern already active')
 	i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def e (self, irc, msg, args, channel, items,seconds,reason):
+	def e (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
-		+e targets for duration reason is mandatory"""
+		+e targets for duration <reason> is mandatory"""
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick:
 			if b:
@@ -1626,7 +1626,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				index = 0
 				for item in list(chan.queue):
 					(mode,value) = item
-					if mode == '+q' and value.find('$') == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+					if mode == '+q' and value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
 						s = self.registryValue('quietCommand')
 						s = s.replace('$channel',channel)
 						s = s.replace('$hostmask',value)
@@ -1636,7 +1636,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not irc.nick in irc.state.channels[channel].ops:
 				chan.deopAsked = False
 				chan.deopPending = False
-			if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
+			if chan.syn and not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
 				# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
 				chan.opAsked = True
 				irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
@@ -2513,10 +2513,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							asked = asked.replace(',','')
 							for k in asked:
 								if not k in chan.dones:
-									ms = ms + k
-							if len(ms):
-								# update missed list, the bot may ask for -o just after
-								irc.queueMsg(ircmsgs.IrcMsg('MODE %s %s' % (channel,ms)))
+									irc.queueMsg(ircmsgs.IrcMsg('MODE %s %s' % (channel,k)))
 							# flush pending queue, if items are waiting
 							self.forceTickle = True
 					else:
@@ -2551,7 +2548,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if self.registryValue('announceMode',channel=channel):
 									msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 					else:
-						if mode.find ('o') != -1 or mode.find ('v') != -1:
+						if mode.find ('o') != -1 or mode.find('h') != -1 or mode.find ('v') != -1:
 							if self.registryValue('announceVoiceAndOpMode',channel=channel):
 								msgs.append('[%s %s]' % (mode,value))
 						else:
