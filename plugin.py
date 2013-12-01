@@ -91,7 +91,7 @@ def matchHostmask (pattern,n):
 		return n.prefix
 	return None
 	
-def matchAccount (pattern,pat,negate,n):
+def matchAccount (pattern,pat,negate,n,extprefix):
 	# for $a, $~a, $a: extended pattern
 	result = None
 	if negate:
@@ -100,27 +100,27 @@ def matchAccount (pattern,pat,negate,n):
 	else:
 		if len(pat):
 			if n.account != None and ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.account):
-				result = '$a:'+n.account
+				result = '%sa:%s' % (extprefix,n.account)
 		else:
 			if n.account != None:
-				result = '$a:'+n.account
+				result = '%sa:%s' % (extprefix,n.account)
 	return result
 
-def matchRealname (pattern,pat,negate,n):
+def matchRealname (pattern,pat,negate,n,extprefix):
 	# for $~r $r: extended pattern
 	if n.realname == None:
 		return None
 	if negate:
 		if len(pat):
 			if not ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
-				return '$r:'+n.realname
+				return '%sr:%s' % (extprefix,n.realname.replace(' ','?'))
 	else:
 		if len(pat):
 			if ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
-				return '$r:'+n.realname
+				return '%sr:%s' % (extprefix,n.realname.replace(' ','?'))
 	return None
 
-def matchGecos (pattern,pat,negate,n):
+def matchGecos (pattern,pat,negate,n,extprefix):
 	# for $~x, $x: extended pattern
 	if n.realname == None:
 		return None
@@ -130,7 +130,7 @@ def matchGecos (pattern,pat,negate,n):
 	if n.ip != None:
 		tests.append('%s!%s@%s' % (nick,ident,n.ip))
 	for test in tests:
-		test = '%s#%s' % (test,n.realname)
+		test = '%s#%s' % (test,n.realname.replace(' ','?'))
 		if negate:
 			if not ircutils.hostmaskPatternEqual(pat,test):
 				return test
@@ -139,11 +139,17 @@ def matchGecos (pattern,pat,negate,n):
 				return test
 	return None
 
-def match (pattern,n):
+def match (pattern,n,irc):
 	# check if given pattern match an Nick
-	if pattern.startswith('$'):
+	extprefix = ''
+	extmodes = ''
+	if 'extban' in irc.state.supported:
+		ext = irc.state.supported['extban']
+		extprefix = ext.split(',')[0]
+		extmodes = ext.split(',')[1]
+	if pattern.startswith(extprefix):
 		p = pattern[1:]
-		negate = p[0] == '~'
+		negate = extmodes.find(p[0]) == -1
 		if negate:
 			p = p[1:]
 		t = p[0]
@@ -152,32 +158,34 @@ def match (pattern,n):
 			# remove ':'
 			p = p[1:]
 		if t == 'a':
-			return matchAccount (pattern,p,negate,n)
+			return matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
-			return matchRealname (pattern,p,negate,n)
+			return matchRealname (pattern,p,negate,n,extprefix)
 		elif t == 'x':
-			return matchGecos (pattern,p,negate,n)
+			return matchGecos (pattern,p,negate,n,extprefix)
 		else:
-			log.error('%s unknown pattern' % pattern)
+			log.error('%s pattern is not supported' % pattern)
+			p = pattern[(pattern.rfind(':')+1):]
+			return matchHostmask(p,n)
 	elif pattern.find(':') != -1:
-		p = pattern[(pattern.find(':')+1):]
+		p = pattern[(pattern.rfind(':')+1):]
 		return matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
 			return matchHostmask(pattern,n)
 		else:
-			if pattern.find('$'):
+			if pattern.find(extprefix):
 				# channel forwards
-				pattern = pattern.split('$')[0]
+				pattern = pattern.split(extprefix)[0]
 				if ircutils.isUserHostmask(pattern):
 					return matchHostmask(pattern,n)
 				else:
-					log.error('%s unknown pattern' % pattern)
+					log.error('%s pattern is not supported' % pattern)
 			else:
-				log.error('%s unknown pattern' % pattern)
+				log.error('%s pattern is not supported' % pattern)
 	return None
 
-def getBestPattern (n):
+def getBestPattern (n,irc):
 	# return best pattern for a given Nick
 	results = []
 	if not n.prefix or not ircutils.isUserHostmask(n.prefix):
@@ -217,10 +225,16 @@ def getBestPattern (n):
 	k = '*!%s@%s' % (ident,host)
 	if not k in results:
 		results.append(k)
+	extprefix = ''
+	extmodes = ''
+	if 'extban' in irc.state.supported:
+		ext = irc.state.supported['extban']
+		extprefix = ext.split(',')[0]
+		extmodes = ext.split(',')[1]
 	if n.account:
-		results.append('$a:%s' % n.account)
+		results.append('%sa:%s' % (extprefix,n.account))
 	if n.realname:
-		results.append('$r:%s' % n.realname.replace(' ','?'))
+		results.append('%sr:%s' % (extprefix,n.realname.replace(' ','?')))
 	return results
 
 def clearExtendedBanPattern (pattern):
@@ -367,7 +381,7 @@ class Ircd (object):
 			return []
 		results = []
 		current = time.time()
-		results.append('[%s][%s] %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
+		results.append('[%s] [%s] %s sets +%s %s' % (channel,floatToGMT(begin_at),oper,kind,mask))
 		if not removed_at:
 			if begin_at == end_at:
 				results.append('set forever')
@@ -602,7 +616,7 @@ class Ircd (object):
 			elif prefix == irc.prefix and ct.registryValue('announceBotMark',channel=item.channel):
 				f = ct._logChan
 			if f:
-				f(irc,channel,'[%s][#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
+				f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
 		c.close()
 		return b
@@ -625,7 +639,7 @@ class Ircd (object):
 			c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""",(uid,prefix,current,message))
 			db.commit()
 			if logFunction:
-				logFunction(irc,channel,'[%s][#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
+				logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
 		c.close()
 		return b
@@ -724,7 +738,7 @@ class Ircd (object):
 					if scheduleFunction:
 						scheduleFunction(irc,newEnd)
 			if logFunction:
-				logFunction(irc,channel,'[%s][#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
+				logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
 		c.close()
 		return b
@@ -752,7 +766,7 @@ class Ircd (object):
 		if commits > 0:
 			db.commit()
 			if logFunction:
-				logFunction(irc,channel,'[%s][%s] %s removed: %s' % (channel,mode,commits, ' '.join(msgs)))
+				logFunction(irc,channel,'[%s] [%s] %s removed: %s' % (channel,mode,commits, ' '.join(msgs)))
 		c.close()
 
 class Chan (object):
@@ -833,13 +847,13 @@ class Chan (object):
 						L.append(nick)
 					for nick in L:
 						n = self.ircd.getNick(self.ircd.irc,nick)
-						m = match(value,n)
+						m = match(value,n,self.ircd.irc)
 						if m:
 							i.affects.append(n.prefix)
 							# insert logs
 							index = 0
 							logs = []
-							logs.append('%s matched by %s' % (n,m))
+							logs.append('%s matched by %s' % (getBestPattern(n,self.ircd.irc),m))
 							for line in n.logs:
 								(ts,target,message) = n.logs[index]
 								index += 1
@@ -1057,7 +1071,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 			else:
-				irc.error('item not found, already removed or not enough rights')
+				irc.reply('item not found, already removed or not enough rights to modify it')
 		self.forceTickle = True
 		self._tickle(irc)
 	edit = wrap(edit,['user',commalist('int'),any('getTs')])
@@ -1071,7 +1085,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.replies(results,None,None,False,None,True)
 		else:
-			irc.error('item not found or not enough rights')
+			irc.reply('item not found or not enough rights to see information')
 		self._tickle(irc)
 	info = wrap(info,['private','user','int'])
 	
@@ -1084,7 +1098,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.replies(results,None,None,False,None,True)
 		else:
-			irc.error('item not found or not enough rights')
+			irc.reply('item not found or not enough rights to see detail')
 		self._tickle(irc)
 	detail = wrap(detail,['private','user','int'])
 	
@@ -1097,7 +1111,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.replies(results,None,None,False,None,True)
 		else:
-			irc.error('item not found or not enough rights')
+			irc.reply('item not found or not enough rights to see affected users')
 		self._tickle(irc)
 	affect = wrap(affect, ['private','user','int'])
 	
@@ -1122,7 +1136,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 			else:
-				irc.error('item not found or not enough rights')
+				irc.reply('item not found or not enough rights to mark it')
 		self.forceTickle = True
 		self._tickle(irc)
 	mark = wrap(mark,['user',commalist('int'),'text'])
@@ -1136,7 +1150,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.replies(results,None,None,False,None,True)
 		else:
-			irc.error('nothing found')
+			irc.reply('nothing found')
 	query = wrap(query,['private','user','text'])
 	
 	def pending (self, irc, msg, args, channel, mode, pattern):
@@ -1155,11 +1169,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.reply(' '.join(results), private=True)
 		else:
-			irc.error('no results')
+			irc.reply('no results')
 	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
 	
 	def do (self,irc,msg,args,channel,mode,items,seconds,reason):
-		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
+		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+<mode> targets for duration <reason> is mandatory"""
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
@@ -1168,14 +1182,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if b:
 					irc.replySuccess()
 					return
-				irc.error('unknown pattern, or pattern already active')
+				irc.reply('unknown pattern or pattern already active')
 		else:
-			irc.error('selected mode is not supported by config')
+			irc.reply('selected mode is not supported by config')
 			
 	do = wrap(do,['op','letter',commalist('something'),any('getTs',True),rest('text')])
 	
 	def q (self,irc,msg,args,channel,items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+q targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
@@ -1183,11 +1197,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown pattern, or pattern already active')
+			irc.reply('unknown pattern, or pattern already active')
 	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def b (self, irc, msg, args, channel, items, seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+b targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
@@ -1195,11 +1209,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown pattern, or pattern already active')
+			irc.reply('unknown pattern, or pattern already active')
 	b = wrap(b,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def i (self, irc, msg, args, channel, items, seconds, reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+I targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
@@ -1207,11 +1221,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown pattern, or pattern already active')
+			irc.reply('unknown pattern, or pattern already active')
 	i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def e (self, irc, msg, args, channel, items,seconds,reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> or empty means forever] <reason>
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+e targets for duration reason is mandatory"""
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
@@ -1219,7 +1233,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown pattern, or pattern already active')
+			irc.reply('unknown pattern, or pattern already active')
 	e = wrap(e,['op',commalist('something'),any('getTs'),rest('text')])
 	
 	def undo (self, irc, msg, args, channel, mode, items):
@@ -1231,7 +1245,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown patterns, already removed or unsupported mode')
+			irc.reply('unknown patterns, already removed or unsupported mode')
 	undo = wrap(undo,['op','letter',many('something')])
 	
 	def uq (self, irc, msg, args, channel, items):
@@ -1243,7 +1257,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown patterns, already removed or unsupported mode')
+			irc.reply('unknown patterns, already removed or unsupported mode')
 	uq = wrap(uq,['op',many('something')])
 	
 	def ub (self, irc, msg, args, channel, items):
@@ -1255,7 +1269,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown patterns, already removed or unsupported mode')
+			irc.reply('unknown patterns, already removed or unsupported mode')
 	ub = wrap(ub,['op',many('something')])
 	
 	def ui (self, irc, msg, args, channel, items):
@@ -1267,7 +1281,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown patterns, already removed or unsupported mode')
+			irc.reply('unknown patterns, already removed or unsupported mode')
 	ui = wrap(ui,['op',many('something')])
 	
 	def ue (self, irc, msg, args, channel, items):
@@ -1279,7 +1293,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if b:
 				irc.replySuccess()
 				return
-			irc.error('unknown patterns, already removed or unsupported mode')
+			irc.reply('unknown patterns, already removed or unsupported mode')
 	ue = wrap(ue,['op',many('something')])
 	
 	def remove (self,irc,msg,args,channel,nick,reason):
@@ -1299,13 +1313,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <pattern> 
 
 		returns a list of affected users by a pattern"""
-		if ircutils.isUserHostmask(pattern) or pattern.find('$') != -1 or pattern.find(':') != -1:
+		if ircutils.isUserHostmask(pattern) or pattern.find(self.getIrcdExtbansPrefix(irc)) != -1:
 			results = []
 			i = self.getIrc(irc)
 			for nick in irc.state.channels[channel].users:
 				if nick in i.nicks:
 					n = self.getNick(irc,nick)
-					m = match(pattern,n)
+					m = match(pattern,n,irc)
 					if m:
 						results.append('[%s - %s]' % (nick,m))
 				else:
@@ -1313,7 +1327,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if len(results):
 				irc.reply(' '.join(results))
 			else:
-				irc.error('nobody will be affected')
+				irc.reply('nobody will be affected')
 		else:
 			irc.error('invalid pattern')
 	check = wrap (check,['op','text'])
@@ -1324,7 +1338,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		returns a list of hostmask's pattern, best first, mostly used for debug"""
 		i = self.getIrc(irc)
 		if prefix in i.nicks:
-			irc.reply(' '.join(getBestPattern(self.getNick(irc,prefix))))
+			irc.reply(' '.join(getBestPattern(self.getNick(irc,prefix),irc)))
 		else:
 			n = Nick(0)
 			if prefix.find('#') != -1:
@@ -1336,9 +1350,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			else:
 				n.setPrefix(prefix)
 			if ircutils.isUserHostmask(prefix):
-				irc.reply(' '.join(getBestPattern(n)))
+				irc.reply(' '.join(getBestPattern(n,irc)))
 				return
-			irc.error('nick not found or wrong hostmask given')
+			irc.reply('nick not found or wrong hostmask given')
 	getmask = wrap(getmask,['owner','text'])
 	
 	def isvip (self,irc,msg,args,channel,nick):
@@ -1349,7 +1363,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if nick in i.nicks:
 			irc.reply(self._isVip(irc,channel,self.getNick(irc,nick)))
 		else:
-			irc.error('nick not found')
+			irc.reply('nick not found')
 	isvip = wrap(isvip,['op','nick'])
 	
 	def isbad (self,irc,msg,args,channel,nick):
@@ -1359,21 +1373,53 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		if nick in i.nicks:
 			chan = self.getChan(irc,channel)
-			irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick))[0]))
+			irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick),irc)[0]))
 		else:
-			irc.error('nick not found')
+			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
+	
+	def supported (self,irc,msg,args):
+		"""return supported modes by ircd """
+		r = []
+		for item in irc.state.supported:
+			r.append('[%s: %s]' % (item,irc.state.supported[item]))
+		irc.reply(', '.join(r))
+	supported = wrap(supported,['owner'])
+	
+	def getIrcdMode (self,irc,mode,pattern):
+		# here we try to know which kind of mode and pattern should be computed :
+		# based on supported modes and extbans on the ircd
+		if 'chanmodes' in irc.state.supported:
+			cm = irc.state.supported['chanmodes'].split(',')[0]
+			if not mode in cm:
+				if 'extban' in irc.state.supported:
+					extban = irc.state.supported['extban']
+					prefix = extbans.split(',')[0]
+					modes = extbans.split(',')[1]
+					if mode in modes:
+						old = mode
+						mode = 'b'
+						pattern = prefix + old + ':' + pattern
+					elif mode == 'q' and 'm' in modes:
+						# inspire ? 
+						pattern = prefix + 'm' + ':' + pattern
+		return [mode,pattern]
+	
+	def getIrcdExtbansPrefix (self,irc):
+		if 'extban' in irc.state.supported:
+			return irc.state.supported['extban'].split(',')[0]
+		return ''
 	
 	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
 		i = self.getIrc(irc)
 		targets = []
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.find(':') != -1 or item.find('$') != -1:
+				if ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
 					targets.append(item)
-				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
+				elif item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
-					patterns = getBestPattern(n)
+					patterns = getBestPattern(n,irc)
 					# when resync patterns may be empty, until the bot computed WHO
 					if len(patterns):
 						targets.append(patterns[0])
@@ -1401,14 +1447,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		count = 0
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.find(':') != -1 or item.find('$') != -1:
+				if ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
 					targets.append(item)
-				elif channel in irc.state.channels and item in irc.state.channels[channel].users:
+				elif item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
 					L = chan.getItemsFor(mode)
 					# here we check active items against Nick and add everything pattern which matchs him
 					for pattern in L:
-						m = match(pattern,n)
+						m = match(pattern,n,irc)
 						if m:
 							targets.append(pattern)
 				elif item == '*':
@@ -1443,28 +1489,32 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# see config of this plugin
 			irc.queueMsg(ircmsgs.IrcMsg('CAP LS'))
 		return self._ircs[irc.network]
-	
+
 	def getChan (self,irc,channel):
 		i = self.getIrc(irc)
 		if not channel in i.channels:
 			# restore channel state, loads lists
-			i.lowQueue.enqueue(ircmsgs.ping(channel))
 			modesToAsk = ''.join(self.registryValue('modesToAsk',channel=channel))
 			modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped',channel=channel))
 			if channel in irc.state.channels:
 				if irc.nick in irc.state.channels[channel].ops:
 					if len(modesToAsk) or len(modesWhenOpped):
-						modes = modesToAsk+modesWhenOpped
-						i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
+						for m in modesWhenOpped:
+							i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
+						for m in modesToAsk:
+							i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
 				elif len(modesToAsk):
-					i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modesToAsk)))
+					for m in modesToAsk:
+						i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
 				# schedule that for later
 				# prevent the bot to disconnect itself is server takes too much time to answer
 				i.lowQueue.enqueue(ircmsgs.ping(channel))
 				# loads extended who
 				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
 				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
+				i.lowQueue.enqueue(ircmsgs.ping(channel))
 				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+				self.forceTickle = True
 		return i.getChan (irc,channel)
 	
 	def getNick (self,irc,nick):
@@ -1553,7 +1603,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode == 'q' and item.value.find('$') == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+						if mode == 'q' and item.value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
@@ -1793,7 +1843,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if 'LIST' in i.caps and 'extended-join' in i.caps['LIST'] and len(msg.args) == 3:
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
-		best = getBestPattern(n)[0]
+		best = getBestPattern(n,irc)[0]
 		if msg.nick == irc.nick:
 			return
 		for channel in channels:
@@ -1845,7 +1895,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,msg.nick)
 		n.setPrefix(msg.prefix)
 		reason = ''
-		best = getBestPattern(n)[0]
+		best = getBestPattern(n,irc)[0]
 		if len(msg.args) == 2:
 			reason = msg.args[1].lstrip().rstrip()
 		canRemove = True
@@ -1904,7 +1954,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 	def _rmNick (self,irc,n):
 		def nrm():
-			patterns = getBestPattern(n)
+			patterns = getBestPattern(n,irc)
 			i = self.getIrc(irc)
 			if not len(patterns):
 				return
@@ -1933,7 +1983,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		removeNick = True
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
-			patterns = getBestPattern(n)
+			patterns = getBestPattern(n,irc)
 			if len(patterns):
 				best = patterns[0]
 			if reason:
@@ -1991,7 +2041,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n = self.getNick(irc,newNick)
 			n.addLog('ALL','%s is now known as %s' % (oldNick,newNick))
 			best = None
-			patterns = getBestPattern(n)
+			patterns = getBestPattern(n,irc)
 			if len(patterns):
 				best = patterns[0]
 			if not best:
@@ -2072,7 +2122,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						for mode in modes:
 							items = chan.getItemsFor(mode)
 							for item in items:
-								f = match(items[item].value,n)
+								f = match(items[item].value,n,irc)
 								if f:
 									found = items[item]
 								if found:
@@ -2083,11 +2133,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							duration = -1
 							if found.expire and found.expire != found.when:
 								duration = int(found.expire-time.time())
-							self._act (irc,channel,found.mode,getBestPattern(n)[0],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
+							self._act (irc,channel,found.mode,getBestPattern(n,irc)[0],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
 							f = None
 							if self.registryValue('announceBotMark',channel=found.channel):
 								f = self._logChan
-							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n)[0]),irc.prefix,self.getDb(irc.network),f)
+							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n,irc)[0]),irc.prefix,self.getDb(irc.network),f)
 							self.forceTickle = True
 						
 		self._tickle(irc)
@@ -2115,7 +2165,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if msg.nick == irc.nick:
 				return
 			n = self.getNick(irc,msg.nick)
-			patterns = getBestPattern(n)
+			patterns = getBestPattern(n,irc)
 			best = False
 			if len(patterns):
 				best = patterns[0]
@@ -2192,7 +2242,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			items = chan.getItemsFor(ignore)
 			if items:
 				for item in items:
-					if match(item,n):
+					if match(item,n,irc):
 						vip = True
 						break
 			if vip:
@@ -2216,7 +2266,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		patterns = None
 		if ircutils.isUserHostmask(msg.prefix):
 			n = self.getNick(irc,msg.nick)
-			patterns = getBestPattern(n)
+			patterns = getBestPattern(n,irc)
 			if len(patterns):
 				best = patterns[0]
 			# if it fails here stacktrace
@@ -2326,7 +2376,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							message = None
 							if 'm' in irc.state.channels[channel].modes:
 								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
-									message = '[%s][+m] <%s> %s' % (channel,msg.prefix,text)
+									message = '[%s] [+m] <%s> %s' % (channel,msg.prefix,text)
 							if not message:
 								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
 									modes = self.registryValue('modesToAsk',channel=channel)
@@ -2334,7 +2384,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									for mode in modes:
 										items = chan.getItemsFor(mode)
 										for item in items:
-											f = match(items[item].value,n)
+											f = match(items[item].value,n,irc)
 											if f:
 												found = [items[item],f]
 											if found:
@@ -2342,7 +2392,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										if found:
 											break
 									if found:
-										message = '[%s][#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
+										message = '[%s] [#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
 							if message:
 								self._logChan(irc,channel,message)
 		
@@ -2416,7 +2466,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								irc.queueMsg(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ?' % (item.uid,m,value,channel)))
+								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ?' % (item.uid,m,value,channel)))
 							if overexpire > 0:
 								# overwrite expires
 								if msg.nick != irc.nick:
@@ -2431,7 +2481,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							for affected in item.affects:
 								nick = affected.split('!')[0]
 								kicked = False
-								if m in self.registryValue('kickMode',channel=channel):
+								if m in self.registryValue('kickMode',channel=channel): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if nick in irc.state.channels[channel].users and nick != irc.nick:
 										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
 										self.forceTickle = True
@@ -2440,6 +2490,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									acts = []
 									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
 										acts.append(('-o',nick))
+									if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
+										acts.append(('-h',nick))
 									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 										acts.append(('-v',nick))
 									if len(acts):
@@ -2473,14 +2525,20 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						n.addLog(channel,'sets %s %s' % (mode,value))
 					if item:
 						if '+' in mode:
-							if len(item.affects) != 1:
+							if not len(item.affects):
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s]' % (str(item.uid),mode,value))
+							elif len(item.affects) != 1:
 								if self.registryValue('announceMode',channel=channel):
 									msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
 							else:
 								if self.registryValue('announceMode',channel=channel):
 									msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
 						else:
-							if len(item.affects) != 1:
+							if not len(item.affects):
+								if self.registryValue('announceMode',channel=channel):
+									msgs.append('[#%s %s %s %s]' % (str(item.uid),mode,value,str(utils.timeElapsed(item.removed_at-item.when))))
+							elif len(item.affects) != 1:
 								if self.registryValue('announceMode',channel=channel):
 									msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 							else:
@@ -2645,10 +2703,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._ircs = ircutils.IrcDict()
 
 	def doError (self,irc,msg):
-		if irc and irc.network in self._ircs:
-			del self._ircs[irc]
-		else:
-			self._ircs = ircutils.IrcDict()
+		self._ircs = ircutils.IrcDict()
 
 
 Class = ChanTracker
