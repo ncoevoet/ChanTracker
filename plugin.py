@@ -177,9 +177,6 @@ def match (pattern,n,irc):
 		else:
 			k = pattern[(pattern.rfind(':')+1):]
 			cache[key] = matchHostmask(k,n)
-	elif pattern.find(':') != -1:
-		p = pattern[(pattern.rfind(':')+1):]
-		cache[key] = matchHostmask(p,n)
 	else:
 		if ircutils.isUserHostmask(pattern):
 			cache[key] = matchHostmask(pattern,n)
