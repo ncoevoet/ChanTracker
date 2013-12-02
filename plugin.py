@@ -58,11 +58,10 @@ def matchHostmask (pattern,n):
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
 		return None
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
-	# TODO needs to implement CIDR masks
 	if host.find('/') != -1:
 		# cloaks
 		if n.ip == None and host.startswith('gateway/web/freenode/ip.'):
-			n.setIp(host.split('ip.')[1])
+			n.ip = cache[host] = host.split('ip.')[1]
 	else:
 		# trying to get ip
 		if host in cache:
@@ -82,18 +81,12 @@ def matchHostmask (pattern,n):
 								u[item[4][0]] = item[4][0]
 								L.append(item[4][0])
 						if len(L) == 1:
-							# when more than one ip is returned for the domain,
-							# don't use ip, otherwise it could not match
 							cache[host] = L[0]
 							n.setIp(L[0])
 						else:
 							cache[host] = None
 				except:
 					cache[host] = None
-					# don't remove ip, may be usefull
-					# n.setIp(None)
-					log.debug("%s can't be computed as ip" % n.prefix)
-				
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -1393,15 +1386,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
 	
-	def supported (self,irc,msg,args):
-		"""
+	#def supported (self,irc,msg,args):
+		#"""
 		
-		return supported modes by the ircd, for debug purpose"""
-		r = []
-		for item in irc.state.supported:
-			r.append('[%s: %s]' % (item,irc.state.supported[item]))
-		irc.reply(', '.join(r))
-	supported = wrap(supported,['owner'])
+		#return supported modes by the ircd, for debug purpose"""
+		#r = []
+		#for item in irc.state.supported:
+			#r.append('[%s: %s]' % (item,irc.state.supported[item]))
+		#irc.reply(', '.join(r))
+	#supported = wrap(supported,['owner'])
 
 	def getIrcdMode (self,irc,mode,pattern):
 		# here we try to know which kind of mode and pattern should be computed :
@@ -1831,8 +1824,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if account == '0':
 				account = None
 			n = self.getNick(irc,nick)
-			n.setPrefix('%s!%s@%s' % (nick,ident,host))
-			n.setIp(ip)
+			prefix = '%s!%s@%s' % (nick,ident,host)
+			if n.ip == None and ip != '255.255.255.255':
+				# validate ip
+				n.setIp(ip)
+			n.setPrefix(prefix)
 			n.setAccount(account)
 			n.setRealname(realname)
 			#channel = msg.args[1]
@@ -1964,7 +1960,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					 found = True
 			if not found:
 				if nick in i.nicks:
-					log.debug('removing nick %s' % nick)
 					del i.nicks[nick]
 				best = patterns[0]
 				for channel in irc.state.channels:
@@ -1972,7 +1967,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						chan = self.getChan(irc,channel)
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
-		schedule.addEvent(nrm,time.time()+300)
+		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife'))
 	
 	def doQuit (self,irc,msg):
 		isBot = msg.nick == irc.nick
