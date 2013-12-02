@@ -1333,11 +1333,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				else:
 					log.debug('ChanServ.check unknown %s' % nick)
 			if len(results):
-				irc.reply(' '.join(results))
+				irc.reply('%s user(s): %s' % (len(results),' '.join(results)))
 			else:
 				irc.reply('nobody will be affected')
 		else:
-			irc.error('invalid pattern')
+			irc.reply('invalid pattern given')
 	check = wrap (check,['op','text'])
 	
 	def getmask (self,irc,msg,args,prefix):
@@ -1349,6 +1349,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply(' '.join(getBestPattern(self.getNick(irc,prefix),irc)))
 		else:
 			n = Nick(0)
+			#gecos ( $x )
 			if prefix.find('#') != -1:
 				a = prefix.split('#')
 				username = a[1]
