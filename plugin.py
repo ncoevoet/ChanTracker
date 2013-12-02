@@ -1124,7 +1124,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	affect = wrap(affect, ['private','user','int'])
 	
 	def mark(self,irc,msg,args,user,ids,message):
-		"""<id> [,<id>]
+		"""<id> [,<id>] <message>
 
 		add comment on a mode change"""
 		i = self.getIrc(irc)
@@ -1649,16 +1649,18 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan.deopPending = False
 			if chan.syn and not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
 				# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
-				chan.opAsked = True
-				irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
-				retickle = True
+				if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
+					chan.opAsked = True
+					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
+					retickle = True
 			if len(chan.queue) or len(chan.action):
 				if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked:
 					# pending actions, but not opped
 					if not chan.deopAsked:
-						chan.opAsked = True
-						irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
-						retickle = True
+						if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
+							chan.opAsked = True
+							irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
+							retickle = True
 				elif irc.nick in irc.state.channels[channel].ops:
 					if not chan.deopAsked:
 						if len(chan.queue):
@@ -1740,7 +1742,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						del chan.mark[key]
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending and not chan.deopAsked:
 				# ask for deop, delay it a bit
-				self.unOp(irc,channel)
+				if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
+					self.unOp(irc,channel)
 			# moslty logChannel, and maybe few sync msgs
 			if len(i.lowQueue):
 				retickle = True

@@ -125,6 +125,9 @@ conf.registerChannelValue(ChanTracker, 'announceCtcp',
 
 # others settings
 
+conf.registerChannelValue(ChanTracker, 'doNothingAboutOwnOpStatus',
+    registry.Boolean(False, """bot will never try to change his own op status"""))
+
 conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
 
