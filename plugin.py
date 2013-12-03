@@ -163,6 +163,9 @@ def match (pattern,n,irc):
 		if len(p):
 			# remove ':'
 			p = p[1:]
+		if p.find('$') != -1:
+			# forward
+			p = p[(p.rfind('$')+1):]
 		if t == 'a':
 			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
@@ -170,6 +173,7 @@ def match (pattern,n,irc):
 		elif t == 'x':
 			cache[key] = matchGecos (pattern,p,negate,n,extprefix)
 		else:
+			# bug if ipv6 used ..
 			k = pattern[(pattern.rfind(':')+1):]
 			cache[key] = matchHostmask(k,n)
 	else:
@@ -1948,7 +1952,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		if self.registryValue('announceKick',channel=channel):
-			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,target,msg.prefix,reason))
+			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,n.prefix,msg.prefix,reason))
 		self._tickle(irc)
 
 	def _rmNick (self,irc,n):
