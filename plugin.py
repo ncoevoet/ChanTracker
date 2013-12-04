@@ -414,14 +414,24 @@ class Ircd (object):
 				results.append('"%s" by %s' % (comment,oper))
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
-		if len(L):
+		if len(L) == 1:
 			for affected in L:
 				(full,log) = affected
-				message = full
+				message = ""
 				for line in log.split('\n'):
 					message = '%s' % line
 					break
 				results.append(message)
+		elif len(L) > 1:
+			results.append('affects %s users' % len(L))
+		#if len(L):
+			#for affected in L:
+				#(full,log) = affected
+				#message = full
+				#for line in log.split('\n'):
+					#message = '[%s]' % line
+					#break
+				#results.append(message)
 		c.close()
 		return results
 	
@@ -476,18 +486,18 @@ class Ircd (object):
 			c.close()
 			return []
 		results = []
-		c.execute("""SELECT oper, comment, at FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
-		L = c.fetchall()
-		if len(L):
-			for com in L:
-				(oper,comment,at) = com
-				results.append('"%s" by %s on %s' % (comment,oper,floatToGMT(at)))
+		#c.execute("""SELECT oper, comment, at FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
+		#L = c.fetchall()
+		#if len(L):
+			#for com in L:
+				#(oper,comment,at) = com
+				#results.append('"%s" by %s on %s' % (comment,oper,floatToGMT(at)))
 		c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(uid,))
 		L = c.fetchall()
 		if len(L):
 			for item in L:
 				(full,log) = item
-				results.append('for %s' % full)
+				results.append('For [%s]' % full)
 				for line in log.split('\n'):
 					results.append(line)
 		else:
@@ -596,7 +606,7 @@ class Ircd (object):
 				(full,log) = item
 				message = full
 				for line in log.split('\n'):
-					message = '%s' % line
+					message = '[%s]' % line
 					break
 				results.append(message)
 		else:
@@ -865,7 +875,7 @@ class Chan (object):
 							# insert logs
 							index = 0
 							logs = []
-							logs.append('%s matched by %s' % (n,m))
+							logs.append('%s' % n)
 							for line in n.logs:
 								(ts,target,message) = n.logs[index]
 								index += 1
@@ -1095,11 +1105,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.info(irc,id,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results,None,None,False,None,True)
+			for message in results:
+				irc.queueMsg(ircmsgs.privmsg(msg.nick,message))
+			#irc.replies(results,None,None,False,None,True)
 		else:
 			irc.reply('item not found or not enough rights to see information')
 		self._tickle(irc)
-	info = wrap(info,['private','user','int'])
+	info = wrap(info,['user','int'])
 	
 	def detail (self,irc,msg,args,user,uid):
 		"""<id>
