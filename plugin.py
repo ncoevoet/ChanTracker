@@ -163,6 +163,9 @@ def match (pattern,n,irc):
 		if len(p):
 			# remove ':'
 			p = p[1:]
+		if p.find('$') != -1:
+			# forward
+			p = p[(p.rfind('$')+1):]
 		if t == 'a':
 			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
@@ -170,6 +173,7 @@ def match (pattern,n,irc):
 		elif t == 'x':
 			cache[key] = matchGecos (pattern,p,negate,n,extprefix)
 		else:
+			# bug if ipv6 used ..
 			k = pattern[(pattern.rfind(':')+1):]
 			cache[key] = matchHostmask(k,n)
 	else:
@@ -813,6 +817,7 @@ class Chan (object):
 		self.spam = ircutils.IrcDict()
 		self.repeatLogs = ircutils.IrcDict()
 		self.massPattern = ircutils.IrcDict()
+		self.nicks = ircutils.IrcDict()
 	
 	def isWrong (self,pattern):
 		if 'bad' in self.spam:
@@ -1825,6 +1830,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		(nick, ident, host) = (msg.args[5], msg.args[2], msg.args[3])
 		n = self.getNick(irc,nick)
 		n.setPrefix('%s!%s@%s' % (nick,ident,host))
+		chan = self.getChan(irc,msg.args[1])
+		chan.nicks[nick] = True
 		# channel = msg.args[1]
 	
 	def do329 (self,irc,msg):
@@ -1884,6 +1891,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
+				chan.nicks[msg.nick] = True
 				n.addLog(channel,'has joined')
 				if best and not self._isVip(irc,channel,n):
 					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
@@ -1922,6 +1930,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				else:
 					n.addLog(channel,'has left')
 				if not isBot:
+					chan = self.getChan(irc,channel)
+					if msg.nick in chan.nicks:
+						del chan.nicks[msg.nick]
 					if msg.nick in irc.state.channels[channel].users:
 						canRemove = False
 					if not self._isVip(irc,channel,n):
@@ -1957,10 +1968,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				del i.channels[channel]
 				self._tickle(irc)
 				return
+		else:
+			chan = self.getChan(irc,channel)
+			if msg.nick in chan.nicks:
+				del chan.nicks[msg.nick]
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		if self.registryValue('announceKick',channel=channel):
-			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,target,msg.prefix,reason))
+			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,n.prefix,msg.prefix,reason))
 		self._tickle(irc)
 
 	def _rmNick (self,irc,n):
@@ -1981,6 +1996,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for channel in irc.state.channels:
 					if channel in i.channels:
 						chan = self.getChan(irc,channel)
+						if nick in chan.nicks:
+							del chan.nicks[nick]
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
 		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife'))
@@ -2000,31 +2017,32 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n.addLog('ALL','has quit [%s]' % reason)
 			else:
 				n.addLog('ALL','has quit')
-			if reason and reason in ['Changing host','Excess Flood','Max SendQ exceeded']:
+				#,'Excess Flood','Max SendQ exceeded'
+			if reason and reason in ['Changing host']:
 				# keeping this nick, may trigger cycle check
 				removeNick = False
 			elif reason and reason.startswith('Killed (') or reason.startswith('K-Lined'):
-				if not reason.find('Nickname regained by services') != -1:
+				if reason.find('Nickname regained by services') == -1:
 					for channel in irc.state.channels:
-						if self.registryValue('announceKick',channel=channel):
-							for nick in irc.state.channels[channel].users:
-								if nick == msg.nick:
-									#ch = ircutils.mircColor("[%s]" % channel, fg="dark-gray")
-									#rea = ircutils.mircColor("%s has quit (%s)" % (msg.prefix,reason), fg="purple")
-									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
-									break
-						if best and not self._isVip(irc,channel,n):
-							isCycle = self._isSomething(irc,channel,best,'cycle')
-							if isCycle:
-								isBad = self._isSomething(irc,channel,best,'bad')
-								kind = None
-								if isBad:
-									kind = 'bad'
-								else:
-									kind = 'cycle'
-								mode = self.registryValue('%sMode' % kind,channel=channel)
-								if len(mode) > 1:
-									mode = mode[0]
+						chan = self.getChan(irc,channel)
+						if msg.nick in chan.nicks:
+							if self.registryValue('announceKick',channel=channel):
+								self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
+			for channel in irc.state.channels:
+				chan = self.getChan(irc,channel)
+				if msg.nick in chan.nicks:
+					if best and not self._isVip(irc,channel,n):
+						isCycle = self._isSomething(irc,channel,best,'cycle')
+						if isCycle:
+							isBad = self._isSomething(irc,channel,best,'bad')
+							kind = None
+							if isBad:
+								kind = 'bad'
+							else:
+								kind = 'cycle'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							if len(mode) > 1:
+								mode = mode[0]
 								duration = self.registryValue('%sDuration' % kind,channel=channel)
 								comment = self.registryValue('%sComment' % kind,channel=channel)
 								self._act(irc,channel,mode,best,duration,comment)
@@ -2058,6 +2076,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				return
 			for channel in irc.state.channels:
 				if newNick in irc.state.channels[channel].users:
+					chan = self.getChan(irc,channel)
+					if oldNick in chan.nicks:
+						del chan.nicks[oldNick]
+					chan.nicks[msg.nick] = True
 					if self._isVip(irc,channel,n):
 						continue
 					isNick = self._isSomething(irc,channel,best,'nick')
@@ -2479,7 +2501,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ?' % (item.uid,m,value,channel)))
+								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ? see help mark and help edit' % (item.uid,m,value,channel)))
 							if overexpire > 0:
 								# overwrite expires
 								if msg.nick != irc.nick:
