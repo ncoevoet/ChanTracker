@@ -138,6 +138,9 @@ conf.registerChannelValue(ChanTracker, 'kickMode',
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
     
+conf.registerChannelValue(ChanTracker, 'addKickMessageInComment',
+    registry.Boolean(False, """add kick message to mode comment"""))
+    
 conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
     registry.Boolean(False,"""Ask the op who added a mode changes in pm about duration and comment"""))
 
