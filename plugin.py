@@ -60,7 +60,7 @@ def matchHostmask (pattern,n):
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
 	if host.find('/') != -1:
 		# cloaks
-		if n.ip == None and host.startswith('gateway/web/freenode/ip.'):
+		if host.startswith('gateway/web/freenode/ip.'):
 			n.ip = cache[host] = host.split('ip.')[1]
 	else:
 		# trying to get ip
@@ -87,6 +87,7 @@ def matchHostmask (pattern,n):
 							cache[host] = None
 				except:
 					cache[host] = None
+	self.log.debug('checking %s / %s' % (pattern,n))
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -404,7 +405,8 @@ class Ircd (object):
 				results.append(s)
 		else:
 			s = 'was active %s and ended on [%s]' % (utils.timeElapsed(removed_at-begin_at),floatToGMT(removed_at))
-			s = s + ' for %s' % utils.timeElapsed(end_at-begin_at)
+			if end_at != begin_at:
+				s = s + ' ,initialy for %s' % utils.timeElapsed(end_at-begin_at)
 			results.append(s)
 		c.execute("""SELECT oper, comment FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
 		L = c.fetchall()
@@ -967,7 +969,7 @@ class Nick (object):
 		return self
 	
 	def setIp (self,ip):
-		if ip != None and not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
+		if not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
 			self.ip = ip
 		return self
 	
@@ -1976,6 +1978,24 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		if self.registryValue('announceKick',channel=channel):
 			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,n.prefix,msg.prefix,reason))
+		if len(reason) and msg.prefix != irc.prefix and self.registryValue('addKickMessageInComment',channel=channel):
+			chan = self.getChan(irc,channel)
+			found = None
+			for mode in self.registryValue('modesToAsk',channel=channel):
+				items = chan.getItemsFor(mode)
+				for k in items:
+					item = items[k]
+					f = match(item.value,n,irc)
+					if f:
+						found = item
+						break
+				if found:
+					break
+			if found:
+				f = None
+				if self.registryValue('announceBotMark',channel=channel):
+					f = self._logChan
+				i.mark(irc,found.uid,'kicked by %s (%s)' % (msg.nick,reason),irc.prefix,self.getDb(irc.network),f)
 		self._tickle(irc)
 
 	def _rmNick (self,irc,n):
