@@ -87,7 +87,7 @@ def matchHostmask (pattern,n):
 							cache[host] = None
 				except:
 					cache[host] = None
-	self.log.debug('checking %s / %s' % (pattern,n))
+	log.debug('checking %s / %s' % (pattern,n))
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
