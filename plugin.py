@@ -883,7 +883,7 @@ class Chan (object):
 								(ts,target,message) = n.logs[index]
 								index += 1
 								if target == self.name or target == 'ALL':
-									logs.append('[%s] %s' % (floatToGMT(ts),message))
+									logs.append('[%s] <%s> %s' % (floatToGMT(ts),nick,message))
 							c.execute("""INSERT INTO nicks VALUES (?, ?, ?, ?)""",(uid,value,n.prefix,'\n'.join(logs)))
 							ns.append([n,m])
 				if len(ns):
@@ -955,7 +955,8 @@ class Nick (object):
 		self.ip = None
 		self.realname = None
 		self.account = None
-		self.logs = utils.structures.MaxLengthQueue(logSize)
+		self.logSize = logSize
+		self.logs = []
 		# log format :
 		# target can be a channel, or 'ALL' when it's related to nick itself ( account changes, nick changes, host changes, etc )
 		# [float(timestamp),target,message]
@@ -984,7 +985,9 @@ class Nick (object):
 		return self
 		
 	def addLog (self,target,message):
-		self.logs.enqueue([time.time(),target,message])
+		if len(self.logs) == self.logSize:
+			self.logs.pop(0)
+		self.logs.append([time.time(),target,message])
 		return self
 	
 	def __repr__(self):
