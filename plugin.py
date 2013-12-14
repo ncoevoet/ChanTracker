@@ -2539,7 +2539,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							for affected in item.affects:
 								nick = affected.split('!')[0]
 								kicked = False
-								if m in self.registryValue('kickMode',channel=channel): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
+								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if nick in irc.state.channels[channel].users and nick != irc.nick:
 										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
 										self.forceTickle = True
