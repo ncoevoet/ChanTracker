@@ -1900,10 +1900,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n.addLog(channel,'has joined')
 				c = ircdb.channels.getChannel(channel)
 				banned = False
-            			if c.bans:
-                			for ban in c.bans:
+				if c.bans and not self._isVip(irc,channel,n):
+					for ban in c.bans:
 						if match (ban,n,irc):
-							i.add(irc,channel,'b',best,-1,irc.prefix,self.getDb(irc.network))						
+							i.add(irc,channel,'b',best,-1,irc.prefix,self.getDb(irc.network))
 							banned = True
 				if best and not self._isVip(irc,channel,n) and not banned:
 					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
