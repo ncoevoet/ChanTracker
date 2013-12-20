@@ -1905,6 +1905,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if match (ban,n,irc):
 							i.add(irc,channel,'b',best,-1,irc.prefix,self.getDb(irc.network))
 							banned = True
+							self.forceTickle = True
 				if best and not self._isVip(irc,channel,n) and not banned:
 					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
 					if isMassJoin:
