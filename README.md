@@ -51,6 +51,8 @@ An example about flood control, You want to quiet for 1 minute anyone that send 
 	!config channel #channel supybot.plugins.ChanTracker.floodDuration 60
 	!config channel #channel supybot.plugins.ChanTracker.badPermit 2
 	
+Bot will do nothing against user with protected capabilities ( #channel,protected )
+	
 That means if the bot will quiet anyone who flood, and if the user flood more than 2 times during badLife, bot will use badMode on him
 
 Bot will kick by users affected by +b see :
@@ -58,7 +60,7 @@ Bot will kick by users affected by +b see :
 	!config supybot.plugins.ChanTracker.kickMode
 	!config supybot.plugins.ChanTracker.kickMessage
 
-Note : if an op sets mode +b *!*@* on #channel by mistake and bot has kickMode enabled in it, it will kick everyone, be warned.
+Note : if an op sets mode +b \*!\*@* on #channel by mistake and bot has kickMode enabled in it, it will kick everyone, be warned.
 
 It works with any version of supybot, vannila, limnoria etc
 
