@@ -2300,7 +2300,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			self._tickle(irc)
 		
 	def _isVip (self,irc,channel,n):
-		
+		protected = ircdb.makeChannelCapability(channel, 'protected')
+		if ircdb.checkCapability(n.prefix, protected):
+			return True
 		chan = self.getChan(irc,channel)
 		ignoresModes = self.registryValue('modesToAskWhenOpped',channel=channel)
 		vip = False
