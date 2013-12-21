@@ -2628,6 +2628,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				self.forceTickle = True
 			if self.registryValue('announceMode',channel=channel) and len(msgs):
 				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
+				self.forceTickle = True
 			self._tickle(irc)	
 	
 	def do474(self,irc,msg):
