@@ -2550,6 +2550,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if item and len(item.affects):
 							for affected in item.affects:
 								nick = affected.split('!')[0]
+								if self._isVip(irc,channel,self.getNick(irc,nick):
+									continue
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if nick in irc.state.channels[channel].users and nick != irc.nick:
