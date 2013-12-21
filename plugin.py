@@ -1964,7 +1964,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if c.bans and len(c.bans) and self.registryValue('useChannelBansForPermanentBan',channel=channel):
 						for ban in list(c.bans):
 							if match (ban,n,irc):
-								if i.add(irc,channel,'b',best,self.registryValue('badDuration',channel=channel),irc.prefix,self.getDb(irc.network)):
+								if i.add(irc,channel,'b',best,self.registryValue('autoExpire',channel=channel),irc.prefix,self.getDb(irc.network)):
 									banned = True
 									self.forceTickle = True
 									break
