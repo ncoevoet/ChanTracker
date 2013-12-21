@@ -1838,8 +1838,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _addChanModeItem (self,irc,channel,mode,value,prefix,date):
 		# bqeI* -ov
 		if irc.isChannel(channel) and channel in irc.state.channels:
-			chan = self.getChan(irc,channel)
-			chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network))
+			if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
+				chan = self.getChan(irc,channel)
+				chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network))
 	
 	def _endList (self,irc,msg,channel,mode):
 		if irc.isChannel(channel) and channel in irc.state.channels:
@@ -1960,14 +1961,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				c = ircdb.channels.getChannel(channel)
 				banned = False
 				if not self._isVip(irc,channel,n):
-					if c.bans and len(c.bans):
+					if c.bans and len(c.bans) and self.registryValue('useChannelBansForPermanentBan',channel=channel):
 						for ban in list(c.bans):
 							if match (ban,n,irc):
 								if i.add(irc,channel,'b',best,self.registryValue('badDuration',channel=channel),irc.prefix,self.getDb(irc.network)):
 									banned = True
 									self.forceTickle = True
 									break
-					if best and not banned:
+					if not banned:
 						isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
 						if isMassJoin:
 							chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
@@ -2619,7 +2620,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
 										self.forceTickle = True
 										kicked = True
-								if not kicked and m in self.registryValue('modesToAsk',channel=channel):
+								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
 									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
 										chan.queue.enqueue(('-o',nick))
 									if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
