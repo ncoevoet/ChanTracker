@@ -1900,22 +1900,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n.addLog(channel,'has joined')
 				c = ircdb.channels.getChannel(channel)
 				banned = False
-				if c.bans and not self._isVip(irc,channel,n):
-					for ban in c.bans:
-						if match (ban,n,irc):
-							i.add(irc,channel,'b',best,-1,irc.prefix,self.getDb(irc.network))
-							banned = True
+				if not self._isVip(irc,channel,n):
+					if c.bans and len(c.bans):
+						for ban in list(c.bans):
+							if match (ban,n,irc):
+								if i.add(irc,channel,'b',best,self.registryValue('badDuration',channel=channel),irc.prefix,self.getDb(irc.network)):
+									banned = True
+									self.forceTickle = True
+									break
+					if best and not banned:
+						isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
+						if isMassJoin:
+							chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
+							def unAttack():
+								if channel in list(irc.state.channels.keys()):
+									chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
+							schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 							self.forceTickle = True
-							break
-				if best and not self._isVip(irc,channel,n) and not banned:
-					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
-					if isMassJoin:
-						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
-						def unAttack():
-							if channel in list(irc.state.channels.keys()):
-								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
-						schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
-						self.forceTickle = True
 							
 		if msg.nick == irc.nick:
 			self.forceTickle = True
@@ -2489,6 +2490,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			chan = self.getChan(irc,channel)
 			if chan.deopPending:
 				return
+			def unOpBot():
 			def unOpBot():
 				if channel in irc.state.channels:
 					if not len(i.queue) and not len(chan.queue):
