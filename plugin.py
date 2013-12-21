@@ -1642,7 +1642,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode == 'q' and item.value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+						if mode == 'q' and item.value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
@@ -1659,7 +1659,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				index = 0
 				for item in list(chan.queue):
 					(mode,value) = item
-					if mode == '+q' and value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops:
+					if mode == '+q' and value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
 						s = self.registryValue('quietCommand')
 						s = s.replace('$channel',channel)
 						s = s.replace('$hostmask',value)
@@ -1906,6 +1906,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							i.add(irc,channel,'b',best,-1,irc.prefix,self.getDb(irc.network))
 							banned = True
 							self.forceTickle = True
+							break
 				if best and not self._isVip(irc,channel,n) and not banned:
 					isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
 					if isMassJoin:
@@ -2556,16 +2557,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										self.forceTickle = True
 										kicked = True
 								if not kicked and m in self.registryValue('modesToAsk',channel=channel):
-									acts = []
 									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
-										acts.append(('-o',nick))
+										chan.queue.enqueue(('-o',nick))
 									if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
-										acts.append(('-h',nick))
+										chan.queue.enqueue(('-h',nick))
 									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
-										acts.append(('-v',nick))
-									if len(acts):
-										chan.action.enqueue(ircmsgs.IrcMsg(prefix=irc.prefix, command='MODE',args=[channel] + ircutils.joinModes(acts)))
-										self.forceTickle = True
+										chan.queue.enqueue(('-v',nick))
+							self.forceTickle = True
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
