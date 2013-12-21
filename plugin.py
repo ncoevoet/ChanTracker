@@ -473,6 +473,41 @@ class Ircd (object):
 		c.close()
 		return results
 	
+	def against (self,irc,channel,n,prefix,db):
+		# returns active items which matchs n
+		if not channel or not n or not db:
+			return []
+		if not ircdb.checkCapability(prefix, '%s,op' % channel):
+			return []
+		chan = self.getChan(irc,channel)
+		results = []
+		r = []
+		c = db.cursor()
+		for k in list(chan.getItems()):
+			items = chan.getItemsFor(k)
+			if len(items):
+				for item in items:
+					item = items[item]
+					if match(item.value,n,irc):
+						r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+		r.sort(reverse=True)
+		if len(r):
+			for item in r:
+				(uid,mode,value,by,when,expire) = item
+				c.execute("""SELECT oper, comment FROM comments WHERE ban_id=? ORDER BY at DESC LIMIT 1""",(uid,))
+				L = c.fetchall()
+				if len(L):
+					(oper,comment) = L[0]
+					message = ' "%s"' % comment
+				else: 
+					message = ''
+				if expire and expire != when:
+					results.append('[#%s +%s %s by %s expires at %s]%s' % (uid,mode,value,by,floatToGMT(expire),message))
+				else:
+					results.append('[#%s +%s %s by %s on %s]%s' % (uid,mode,value,by,floatToGMT(when),message))	
+		c.close()
+		return results
+	
 	def log (self,irc,uid,prefix,db):
 		# return log of affected users by a mode change
 		if not uid or not prefix:
@@ -1339,6 +1374,32 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	remove = wrap(remove,['op','nickInChannel',additional('text')])
 	
+	def prevent (self,irc,msg,args,channel,prefix):
+		"""[<channel>] <nick|pattern>
+
+		returns active mode that targets pattern or nick given"""
+		i = self.getIrc(irc)
+		n = None
+		if prefix in i.nicks:
+			n = self.getNick(irc,prefix)
+		else:
+			n = Nick(0)
+			if prefix.find('#') != -1:
+				a = prefix.split('#')
+				username = a[1]
+				prefix = a[0]
+				n.setPrefix(prefix)
+				n.setUsername(username)
+			else:
+				n.setPrefix(prefix)
+		results = i.against(irc,channel,n,msg.prefix,self.getDb(irc.network))
+		if len(results):
+			irc.reply(' '.join(results), private=True)
+		else:
+			irc.reply('no results')
+		self._tickle(irc)
+	prevent = wrap(prevent,['op','text'])
+	
 	def check (self,irc,msg,args,channel,pattern):
 		"""[<channel>] <pattern> 
 
@@ -1352,8 +1413,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					m = match(pattern,n,irc)
 					if m:
 						results.append('[%s - %s]' % (nick,m))
-				else:
-					log.debug('ChanServ.check unknown %s' % nick)
 			if len(results):
 				irc.reply('%s user(s): %s' % (len(results),' '.join(results)))
 			else:
