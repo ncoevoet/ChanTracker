@@ -2491,7 +2491,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if chan.deopPending:
 				return
 			def unOpBot():
-			def unOpBot():
 				if channel in irc.state.channels:
 					if not len(i.queue) and not len(chan.queue):
 						if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
