@@ -68,7 +68,6 @@ conf.registerChannelValue(ChanTracker, 'modesToAsk',
 conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
     registry.CommaSeparatedListOfStrings(['e','I'], """sync lists for those modes when opped, only asked one time"""))
 
-
 # per channel settings
 # related to ban tracking
 
@@ -137,7 +136,13 @@ conf.registerChannelValue(ChanTracker, 'kickMode',
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
+
+conf.registerChannelValue(ChanTracker, 'doActionAgainstAffected',
+    registry.Boolean(True, """devoice,deop,dehalfop affected user by a mode change"""))
     
+conf.registerChannelValue(ChanTracker, 'useChannelBansForPermanentBan',
+    registry.Boolean(True, """do check onjoin if someone matchs a permanent ban"""))
+
 conf.registerChannelValue(ChanTracker, 'addKickMessageInComment',
     registry.Boolean(False, """add kick message to mode comment"""))
     
