@@ -2020,8 +2020,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							else:
 								kind = 'cycle'
 							mode = self.registryValue('%sMode' % kind,channel=channel)
-							if len(mode) > 1:
-								mode = mode[0]
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
 							self._act(irc,channel,mode,best,duration,comment)
@@ -2093,7 +2091,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							del chan.nicks[nick]
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
-		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife'))
+		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife')+10)
 	
 	def doQuit (self,irc,msg):
 		isBot = msg.nick == irc.nick
@@ -2104,6 +2102,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
 			patterns = getBestPattern(n,irc)
+			best = None
 			if len(patterns):
 				best = patterns[0]
 			if reason:
@@ -2124,7 +2123,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
 				if msg.nick in chan.nicks:
-					if best and not self._isVip(irc,channel,n):
+					if not self._isVip(irc,channel,n):
 						isCycle = self._isSomething(irc,channel,best,'cycle')
 						if isCycle:
 							isBad = self._isSomething(irc,channel,best,'bad')
@@ -2134,12 +2133,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							else:
 								kind = 'cycle'
 							mode = self.registryValue('%sMode' % kind,channel=channel)
-							if len(mode) > 1:
-								mode = mode[0]
-								duration = self.registryValue('%sDuration' % kind,channel=channel)
-								comment = self.registryValue('%sComment' % kind,channel=channel)
-								self._act(irc,channel,mode,best,duration,comment)
-								self.forceTickle = True
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							log.debug('found %s %s %s %s %s' % (channel,mode,best,duration,comment))
+							self._act(irc,channel,mode,best,duration,comment)
+							self.forceTickle = True
 			if removeNick:
 				i = self.getIrc(irc)
 				if msg.nick in i.nicks:
