@@ -194,6 +194,7 @@ def match (pattern,n,irc):
 
 def getBestPattern (n,irc):
 	# return best pattern for a given Nick
+	match(n.prefix,n,irc)
 	results = []
 	if not n.prefix or not ircutils.isUserHostmask(n.prefix):
 		return []
@@ -999,9 +1000,6 @@ class Nick (object):
 	def setPrefix (self,prefix):
 		if prefix != None and not prefix == self.prefix:
 			self.prefix = prefix
-			if self.prefix:
-				# compute ip
-				matchHostmask(self.prefix,self)
 		return self
 	
 	def setIp (self,ip):
@@ -2135,7 +2133,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							mode = self.registryValue('%sMode' % kind,channel=channel)
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
-							log.debug('found %s %s %s %s %s' % (channel,mode,best,duration,comment))
 							self._act(irc,channel,mode,best,duration,comment)
 							self.forceTickle = True
 			if removeNick:
