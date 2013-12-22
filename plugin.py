@@ -143,6 +143,10 @@ def matchGecos (pattern,pat,negate,n,extprefix):
 	return None
 
 def match (pattern,n,irc):
+	if not pattern:
+		return None
+	if not n.prefix:
+		return None
 	# check if given pattern match an Nick
 	key = pattern + ' :: ' + str(n)
 	if key in cache:
