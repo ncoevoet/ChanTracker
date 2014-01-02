@@ -182,18 +182,13 @@ def match (pattern,n,irc):
 			k = pattern[(pattern.rfind(':')+1):]
 			cache[key] = matchHostmask(k,n)
 	else:
-		if ircutils.isUserHostmask(pattern):
-			cache[key] = matchHostmask(pattern,n)
+		p = pattern
+		if p.find(extprefix) != -1:
+			p = p.split(extprefix)[0]
+		if ircutils.isUserHostmask(p):
+			cache[key] = matchHostmask(p,n)
 		else:
-			if pattern.find(extprefix) != -1:
-				# channel forwards
-				pattern = pattern.split(extprefix)[0]
-				if ircutils.isUserHostmask(pattern):
-					cache[key] = matchHostmask(pattern,n)
-				else:
-					log.error('%s pattern is not supported' % pattern)
-			else:
-				log.error('%s pattern is not supported' % pattern)
+			log.error('%s pattern is not supported' % pattern)
 	return cache[key]
 
 def getBestPattern (n,irc):
