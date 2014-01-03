@@ -1371,7 +1371,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	remove = wrap(remove,['op','nickInChannel',additional('text')])
 	
-	def prevent (self,irc,msg,args,channel,prefix):
+	def match (self,irc,msg,args,channel,prefix):
 		"""[<channel>] <nick|pattern>
 
 		returns active mode that targets pattern or nick given"""
@@ -1395,7 +1395,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		else:
 			irc.reply('no results')
 		self._tickle(irc)
-	prevent = wrap(prevent,['op','text'])
+	match = wrap(match,['op','text'])
 	
 	def check (self,irc,msg,args,channel,pattern):
 		"""[<channel>] <pattern> 
@@ -2611,7 +2611,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if nick in irc.state.channels[channel].users and nick != irc.nick:
-										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage')))
+										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
 										self.forceTickle = True
 										kicked = True
 								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
@@ -2732,7 +2732,28 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			self.forceTickle = True
 			self._tickle(irc)
 		else:
-			log.error('%s %s %s %s %s unsupported mode' % (channel,mode,mask,duration,reason))
+			results = []
+			i = self.getIrc(irc)
+			for nick in irc.state.channels[channel].users:
+				if nick in i.nicks and nick != irc.nick:
+					n = self.getNick(irc,nick)
+					m = match(mask,n,irc)
+					if m:
+						results.append(nick)
+			if len(results) and mode in 'kr':
+				chan = self.getChan(irc,channel)
+				if not reason or not len(reason):
+					reason = self.registryValue('kickMessage',channel=channel)
+				for n in results:
+					if mode == 'k':
+						chan.action.enqueue(ircmsgs.IrcMsg('KICK %s %s :%s' % (channel,n,reason)))
+						self.forceTickle = True
+					elif mode == 'r':
+						chan.action.enqueue(ircmsgs.IrcMsg('REMOVE %s %s :%s' % (channel,n,reason)))
+						self.forceTickle = True
+				self._tickle(irc)
+			else:
+				log.error('%s %s %s %s %s unsupported mode' % (channel,mode,mask,duration,reason))
 	
 	def _isSomething (self,irc,channel,key,prop):
 		limit = self.registryValue('%sPermit' % prop,channel=channel)
