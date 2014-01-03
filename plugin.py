@@ -1698,7 +1698,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode == 'q' and item.value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
+						if mode == 'q' and item.value.find(self.getIrcdExtbansPrefix(irc)) == -1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and not len(chan.queue):
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
