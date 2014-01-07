@@ -1788,6 +1788,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					L.append(chan.update[update])
 				for update in L:
 					(m,value,expire,prefix) = update
+					# todo need to protect cycle call between i.edit scheduler and _tickle here.
 					item = chan.getItem(m,value)
 					if item and item.expire != expire:
 						f = None
@@ -2684,7 +2685,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self.registryValue('announceMode',channel=channel) and len(msgs):
 				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
 				self.forceTickle = True
-			self._tickle(irc)	
 	
 	def do474(self,irc,msg):
 		# bot banned from a channel it's trying to join
