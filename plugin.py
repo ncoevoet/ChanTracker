@@ -1797,9 +1797,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								f = self._logChan
 							elif prefix == irc.prefix and self.registryValue('announceBotEdit',channel=item.channel):
 								f = self._logChan
+						del chan.update[key]
 						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._schedule,f)
 						key = '%s%s' % (m,value)
-						del chan.update[key]
 						retickle = True
 			# update marks
 			if len(chan.mark):
@@ -2685,6 +2685,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self.registryValue('announceMode',channel=channel) and len(msgs):
 				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
 				self.forceTickle = True
+		self._tickle(irc)
 	
 	def do474(self,irc,msg):
 		# bot banned from a channel it's trying to join
