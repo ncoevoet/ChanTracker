@@ -1797,9 +1797,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								f = self._logChan
 							elif prefix == irc.prefix and self.registryValue('announceBotEdit',channel=item.channel):
 								f = self._logChan
+						key = '%s%s' % (m,value)
 						del chan.update[key]
 						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._schedule,f)
-						key = '%s%s' % (m,value)
 						retickle = True
 			# update marks
 			if len(chan.mark):
