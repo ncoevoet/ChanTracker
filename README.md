@@ -113,7 +113,7 @@ Another example, you got sometimes a wave of bots which sends the same message f
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatChars 200 <-- enable check only if there is at least 200 chars
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatPermit 0 <-- that means if first message matchs the seconds, it will trigger it
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatLife 4 <-- don't keep messages too long in memory, to avoid false positive
-	!config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.60 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.75 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 600 <-- with massRepeat detection, pattern used when triggering are kept in memory during massPatternDuration, so don't keep them too long in memory
 
