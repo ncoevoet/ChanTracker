@@ -53,7 +53,7 @@ Bot can forward a lot of important informations about channel activity into a se
 	!config supybot.plugins.ChanTracker.logChannel #myGeneralSecretChannel
 	!config channel #myChannel supybot.plugins.ChanTracker.logChannel #myChannel-ops
 
-You can tweak which informations you would like to be forwarded, some are activated by default like topic changes, mode changes, etc , some not, take a look at :
+You can tweak which informations you would like to be forwarded, some are activated by default like topic changes, mode changes, etc, some not, like bot's ban/quiet edit / mark etc, take a look at :
 
 	!search supybot.plugins.ChanTracker.announce
 
@@ -65,25 +65,67 @@ Bot can set a duration for new tracked mode changes, in order to auto remove the
 
 	!config channel #myChannel supybot.plugins.ChanTracker.autoExpire 3600 ( 1h )
 
+Has bot can check on join if user matchs bans filled via channel add #channel *!*@mask ( see config useChannelBansForPermanentBan ), and ban the user if he matchs, 
+with autoExpire enabled, it allows you to manage a larger bans list than what the ircd can provide, with rotated bans, and without reveals the pattern used for match ( the only restriction there is that it doesn't support extended bans due to supybot)
+
 If ircd is great, bot can track account changes and get gecos/username informations when someone joins a channel, it supports ircd CAP features, details can be found here : http://tools.ietf.org/html/draft-mitchell-irc-capabilities-01
 
 Bot also supports extended bans/quiets like $r,$x,$a, etc if you want it to support your ircd extended bans, please, fill an issue or contact me
 
-It also has a lot of channel protection features, with per channel settings, take a look at config.py for details, but it is able to handle flood, flood from throttle client ( like copy/paste ), repeat message, repeat message from multi users, UPPER CASE spam, channel's CTCP, channel's notices, hilight spam, nick changes spam, join/part flood, mass join, and two more features, bad user flag and channel under attack modes
+It has a lot of channel build in protection features, which can be enabled individualy and per channel, or globaly :
+
+- flood detection
+- low flood detection
+- repeat detection
+- massRepeat detection ( when same message comes from differents users )
+- capslock detection
+- ctcp : channel's ctcp detection
+- notices : channel's notices detection
+- hilight : nick spam
+- nick : nick changes spam
+- cycle : join/part flood
+- massJoin
+
+each of those detection works with the same kind of settings, there is *Permit ( -1 to disable ), *Life ( which means during how long the bot will keep in mind previous messages/behaviour ), 
+*Mode ( which allows you to select which action you want to do against the user :
+
+- q : quiet the user
+- b : ban the user
+- k : kick the user
+- r : force part the user ( if the ircd has the feature ) 'REMOVE $channel $nick :$reason'
+
+for each of those, but only relevant with bq mode, you can choose the *Duration of the quiet/ban, and add a *Mark on the related quiet/ban.
 
 An example about flood control, You want to quiet for 1 minute anyone that send more than 4 messages in 7 seconds in #channel, and if the user continue to flood, after 2 times he will be banned
 
-	!config channel #channel supybot.plugins.ChanTracker.floodPermit 4
-	!config channel #channel supybot.plugins.ChanTracker.floodLife 7
-	!config channel #channel supybot.plugins.ChanTracker.floodMode q
-	!config channel #channel supybot.plugins.ChanTracker.floodDuration 60
-	!config channel #channel supybot.plugins.ChanTracker.badPermit 2
-	
-You can use k and r as *Mode, which will kick or force part instead of quiet/ban.
-	
-Bot will do nothing against user with protected capabilities ( #channel,protected ) and people in +eI list ( supybot.plugins.ChanTracker.modesToAskWhenOpped )
-	
-That means if the bot will quiet anyone who flood, and if the user flood more than 2 times during badLife, bot will use badMode on him
+	!config channel #channel supybot.plugins.ChanTracker.floodPermit 4 <-- max number of messages allowed
+	!config channel #channel supybot.plugins.ChanTracker.floodLife 7 <-- in 7 seconds
+	!config channel #channel supybot.plugins.ChanTracker.floodMode q <-- quiet the user
+	!config channel #channel supybot.plugins.ChanTracker.floodDuration 60 <-- for 60 seconds
+	!config channel #channel supybot.plugins.ChanTracker.badPermit 2 <-- if user does that 3 times, 
+	!config channel #channel supybot.plugins.ChanTracker.badMode b <-- ban him 
+
+bad* when enabled ( badPermit > -1 ) keeps track of user who did something wrong during badLife, and can end to banMode if the user exceeds the limit.
+attack* when enabled keeps track of bad actions, and if channel count of bad actions during attackLife exceeds attackPermit, it sets some specific channels mode during a attackDuration
+
+Another example, you got sometimes a wave of bots which sends the same message from differents hosts:
+
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatChars 200 <-- enable check only if there is at least 200 chars
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatPermit 0 <-- that means if first message matchs the seconds, it will trigger it
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatLife 4 <-- don't keep messages too long in memory, to avoid false positive
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.60 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 600 <-- with massRepeat detection, pattern used when triggering are kept in memory during massPatternDuration, so don't keep them too long in memory
+
+On regular spam purpose, you should not use massRepeat feature, but simply repeat detection:
+
+	!config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
+	!config channel #channel supybot.plugins.ChanTracker.repeatLife 120 <-- keep previous messages during 60 seconds
+	!config channel #channel supybot.plugins.ChanTracker.repeatPercent 0.88 <-- 1.00 for identical message, don't go too lower, you will get false positive
+	!config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
+	!config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
+
+Bot will do nothing against user with protected capabilities ( #channel,protected ) and people in +eI list ( supybot.plugins.ChanTracker.modesToAskWhenOpped ) with those protection features enabled.
 
 Bot will kick by users affected by +b see :
 
@@ -91,6 +133,10 @@ Bot will kick by users affected by +b see :
 	!config supybot.plugins.ChanTracker.kickMessage
 
 Note : bot will only kick people if the ban was set by itself, if an op place a ban, bot will not kick affected users
+
+If the main purpose of your bot is to manage bans etc, and never interacts with users you should, as owner remove all plugin with 'owner defaultcapabilities remove <pluginname>', it will prevent the bot to answer to various command, and being used as a flood tool by others. ( like !echo SPAM )
+
+If your bot manage differents channels or community, remove all User.action from defaultcapabilities, create one user per channel/community, and add ops's hostmasks into it, it's easier to manage that way. Until you have someone with rights in 2 community/channels who will need a separate account.
 
 It works with any version of supybot, vannila, limnoria etc
 
