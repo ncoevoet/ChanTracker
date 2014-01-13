@@ -584,7 +584,7 @@ class Ircd (object):
 					(uid,full) = item
 					if ircutils.hostmaskPatternEqual(pattern,full):
 						bans[uid] = uid
-		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? ORDER BY ban_id DESC""",(glob,like))
+		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
 		items = c.fetchall()
 		if len(items):
 			for item in items:
@@ -660,7 +660,7 @@ class Ircd (object):
 		c.execute("""SELECT id,channel,kind,mask FROM bans WHERE id=?""",(uid,))
 		L = c.fetchall()
 		b = False
-		if len(L):	
+		if len(L):
 			(uid,channel,kind,mask) = L[0]
 			if not ircdb.checkCapability(prefix,'%s,op' % channel):
 				if prefix != irc.prefix:
@@ -670,9 +670,9 @@ class Ircd (object):
 			c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""",(uid,prefix,current,message))
 			db.commit()
 			f = None
-			if prefix != irc.prefix and ct.registryValue('announceEdit',channel=item.channel):
+			if prefix != irc.prefix and ct.registryValue('announceEdit',channel=channel):
 				f = ct._logChan
-			elif prefix == irc.prefix and ct.registryValue('announceBotMark',channel=item.channel):
+			elif prefix == irc.prefix and ct.registryValue('announceBotMark',channel=channel):
 				f = ct._logChan
 			if f:
 				f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
