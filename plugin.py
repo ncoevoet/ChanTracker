@@ -2802,15 +2802,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def _isRepeat(self,irc,channel,key,message):
 		limit = self.registryValue('repeatPermit',channel=channel)	
-		if limit == -1:
+		if limit < 0:
 			return False
 		chan = self.getChan(irc,channel)
 		## needed to compare with previous text
+		if limit == 0:
+			max = 2
+		else:
+			max = limit*2
 		if not key in chan.repeatLogs:
-			chan.repeatLogs[key] = utils.structures.MaxLengthQueue(limit*2)
+			chan.repeatLogs[key] = utils.structures.MaxLengthQueue(max)
 		logs = chan.repeatLogs[key]
-		if limit*2 != logs.length:
-			logs = chan.repeatLogs[key] = utils.structures.MaxLengthQueue(limit*2)
+		if max != logs.length:
+			logs = chan.repeatLogs[key] = utils.structures.MaxLengthQueue(max)
 		trigger = self.registryValue('repeatPercent',channel=channel)
 		result = False
 		if len(logs) > 0:
