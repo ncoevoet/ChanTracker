@@ -2302,7 +2302,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if not isVip:
 						isPattern = False
 						for pattern in chan.massPattern:
-							if self._strcompare(pattern,text) >= self.registryValue('massRepeatPercent',channel=channel):
+							if self._strcompare(chan.massPattern[pattern],text) >= self.registryValue('massRepeatPercent',channel=channel):
 								kind = 'massRepeat'
 								mode = self.registryValue('%sMode' % kind,channel=channel)
 								duration = self.registryValue('%sDuration' % kind,channel=channel)
@@ -2317,21 +2317,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							isBad = False
 							if len(text) >= self.registryValue('massRepeatChars',channel=channel):
 								isMass = self._isSomething(irc,channel,text,'massRepeat')
-							if isNotice:
-								isBad = self._isSomething(irc,channel,best,'bad')
-							if isNotice or isMass or isBad:
-								kind = None
-								if isBad:
-									kind = 'bad'
-								elif isMass:
-									kind = 'massRepeat'
+								if isMass:
 									if not text in chan.massPattern:
 										chan.massPattern[text] = text
 										def unpattern ():
 											if text in chan.massPattern:
 												del chan.massPattern[text]
-										# remove pattern after massRepeatDuration, maybe add another config value ?
 										schedule.addEvent(unpattern,time.time()+self.registryValue('massRepeatDuration',channel=channel))
+							if isNotice:
+								isBad = self._isSomething(irc,channel,best,'bad')
+							if isNotice or isBad:
+								kind = None
+								if isBad:
+									kind = 'bad'
 								else:
 									kind = 'notice'
 								mode = self.registryValue('%sMode' % kind,channel=channel)
@@ -2414,7 +2412,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				# checking if message matchs living massRepeatPattern
 				if not isVip:
 					for pattern in chan.massPattern:
-						if self._strcompare(pattern,text) >= self.registryValue('massRepeatPercent',channel=channel):
+						if self._strcompare(chan.massPattern[pattern],text) >= self.registryValue('massRepeatPercent',channel=channel):
 							kind = 'massRepeat'
 							mode = self.registryValue('%sMode' % kind,channel=channel)
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
@@ -2436,7 +2434,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					isMass = False
 					if len(text) >= self.registryValue('massRepeatChars',channel=channel):
 						isMass = self._isSomething(irc,channel,text,'massRepeat')
-					if isFlood or isHilight or isRepeat or isCap or isCtcp or isLowFlood or isMass:
+						if isMass:
+							if not text in chan.massPattern:
+								chan.massPattern[text] = text
+								def unpattern ():
+									if text in chan.massPattern:
+										del chan.massPattern[text]
+								schedule.addEvent(unpattern,time.time()+self.registryValue('massRepeatDuration',channel=channel))
+					if isFlood or isHilight or isRepeat or isCap or isCtcp or isLowFlood:
 						isBad = self._isBad(irc,channel,best)
 						kind = None
 						duration = 0
@@ -2444,17 +2449,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							kind = 'bad'
 							duration = self.registryValue('badDuration',channel=channel)
 						else:
-							# todo select the hardest duration
-							if isMass:
-								kind = 'massRepeat'
-								duration = self.registryValue('massRepeatDuration',channel=channel)
-								if not text in chan.massPattern:
-									chan.massPattern[text] = text
-									def unpattern ():
-										if text in chan.massPattern:
-											del chan.massPattern[text]
-									# remove pattern after massRepeatDuration, maybe add another config value ?
-									schedule.addEvent(unpattern,time.time()+duration)
 							if isFlood:
 								d = self.registryValue('floodDuration',channel=channel)
 								if d > duration:
