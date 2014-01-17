@@ -112,15 +112,15 @@ Another example, you got sometimes a wave of bots which sends the same message f
 
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatChars 200 <-- enable check only if there is at least 200 chars
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatPermit 0 <-- that means if first message matchs the seconds, it will trigger it
-	!config channel #channel supybot.plugins.ChanTracker.massRepeatLife 4 <-- don't keep messages too long in memory, to avoid false positive
-	!config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.75 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatLife 60 <-- don't keep messages too long in memory, to avoid false positive
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.85 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
 	!config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
-	!config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 600 <-- with massRepeat detection, pattern used when triggering are kept in memory during massPatternDuration, so don't keep them too long in memory
+	!config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 1800  
 
 On regular spam purpose, you should not use massRepeat feature, but simply repeat detection:
 
 	!config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
-	!config channel #channel supybot.plugins.ChanTracker.repeatLife 120 <-- keep previous messages during 60 seconds
+	!config channel #channel supybot.plugins.ChanTracker.repeatLife 40 <-- keep previous messages during 60 seconds
 	!config channel #channel supybot.plugins.ChanTracker.repeatPercent 0.88 <-- 1.00 for identical message, don't go too lower, you will get false positive
 	!config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
 	!config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
