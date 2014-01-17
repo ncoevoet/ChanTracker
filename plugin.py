@@ -87,7 +87,6 @@ def matchHostmask (pattern,n):
 							cache[host] = None
 				except:
 					cache[host] = None
-	log.debug('checking %s / %s' % (pattern,n))
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -268,69 +267,6 @@ def floatToGMT (t):
 	except:
 		return None
 	return time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(f))
-
-class SpamQueue(object):
-	timeout = 0
-	def __init__(self, timeout=None, queues=None):
-		if timeout is not None:
-			self.timeout = timeout
-		if queues is None:
-			queues = ircutils.IrcDict()
-		self.queues = queues
-
-	def __repr__(self):
-		return 'SpamQueue(timeout=%r,queues=%s)' % (self.timeout,repr(self.queues))
-
-	def reset (self,data):
-		q = self._getQueue(data,insert=False)
-		if q is not None:
-			q.reset()
-			key = self.key(data)
-			self.queues[key] = q
-
-	def key (self,data):
-		return data[0]
-
-	def getTimeout(self):
-		if isinstance(self.timeout, collections.Callable):
-			return self.timeout()
-		else:
-			return self.timeout
-
-	def _getQueue(self,data,insert=True):
-		try:
-			return self.queues[self.key(data)]
-		except KeyError:
-			if insert:
-				getTimeout = lambda : self.getTimeout()
-				q = utils.structures.TimeoutQueue(getTimeout)
-				self.queues[self.key(data)] = q
-				return q
-			else:
-				return None
-
-	def enqueue(self,data,what=None):
-		if what is None:
-			what = data
-		q = self._getQueue(data)
-		q.enqueue(what)
-
-	def len (self,data):
-		q = self._getQueue(data,insert=False)
-		if q is not None:
-			return len(q)
-		else:
-			return 0
-
-	def has (self,data,what):
-		q = self._getQueue(data,insert=False)
-		if q is not None:
-			if what is None:
-				what = data
-			for elt in q:
-				if elt == what:
-					return True
-		return False
 
 class Ircd (object):
 	# define an ircd, keeps Chan and Nick items
@@ -853,12 +789,11 @@ class Chan (object):
 		# now stuff here is related to protection
 		self.spam = ircutils.IrcDict()
 		self.repeatLogs = ircutils.IrcDict()
-		self.massPattern = ircutils.IrcDict()
 		self.nicks = ircutils.IrcDict()
 	
 	def isWrong (self,pattern):
-		if 'bad' in self.spam:
-			if self.spam['bad'].len([pattern]) > 0:
+		if 'bad' in self.spam and pattern in self.spam['bad']:
+			if len(self.spam['bad'][pattern]) > 0:
 				return True
 		return False
 		
@@ -1372,23 +1307,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	remove = wrap(remove,['op','nickInChannel',additional('text')])
 	
 	def match (self,irc,msg,args,channel,prefix):
-		"""[<channel>] <nick|pattern>
+		"""[<channel>] <nick>
 
-		returns active mode that targets pattern or nick given"""
+		returns active mode that targets nick given, nick must be in a channel shared by with the bot"""
 		i = self.getIrc(irc)
 		n = None
 		if prefix in i.nicks:
 			n = self.getNick(irc,prefix)
 		else:
-			n = Nick(0)
-			if prefix.find('#') != -1:
-				a = prefix.split('#')
-				username = a[1]
-				prefix = a[0]
-				n.setPrefix(prefix)
-				n.setUsername(username)
-			else:
-				n.setPrefix(prefix)
+			irc.reply('unknow nick')
+			return
 		results = i.against(irc,channel,n,msg.prefix,self.getDb(irc.network))
 		if len(results):
 			irc.reply(' '.join(results), private=True)
@@ -2089,6 +2017,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							del chan.nicks[nick]
 						if best in chan.repeatLogs:
 							del chan.repeatLogs[best]
+						for k in chan.spam:
+							if best in chan.spam[k]:
+								del chan.spam[k][best]
 		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife')+10)
 	
 	def doQuit (self,irc,msg):
@@ -2300,45 +2231,30 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					n.addLog(channel,'NOTICE | %s' % text)
 					isVip = self._isVip(irc,channel,n)
 					if not isVip:
-						isPattern = False
-						for pattern in chan.massPattern:
-							if self._strcompare(chan.massPattern[pattern],text) >= self.registryValue('massRepeatPercent',channel=channel):
-								kind = 'massRepeat'
-								mode = self.registryValue('%sMode' % kind,channel=channel)
-								duration = self.registryValue('%sDuration' % kind,channel=channel)
-								comment = self.registryValue('%sComment' % kind,channel=channel)
-								self._act(irc,channel,mode,best,duration,comment)
-								self._isBad(irc,channel,best) # increment bad
-								self.forceTickle = True
-								isPattern = True
-						if not isPattern:
-							isNotice = self._isSomething(irc,channel,best,'notice')
-							isMass = False
-							isBad = False
-							if len(text) >= self.registryValue('massRepeatChars',channel=channel):
-								isMass = self._isSomething(irc,channel,text,'massRepeat')
-								if isMass:
-									if not text in chan.massPattern:
-										chan.massPattern[text] = text
-										def unpattern ():
-											if text in chan.massPattern:
-												del chan.massPattern[text]
-										schedule.addEvent(unpattern,time.time()+self.registryValue('massRepeatDuration',channel=channel))
-							if isNotice:
-								isBad = self._isSomething(irc,channel,best,'bad')
-							if isNotice or isBad:
-								kind = None
-								if isBad:
-									kind = 'bad'
-								else:
-									kind = 'notice'
-								mode = self.registryValue('%sMode' % kind,channel=channel)
-								if len(mode) > 1:
-									mode = mode[0]
-								duration = self.registryValue('%sDuration' % kind,channel=channel)
-								comment = self.registryValue('%sComment' % kind,channel=channel)
-								self._act(irc,channel,mode,best,duration,comment)
-								self.forceTickle = True
+						isNotice = self._isSomething(irc,channel,best,'notice')
+						isMass = self._isMassRepeat(irc,channel,text)
+						isBad = False
+						if isMass:
+							kind = 'massRepeat'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							self._act(irc,channel,mode,best,duration,comment)
+							self._isBad(irc,channel,best)
+							self.forceTickle = True
+						if isNotice:
+							isBad = self._isSomething(irc,channel,best,'bad')
+						if isNotice or isBad:
+							kind = None
+							if isBad:
+								kind = 'bad'
+							else:
+								kind = 'notice'
+							mode = self.registryValue('%sMode' % kind,channel=channel)
+							duration = self.registryValue('%sDuration' % kind,channel=channel)
+							comment = self.registryValue('%sComment' % kind,channel=channel)
+							self._act(irc,channel,mode,best,duration,comment)
+							self.forceTickle = True
 					if self.registryValue('announceNotice',channel=channel):
 						if not chan.isWrong(best):
 							self._logChan(irc,channel,'[%s] %s notice "%s"' % (channel,msg.prefix,text))
@@ -2411,18 +2327,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				isVip = self._isVip(irc,channel,n)
 				# checking if message matchs living massRepeatPattern
 				if not isVip:
-					for pattern in chan.massPattern:
-						if self._strcompare(chan.massPattern[pattern],text) >= self.registryValue('massRepeatPercent',channel=channel):
-							kind = 'massRepeat'
-							mode = self.registryValue('%sMode' % kind,channel=channel)
-							duration = self.registryValue('%sDuration' % kind,channel=channel)
-							comment = self.registryValue('%sComment' % kind,channel=channel)
-							self._act(irc,channel,mode,best,duration,comment)
-							self._isBad(irc,channel,best) # increment bad user count
-							self.forceTickle = True
-							# no needs to check others protection
-							continue
-							
 					isCtcp = False
 					if isCtcpMsg and not isAction:
 						isCtcp = self._isSomething(irc,channel,best,'ctcp')
@@ -2431,16 +2335,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					isRepeat = self._isRepeat(irc,channel,best,text)
 					isHilight = self._isHilight(irc,channel,best,text)
 					isCap = self._isCap(irc,channel,best,text)
-					isMass = False
-					if len(text) >= self.registryValue('massRepeatChars',channel=channel):
-						isMass = self._isSomething(irc,channel,text,'massRepeat')
-						if isMass:
-							if not text in chan.massPattern:
-								chan.massPattern[text] = text
-								def unpattern ():
-									if text in chan.massPattern:
-										del chan.massPattern[text]
-								schedule.addEvent(unpattern,time.time()+self.registryValue('massRepeatDuration',channel=channel))
+					isMass = self._isMassRepeat(irc,channel,text)
+					if isMass:
+						kind = 'massRepeat'
+						mode = self.registryValue('%sMode' % kind,channel=channel)
+						duration = self.registryValue('%sDuration' % kind,channel=channel)
+						comment = self.registryValue('%sComment' % kind,channel=channel)
+						self._act(irc,channel,mode,best,duration,comment)
+						self._isBad(irc,channel,best)
+						self.forceTickle = True
 					if isFlood or isHilight or isRepeat or isCap or isCtcp or isLowFlood:
 						isBad = self._isBad(irc,channel,best)
 						kind = None
@@ -2756,13 +2659,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return False
 		chan = self.getChan(irc,channel)
 		life = self.registryValue('%sLife' % prop,channel=channel)
-		if not prop in chan.spam or chan.spam[prop].timeout != life:
-			# reset queue if config has changed
-			chan.spam[prop] = SpamQueue(life)
-		chan.spam[prop].enqueue([key])
-		if chan.spam[prop].len([key]) > limit:
+		if not prop in chan.spam:
+			chan.spam[prop] = {}
+		if not key in chan.spam[prop] or chan.spam[prop][key].timeout != life:
+			chan.spam[prop][key] = utils.structures.TimeoutQueue(life)
+		chan.spam[prop][key].enqueue(key)
+		if len(chan.spam[prop][key]) > limit:
 			log.debug('[%s] %s is detected as %s' % (channel,key,prop))
-			chan.spam[prop].reset([key])
+			chan.spam[prop][key].reset()
 			return True
 		return False
 	
@@ -2795,31 +2699,43 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		return count > limit
 	
 	def _isRepeat(self,irc,channel,key,message):
-		limit = self.registryValue('repeatPermit',channel=channel)	
-		if limit < 0:
+		if self.registryValue('repeatPermit',channel=channel) < 0:
 			return False
 		chan = self.getChan(irc,channel)
-		## needed to compare with previous text
-		if limit == 0:
-			max = 2
-		else:
-			max = limit*2
-		if not key in chan.repeatLogs:
-			chan.repeatLogs[key] = utils.structures.MaxLengthQueue(max)
+		timeout = self.registryValue('repeatLife',channel=channel)
+		if not key in chan.repeatLogs or chan.repeatLogs[key].timeout != timeout:
+			chan.repeatLogs[key] = utils.structures.TimeoutQueue(timeout)
 		logs = chan.repeatLogs[key]
-		if max != logs.length:
-			logs = chan.repeatLogs[key] = utils.structures.MaxLengthQueue(max)
 		trigger = self.registryValue('repeatPercent',channel=channel)
 		result = False
-		if len(logs) > 0:
-			flag = False
-			for entry in logs:
-				if self._strcompare(message,entry) >= trigger:
-					flag = True
-					break
-			if flag:
-				result = self._isSomething(irc,channel,key,'repeat')
-		logs.enqueue(message)
+		flag = False
+		for msg in logs:
+			if self._strcompare(message,msg) >= trigger:
+				flag = True
+				break
+		if flag:
+			result = self._isSomething(irc,channel,key,'repeat')
+		chan.repeatLogs[key].enqueue(message)
+		return result
+		
+	def _isMassRepeat(self,irc,channel,message):
+		if self.registryValue('massRepeatPermit',channel=channel) < 0 or len(message) < self.registryValue('massRepeatChars',channel=channel):
+			return False
+		chan = self.getChan(irc,channel)
+		life = self.registryValue('massRepeatLife',channel=channel)
+		if not channel in chan.repeatLogs or chan.repeatLogs[channel].timeout != life:
+			chan.repeatLogs[channel] = utils.structures.TimeoutQueue(life)
+		logs = chan.repeatLogs[channel]
+		trigger = self.registryValue('massRepeatPercent',channel=channel)
+		result = False
+		flag = False
+		for msg in logs:
+			if self._strcompare(message,msg) >= trigger:
+				flag = True
+				break
+		if flag:
+			result = self._isSomething(irc,channel,channel,'massRepeat')
+		chan.repeatLogs[channel].enqueue(message)
 		return result
 	
 	def _isCap(self,irc,channel,key,message):
@@ -2850,4 +2766,5 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 
 Class = ChanTracker
+
 
