@@ -1043,6 +1043,41 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._ircs = ircutils.IrcDict()
 		self.getIrc(irc)
 		self.recaps = re.compile("[A-Z]")
+
+
+        def editandmark (self,irc,msg,args,user,ids,seconds,reason):
+                """<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] <reason>
+
+                change expiration and mark an active mode change"""
+		i = self.getIrc(irc)
+		b = True
+		for id in ids:
+			be = False
+			bm = False
+			item = i.getItem(irc,id)
+			if item:
+				f = None
+				if self.registryValue('announceEdit',channel=item.channel):
+					f = self._logChan
+				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=item.channel):
+					f = None
+				be = i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
+				f = None
+				if self.registryValue('announceEdit',channel=item.channel):
+					f = self._logChan
+				if be:
+					if reason and len(reason):
+						bm = i.mark(irc,id,reason,msg.prefix,self.getDb(irc.network),f)
+					else:
+						bm = True
+				b = b and be and bm
+			else:
+				b = False
+		if b:
+			irc.replySuccess()
+		else:
+			irc.reply('item not found, already removed or not enough rights to modify it')		
+        editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),rest('text')])
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
 		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever
@@ -2431,7 +2466,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						del i.askedItems[msg.prefix][found[0]]
 					if not len(i.askedItems[msg.prefix]):
 						del i.askedItems[msg.prefix]
-					tokens = callbacks.tokenize('chantracker edit %s %s' % (found[0],text))
+					tokens = callbacks.tokenize('chantracker editAndMark %s %s' % (found[0],text))
 			                msg.command = 'PRIVMSG'
                 			msg.prefix = msg.prefix
                 			self.Proxy(irc.irc, msg, tokens)
@@ -2517,7 +2552,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										if not len(i.askedItems[msg.prefix]):
 											del i.askedItems[msg.prefix]
 								schedule.addEvent(unAsk,time.time()+180)
-								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'please type duration for [#%s +%s %s in %s], you have 3 minutes' % (item.uid,m,value,channel)))
+								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you enter duration and reason for [#%s +%s %s in %s]' % (item.uid,m,value,channel)))
 								self.forceTickle = True
 							if overexpire > 0:
 								# overwrite expires
