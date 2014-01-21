@@ -282,7 +282,8 @@ class Ircd (object):
 		# contains less important IrcMsgs ( sync, logChannel )
 		self.lowQueue = utils.structures.smallqueue()
 		self.logsSize = logsSize
-	
+		self.askedItems = {}		
+
 	def getChan (self,irc,channel):
 		if not channel or not irc:
 			return None
@@ -2304,6 +2305,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = None
 		best = None
 		patterns = None
+		i = self.getIrc(irc)
 		if ircutils.isUserHostmask(msg.prefix):
 			n = self.getNick(irc,msg.nick)
 			patterns = getBestPattern(n,irc)
@@ -2419,6 +2421,22 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if message:
 								self._logChan(irc,channel,message)
 		
+                        if msg.prefix in i.askedItems:
+				found = None
+				for item in i.askedItems[msg.prefix]:
+					if not found or item < found[0]:
+						found = i.askedItems[msg.prefix][item]
+				if found:
+					if found[0] in i.askedItems[msg.prefix]:
+						del i.askedItems[msg.prefix][found[0]]
+					if not len(i.askedItems[msg.prefix]):
+						del i.askedItems[msg.prefix]
+					tokens = callbacks.tokenize('chantracker edit %s %s' % (found[0],text))
+			                msg.command = 'PRIVMSG'
+                			msg.prefix = msg.prefix
+                			self.Proxy(irc.irc, msg, tokens)
+                                        #i.edit(irc,found[3],found[1],found[2],getDuration(text),msg.prefix,self.getDb(irc.network),self._schedule,f)
+                                        self.forceTickle = True											
 		self._tickle(irc)
 	
 	def doTopic(self, irc, msg):
@@ -2489,7 +2507,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you edit or mark [#%s +%s %s in %s] ? see help mark and help edit' % (item.uid,m,value,channel)))
+								if not msg.prefix in i.askedItems:
+									i.askedItems[msg.prefix] = {}
+								i.askedItems[msg.prefix][item.uid] = [item.uid,m,value,channel]
+								def unAsk():
+									if msg.prefix in i.askedItems:
+										if item.uid in i.askedItems[msg.prefix]:
+											del i.askedItems[msg.prefix][item.uid]
+										if not len(i.askedItems[msg.prefix]):
+											del i.askedItems[msg.prefix]
+								schedule.addEvent(unAsk,time.time()+180)
+								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'please type duration for [#%s +%s %s in %s], you have 3 minutes' % (item.uid,m,value,channel)))
 								self.forceTickle = True
 							if overexpire > 0:
 								# overwrite expires
