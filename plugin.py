@@ -2470,7 +2470,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			                msg.command = 'PRIVMSG'
                 			msg.prefix = msg.prefix
                 			self.Proxy(irc.irc, msg, tokens)
-                                        #i.edit(irc,found[3],found[1],found[2],getDuration(text),msg.prefix,self.getDb(irc.network),self._schedule,f)
+					found = None
+					if msg.prefix in i.askedItems:
+						for item in i.askedItems[msg.prefix]:
+							if not found or item < found[0]:
+								found = i.askedItems[msg.prefix][item]
+						if found:
+							i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
                                         self.forceTickle = True											
 		self._tickle(irc)
 	
@@ -2544,16 +2550,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
 								if not msg.prefix in i.askedItems:
 									i.askedItems[msg.prefix] = {}
-								i.askedItems[msg.prefix][item.uid] = [item.uid,m,value,channel]
+								i.askedItems[msg.prefix][item.uid] = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s], set <duration> <reason>' % (item.uid,m,value,channel)]
 								def unAsk():
 									if msg.prefix in i.askedItems:
 										if item.uid in i.askedItems[msg.prefix]:
 											del i.askedItems[msg.prefix][item.uid]
-										if not len(i.askedItems[msg.prefix]):
+										if not len(list(i.askedItems[msg.prefix])):
 											del i.askedItems[msg.prefix]
 								schedule.addEvent(unAsk,time.time()+180)
-								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'Could you enter duration and reason for [#%s +%s %s in %s]' % (item.uid,m,value,channel)))
-								self.forceTickle = True
+								if len(list(i.askedItems[msg.prefix])) == 1:
+									i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'For [#%s +%s %s in %s], set <duration> <reason>' % (item.uid,m,value,channel)))
+									self.forceTickle = True
 							if overexpire > 0:
 								# overwrite expires
 								if msg.nick != irc.nick:
