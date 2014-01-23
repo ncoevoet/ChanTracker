@@ -2455,7 +2455,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										message = '[%s] [#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
 							if message:
 								self._logChan(irc,channel,message)
-			else if irc.nick == channel:
+			elif irc.nick == channel:
 				if msg.prefix in i.askedItems:
 					found = None
 					for item in i.askedItems[msg.prefix]:
