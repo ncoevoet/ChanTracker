@@ -716,7 +716,7 @@ class Ircd (object):
 				newEnd = begin_at
 				reason = 'never expires'
 			elif seconds == 0:
-				newEnd = current-1 # force expires for next tickle
+				newEnd = current # force expires for next tickle
 				reason = 'expires at [%s], for %s in total' % (floatToGMT(newEnd),utils.timeElapsed(newEnd-begin_at))
 			else:
 				newEnd = current+seconds
@@ -731,7 +731,7 @@ class Ircd (object):
 					i.expire = None
 				else:
 					i.expire = newEnd
-					if scheduleFunction:
+					if scheduleFunction and newEnd != current:
 						scheduleFunction(irc,newEnd)
 			if logFunction:
 				logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
