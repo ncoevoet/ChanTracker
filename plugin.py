@@ -1045,10 +1045,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self.recaps = re.compile("[A-Z]")
 
 
-        def editandmark (self,irc,msg,args,user,ids,seconds,reason):
-                """<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] <reason>
+	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
+		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] <reason>
 
-                change expiration and mark an active mode change"""
+		change expiration and mark an active mode change"""
 		i = self.getIrc(irc)
 		b = True
 		for id in ids:
@@ -1077,7 +1077,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.replySuccess()
 		else:
 			irc.reply('item not found, already removed or not enough rights to modify it')		
-        editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),rest('text')])
+	editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),rest('text')])
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
 		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever
@@ -2455,29 +2455,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										message = '[%s] [#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
 							if message:
 								self._logChan(irc,channel,message)
-		
-                        if msg.prefix in i.askedItems:
-				found = None
-				for item in i.askedItems[msg.prefix]:
-					if not found or item < found[0]:
-						found = i.askedItems[msg.prefix][item]
-				if found:
-					if found[0] in i.askedItems[msg.prefix]:
-						del i.askedItems[msg.prefix][found[0]]
-					if not len(i.askedItems[msg.prefix]):
-						del i.askedItems[msg.prefix]
-					tokens = callbacks.tokenize('chantracker editAndMark %s %s' % (found[0],text))
-			                msg.command = 'PRIVMSG'
-                			msg.prefix = msg.prefix
-                			self.Proxy(irc.irc, msg, tokens)
+			else if irc.nick == channel:
+				if msg.prefix in i.askedItems:
 					found = None
-					if msg.prefix in i.askedItems:
-						for item in i.askedItems[msg.prefix]:
-							if not found or item < found[0]:
-								found = i.askedItems[msg.prefix][item]
-						if found:
-							i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
-                                        self.forceTickle = True											
+					for item in i.askedItems[msg.prefix]:
+						if not found or item < found[0]:
+							found = i.askedItems[msg.prefix][item]
+					if found:
+						if found[0] in i.askedItems[msg.prefix]:
+							del i.askedItems[msg.prefix][found[0]]
+						if not len(i.askedItems[msg.prefix]):
+							del i.askedItems[msg.prefix]
+						tokens = callbacks.tokenize('chantracker editAndMark %s %s' % (found[0],text))
+						msg.command = 'PRIVMSG'
+						msg.prefix = msg.prefix
+						self.Proxy(irc.irc, msg, tokens)
+						found = None
+						if msg.prefix in i.askedItems:
+							for item in i.askedItems[msg.prefix]:
+								if not found or item < found[0]:
+									found = i.askedItems[msg.prefix][item]
+							if found:
+								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
+							self.forceTickle = True
 		self._tickle(irc)
 	
 	def doTopic(self, irc, msg):
