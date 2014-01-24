@@ -521,7 +521,7 @@ class Ircd (object):
 					(uid,full) = item
 					if ircutils.hostmaskPatternEqual(pattern,full):
 						bans[uid] = uid
-		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? ORDER BY ban_id DESC""",(glob,like))
+		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
 		items = c.fetchall()
 		if len(items):
 			for item in items:
@@ -807,7 +807,7 @@ class Chan (object):
 			self._lists[mode] = ircutils.IrcDict()
 		return self._lists[mode]
 
-	def addItem (self,mode,value,by,when,db):
+	def addItem (self,mode,value,by,when,db,checkUser=True):
 		# eqIb(+*) (-ov) pattern prefix when 
 		# mode : eqIb -ov + ?
 		l = self.getItemsFor(mode)
@@ -833,11 +833,10 @@ class Chan (object):
 			else:
 				# if begin_at == end_at --> that means forever
 				c.execute("""INSERT INTO bans VALUES (NULL, ?, ?, ?, ?, ?, ?,NULL, NULL)""", (self.name,by,mode,value,when,when))
-				db.commit()
 				uid = c.lastrowid
 				# leave channel's users list management to supybot
 				ns = []
-				if self.name in self.ircd.irc.state.channels:
+				if self.name in self.ircd.irc.state.channels and checkUser:
 					L = []
 					for nick in list(self.ircd.irc.state.channels[self.name].users):
 						L.append(nick)
@@ -857,8 +856,7 @@ class Chan (object):
 									logs.append('[%s] <%s> %s' % (floatToGMT(ts),nick,message))
 							c.execute("""INSERT INTO nicks VALUES (?, ?, ?, ?)""",(uid,value,n.prefix,'\n'.join(logs)))
 							ns.append([n,m])
-				if len(ns):
-					db.commit()
+				db.commit()
 			c.close()
 			i.uid = uid
 			i.by = by
@@ -1802,7 +1800,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if irc.isChannel(channel) and channel in irc.state.channels:
 			if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 				chan = self.getChan(irc,channel)
-				chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network))
+				chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network),False)
 	
 	def _endList (self,irc,msg,channel,mode):
 		if irc.isChannel(channel) and channel in irc.state.channels:
