@@ -2456,30 +2456,67 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if message:
 								self._logChan(irc,channel,message)
 			elif irc.nick == channel:
-				if msg.prefix in i.askedItems:
-					found = None
-					for item in i.askedItems[msg.prefix]:
-						if not found or item < found[0]:
-							found = i.askedItems[msg.prefix][item]
-					if found:
-						if found[0] in i.askedItems[msg.prefix]:
-							del i.askedItems[msg.prefix][found[0]]
-						if not len(i.askedItems[msg.prefix]):
-							del i.askedItems[msg.prefix]
-						tokens = callbacks.tokenize('chantracker editAndMark %s %s' % (found[0],text))
-						msg.command = 'PRIVMSG'
-						msg.prefix = msg.prefix
-						self.Proxy(irc.irc, msg, tokens)
-						found = None
-						if msg.prefix in i.askedItems:
-							for item in i.askedItems[msg.prefix]:
-								if not found or item < found[0]:
-									found = i.askedItems[msg.prefix][item]
-							if found:
-								i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
-							self.forceTickle = True
+				found = self.hasAskedItems(irc,msg.prefix,True)
+				if found:
+					tokens = callbacks.tokenize('ChanTracker editAndMark %s %s' % (found[0],text))
+					msg.command = 'PRIVMSG'
+					msg.prefix = msg.prefix
+					self.Proxy(irc.irc, msg, tokens)
+				found = self.hasAskedItems(irc,msg.prefix,False)
+				if found:
+					log.debug('hasAsked %s' % found[0])
+					i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
+					self.forceTickle = True
 		self._tickle(irc)
 	
+	def hasAskedItems(self,irc,prefix,remove):
+		i = self.getIrc(irc)
+		if prefix in i.askedItems:
+			found = None
+			for item in i.askedItems[prefix]:
+				if not found or item < found[0]:
+					found = i.askedItems[prefix][item]
+			if found:
+				chan = self.getChan(irc,found[3])
+				items = chan.getItemsFor(found[1])
+				active = None
+				if len(items):
+					for item in items:
+						item = items[item]
+						if item.uid == found[0]:
+							active = item;
+							break
+				if remove:
+					del i.askedItems[prefix][found[0]]
+					if not len(i.askedItems[prefix]):
+						del i.askedItems[prefix]
+				if active:
+					return found
+		return None
+
+	def addToAsked (self,irc,prefix,data,nick):
+		toAsk = False
+		endTime = time.time() + 180
+		i = self.getIrc(irc)
+		if not prefix in i.askedItems:
+			i.askedItems[prefix] = {}
+			toAsk = True
+		i.askedItems[prefix][data[0]] = data
+		if toAsk:
+			i.lowQueue.enqueue(ircmsgs.privmsg(nick,data[5]))
+                        self.forceTickle = True
+		def unAsk():
+			if prefix in i.askedItems:
+				if data[0] in i.askedItems[prefix]:
+					del i.askedItems[prefix][data[0]]
+				if not len(list(i.askedItems[prefix])):
+					del i.askedItems[prefix]
+			found = self.hasAskedItems(irc,prefix,False)
+			if found:
+				i.lowQueue.enqueue(ircmsgs.privmsg(nick,found[5]))
+				self.forceTickle
+		schedule.addEvent(unAsk,time.time() + 180 * len(list(i.askedItems[prefix])))				
+
 	def doTopic(self, irc, msg):
 		if len(msg.args) == 1:
 			return
@@ -2548,19 +2585,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								if not msg.prefix in i.askedItems:
-									i.askedItems[msg.prefix] = {}
-								i.askedItems[msg.prefix][item.uid] = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s], set <duration> <reason>' % (item.uid,m,value,channel)]
-								def unAsk():
-									if msg.prefix in i.askedItems:
-										if item.uid in i.askedItems[msg.prefix]:
-											del i.askedItems[msg.prefix][item.uid]
-										if not len(list(i.askedItems[msg.prefix])):
-											del i.askedItems[msg.prefix]
-								schedule.addEvent(unAsk,time.time()+180)
-								if len(list(i.askedItems[msg.prefix])) == 1:
-									i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,'For [#%s +%s %s in %s], set <duration> <reason>' % (item.uid,m,value,channel)))
-									self.forceTickle = True
+								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>' % (item.uid,m,value,channel)]
+								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
 								# overwrite expires
 								if msg.nick != irc.nick:
@@ -2836,5 +2862,3 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 
 Class = ChanTracker
-
-
