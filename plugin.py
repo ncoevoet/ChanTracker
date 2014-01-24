@@ -521,7 +521,7 @@ class Ircd (object):
 					(uid,full) = item
 					if ircutils.hostmaskPatternEqual(pattern,full):
 						bans[uid] = uid
-		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
+		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? ORDER BY ban_id DESC""",(glob,like))
 		items = c.fetchall()
 		if len(items):
 			for item in items:
@@ -839,7 +839,7 @@ class Chan (object):
 				ns = []
 				if self.name in self.ircd.irc.state.channels:
 					L = []
-					for nick in self.ircd.irc.state.channels[self.name].users:
+					for nick in list(self.ircd.irc.state.channels[self.name].users):
 						L.append(nick)
 					for nick in L:
 						n = self.ircd.getNick(self.ircd.irc,nick)
@@ -1368,7 +1368,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if ircutils.isUserHostmask(pattern) or pattern.find(self.getIrcdExtbansPrefix(irc)) != -1:
 			results = []
 			i = self.getIrc(irc)
-			for nick in irc.state.channels[channel].users:
+			for nick in list(irc.state.channels[channel].users):
 				if nick in i.nicks:
 					n = self.getNick(irc,nick)
 					m = match(pattern,n,irc)
@@ -2692,7 +2692,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if info == 'Channel ban list is full':
 			if self.registryValue('logChannel',channel=channel) in irc.state.channels:
 				L = []
-				for user in irc.state.channels[self.registryValue('logChannel',channel=channel)].users:
+				for user in list(irc.state.channels[self.registryValue('logChannel',channel=channel)].users):
 					L.append(user)
 				self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
 		self._tickle(irc)
@@ -2728,7 +2728,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		else:
 			results = []
 			i = self.getIrc(irc)
-			for nick in irc.state.channels[channel].users:
+			for nick in list(irc.state.channels[channel].users):
 				if nick in i.nicks and nick != irc.nick:
 					n = self.getNick(irc,nick)
 					m = match(mask,n,irc)
@@ -2790,7 +2790,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if limit == -1:
 			return False
 		count = 0
-		for user in irc.state.channels[channel].users:
+		for user in list(irc.state.channels[channel].users):
 			count = count + message.count(user)
 		return count > limit
 	
