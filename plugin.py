@@ -2790,8 +2790,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if limit == -1:
 			return False
 		count = 0
+		messages = message.split(' ')
+		users = []
 		for user in list(irc.state.channels[channel].users):
-			count = count + message.count(user)
+			users.append(user)
+		for m in messages:
+			for user in users:
+				if m == user:
+					count = count + 1
+					break
 		return count > limit
 	
 	def _isRepeat(self,irc,channel,key,message):
