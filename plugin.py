@@ -2568,6 +2568,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		db = self.getDb(irc.network)
 		c = db.cursor()
 		toCommit = False
+		toexpire = []
 		if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels:
 			modes = ircutils.separateModes(msg.args[1:])
 			chan = self.getChan(irc,channel)
@@ -2583,17 +2584,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>' % (item.uid,m,value,channel)]
+								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel)]
 								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
-								# overwrite expires
 								if msg.nick != irc.nick:
-									# an op do something, and over expires is enabled, announce or not ? currently not. change last flag
-									f = None
-									if self.registryValue('announceBotEdit',channel=channel):
-										f = self._logChan
-									i.edit(irc,channel,m,value,overexpire,irc.prefix,self.getDb(irc.network),self._schedule,f)
-									self.forceTickle = True
+									toexpire.append(item)
 						# here bot could add others mode changes or actions
 						if item and len(item.affects):
 							for affected in item.affects:
@@ -2675,6 +2670,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				self.forceTickle = True
 			if self.registryValue('announceMode',channel=channel) and len(msgs):
 				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
+				self.forceTickle = True
+			if len(toexpire):
+				for item in toexpire:
+					f = None
+					if self.registryValue('announceBotEdit',channel=item.channel):
+						f = self._logChan
+					i.edit(irc,item.channel,item.mode,item.value,self.registryValue('autoExpire',channel=item.channel),irc.prefix,self.getDb(irc.network),self._schedule,f)
 				self.forceTickle = True
 		self._tickle(irc)
 	
