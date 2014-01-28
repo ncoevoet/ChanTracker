@@ -1705,13 +1705,24 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if not chan.deopAsked:
 						if len(chan.queue):
 							L = []
+							index = 0
+							adding = False
 							while len(chan.queue):
 								L.append(chan.queue.pop())
+								if L[index][0].find ('+') != -1:
+									adding = True
+								index = index + 1
 							# remove duplicates ( should not happens but .. )
 							S = set(L)
 							r = []
 							for item in L:
 								r.append(item)
+							# if glich, just comment this if...
+							if not len(chan.action) and not adding:
+								if not self.registryValue('keepOp',channel=channel) and not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
+									chan.deopPending = True
+									chan.deopAsked = True
+									r.append(('-o',irc.nick))
 							if len(r):
 								# create IrcMsg
 								self._sendModes(irc,r,f)
