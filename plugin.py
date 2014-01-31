@@ -374,7 +374,7 @@ class Ircd (object):
 		c.close()
 		return results
 	
-	def pending(self,irc,channel,mode,prefix,pattern,db):
+	def pending(self,irc,channel,mode,prefix,pattern,db,notExpiredOnly=False):
 		# returns active items for a channel mode
 		if not channel or not mode or not prefix:
 			return []
@@ -389,7 +389,11 @@ class Ircd (object):
 			if len(items):
 				for item in items:
 					item = items[item]
-					r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+					if notExpiredOnly:
+						if item.when == item.expire or not item.expire:
+							r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+					else:
+						r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
 		r.sort(reverse=True)
 		if len(r):
 			for item in r:
@@ -987,7 +991,6 @@ def getTs (irc, msg, args, state):
 			try:
 				n = int(arg)
 				state.args.append(n)
-				args.pop(0)
 			except:
 				state.args.append(float(seconds))
 				raise callbacks.ArgumentError
@@ -1061,7 +1064,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = None
 				be = i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
 				f = None
-				if self.registryValue('announceEdit',channel=item.channel):
+				if self.registryValue('announceMark',channel=item.channel):
 					f = self._logChan
 				if be:
 					if reason and len(reason):
@@ -1184,7 +1187,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('nothing found')
 	query = wrap(query,['private','user','text'])
 	
-	def pending (self, irc, msg, args, channel, mode, pattern):
+	def pending (self, irc, msg, args, channel, mode, pattern, notExpired):
 		"""[<channel>] [<mode>] [<nick|hostmask>]
 
 		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
@@ -1194,15 +1197,33 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		results = []
 		if not mode:
 			modes = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
-			results = i.pending(irc,channel,modes,msg.prefix,pattern,self.getDb(irc.network))
+			results = i.pending(irc,channel,modes,msg.prefix,pattern,self.getDb(irc.network),False)
 		else:
-			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network))
+			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network),notExpired)
 		if len(results):
 			irc.reply(' '.join(results), private=True)
 		else:
 			irc.reply('no results')
-	pending = wrap(pending,['op',additional('letter'),optional('hostmask')])
+	pending = wrap(pending,['op',additional('letter'),optional('hostmask'),optional('boolean')])
 	
+	def _modes (self,numModes,chan,modes,f):
+		for i in range(0, len(modes), numModes):
+			chan.action.enqueue(f(modes[i:i + numModes]))
+	
+	def modes (self, irc, msg, args, channel, modes):
+		"""[<channel>] <mode> [<arg> ...]
+
+		Sets the mode in <channel> to <mode>, sending the arguments given.
+		<channel> is only necessary if the message isn't sent in the channel
+		itself. it bypass autoexpire and everything, bot will ask for OP, if needed.
+		"""
+		def f(L):
+			return ircmsgs.modes(channel,L)
+		self._modes(irc.state.supported.get('modes', 1),self.getChan(irc,channel),ircutils.separateModes(modes),f)
+		self.forceTickle = True
+		self._tickle(irc)
+	modes = wrap(modes, ['op', many('something')])
+
 	def do (self,irc,msg,args,channel,mode,items,seconds,reason):
 		"""[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
@@ -2680,7 +2701,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
 			if self.registryValue('announceMode',channel=channel) and len(msgs):
-				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.prefix,' '.join(msgs)))
+				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
 				self.forceTickle = True
 			if len(toexpire):
 				for item in toexpire:
