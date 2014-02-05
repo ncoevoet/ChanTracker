@@ -1188,7 +1188,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	query = wrap(query,['private','user','text'])
 	
 	def pending (self, irc, msg, args, channel, mode, pattern, notExpired):
-		"""[<channel>] [<mode>] [<nick|hostmask>]
+		"""[<channel>] [<mode>] [<nick|hostmask>] [<onlyNotExpired>]
 
 		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
 		i = self.getIrc(irc)
