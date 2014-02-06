@@ -2464,7 +2464,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					self.Proxy(irc.irc, msg, tokens)
 				found = self.hasAskedItems(irc,msg.prefix,False)
 				if found:
-					i.askedItems[prefix][found[0]][6] = True
+					i.askedItems[msg.prefix][found[0]][6] = True
 					i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
 					self.forceTickle = True
 		self._tickle(irc)
