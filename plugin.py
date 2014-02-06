@@ -2464,7 +2464,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					self.Proxy(irc.irc, msg, tokens)
 				found = self.hasAskedItems(irc,msg.prefix,False)
 				if found:
-					log.debug('hasAsked %s' % found[0])
+					i.askedItems[prefix][found[0]][6] = True
 					i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick,found[5]))
 					self.forceTickle = True
 		self._tickle(irc)
@@ -2474,7 +2474,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if prefix in i.askedItems:
 			found = None
 			for item in i.askedItems[prefix]:
-				if not found or item < found[0]:
+				if not found or item < found[0] and not found[6]:
 					found = i.askedItems[prefix][item]
 			if found:
 				chan = self.getChan(irc,found[3])
@@ -2503,6 +2503,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			toAsk = True
 		i.askedItems[prefix][data[0]] = data
 		if toAsk:
+			i.askedItems[prefix][data[0]][6] = True
 			i.lowQueue.enqueue(ircmsgs.privmsg(nick,data[5]))
                         self.forceTickle = True
 		def unAsk():
@@ -2513,6 +2514,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					del i.askedItems[prefix]
 			found = self.hasAskedItems(irc,prefix,False)
 			if found:
+				i.askedItems[prefix][found[0]][6] = True
 				i.lowQueue.enqueue(ircmsgs.privmsg(nick,found[5]))
 				self.forceTickle
 		schedule.addEvent(unAsk,time.time() + 180 * len(list(i.askedItems[prefix])))				
@@ -2586,7 +2588,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel)]
+								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel),False]
 								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
 								if msg.nick != irc.nick:
