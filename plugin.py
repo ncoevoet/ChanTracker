@@ -2010,7 +2010,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		if self.registryValue('announceKick',channel=channel):
-			self._logChan(irc,channel,'[%s] %s kicked by %s (%s)' % (channel,n.prefix,msg.prefix,reason))
+			self._logChan(irc,channel,'[%s] %s kicks %s (%s)' % (channel,msg.nick,n.prefix,reason))
 		if len(reason) and msg.prefix != irc.prefix and self.registryValue('addKickMessageInComment',channel=channel):
 			chan = self.getChan(irc,channel)
 			found = None
