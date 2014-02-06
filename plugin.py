@@ -2588,7 +2588,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel),False]
+								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel,len(item.affects)),False]
 								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
 								if msg.nick != irc.nick:
