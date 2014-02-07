@@ -1318,7 +1318,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('unknown patterns, already removed or unsupported mode')
 	ue = wrap(ue,['op',many('something')])
 	
-	def remove (self,irc,msg,args,channel,nick,reason):
+	def r (self,irc,msg,args,channel,nick,reason):
 		"""[<channel>] <nick> [<reason>]
 		
 		force a part on <nick> with <reason> if provided"""
@@ -1326,10 +1326,21 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not reason:
 			reason = msg.nick
 		chan.action.enqueue(ircmsgs.IrcMsg('REMOVE %s %s :%s' % (channel,nick,reason)))
-		irc.replySuccess()
 		self.forceTickle = True
 		self._tickle(irc)
-	remove = wrap(remove,['op','nickInChannel',additional('text')])
+	r = wrap(r,['op','nickInChannel',additional('text')])
+	
+	def k (self,irc,msg,args,channel,nick,reason):
+		"""[<channel>] <nick> [<reason>]
+		
+		kick <nick> with <reason> if provided"""
+		chan = self.getChan(irc,channel)
+		if not reason:
+			reason = msg.nick
+		chan.action.enqueue(ircmsgs.kick(channel,nick,reason))
+		self.forceTickle = True
+		self._tickle(irc)
+	k = wrap(k,['op','nickInChannel',additional('text')])
 	
 	def match (self,irc,msg,args,channel,prefix):
 		"""[<channel>] <nick>
