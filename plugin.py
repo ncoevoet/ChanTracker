@@ -2516,7 +2516,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if toAsk:
 			i.askedItems[prefix][data[0]][6] = True
 			i.lowQueue.enqueue(ircmsgs.privmsg(nick,data[5]))
-                        self.forceTickle = True
+			self.forceTickle = True
 		def unAsk():
 			if prefix in i.askedItems:
 				if data[0] in i.askedItems[prefix]:
