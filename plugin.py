@@ -374,8 +374,9 @@ class Ircd (object):
 		c.close()
 		return results
 	
-	def pending(self,irc,channel,mode,prefix,pattern,db,notExpiredOnly=False):
+	def pending(self,irc,channel,mode,prefix,pattern,db,never):
 		# returns active items for a channel mode
+		log.debug('%s never' % never)
 		if not channel or not mode or not prefix:
 			return []
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
@@ -389,7 +390,7 @@ class Ircd (object):
 			if len(items):
 				for item in items:
 					item = items[item]
-					if notExpiredOnly:
+					if never:
 						if item.when == item.expire or not item.expire:
 							r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
 					else:
@@ -482,8 +483,8 @@ class Ircd (object):
 			results.append('no log found')
 		c.close()
 		return results
-	
-	def search (self,irc,pattern,prefix,db):
+
+	def search (self,irc,pattern,prefix,db,deep,active,never,channel):
 		# deep search inside database, 
 		# results filtered depending prefix capability
 		c = db.cursor()
@@ -525,7 +526,10 @@ class Ircd (object):
 					(uid,full) = item
 					if ircutils.hostmaskPatternEqual(pattern,full):
 						bans[uid] = uid
-		c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
+		if deep:
+			c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
+		else:
+			c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? ORDER BY ban_id DESC""",(glob,like))
 		items = c.fetchall()
 		if len(items):
 			for item in items:
@@ -545,21 +549,35 @@ class Ircd (object):
 				bans[uid] = uid
 		if len(bans):
 			for uid in bans:
-				c.execute("""SELECT id, mask, kind, channel FROM bans WHERE id=? ORDER BY id DESC LIMIT 1""",(uid,))
+				c.execute("""SELECT id, mask, kind, channel, begin_at, end_at, removed_at FROM bans WHERE id=? ORDER BY id DESC LIMIT 1""",(uid,))
 				items = c.fetchall()
 				for item in items:
-					(uid,mask,kind,channel) = item
-					if isOwner or ircdb.checkCapability(prefix, '%s,op' % channel):
-						results.append([uid,mask,kind,channel])
+					(uid,mask,kind,chan,begin_at,end_at,removed_at) = item
+					if isOwner or ircdb.checkCapability(prefix, '%s,op' % chan):
+						if never or active:
+							if removed_at:
+								continue
+						if never:
+							if begin_at != end_at:
+								continue
+						if channel and len(channel):
+							if chan != channel:
+								continue
+						results.append([uid,mask,kind,chan])
 		if len(results):
 			results.sort(reverse=True)
 			i = 0
 			msgs = []
 			while i < len(results):
-				(uid,mask,kind,channel) = results[i]
-				msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,channel))
+				(uid,mask,kind,chan) = results[i]
+				if channel and len(channel):
+					msgs.append('[#%s +%s %s]' % (uid,kind,mask))
+				else:
+					msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,chan))
 				i = i+1
+			c.close()
 			return msgs
+		c.close()
 		return []
 	
 	def affect (self,irc,uid,prefix,db):
@@ -1049,7 +1067,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
 		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] <reason>
 
-		change expiration and mark an active mode change"""
+		change expiration and mark of an active mode change, if you got this message while the bot prompted you, your changes were not saved"""
 		i = self.getIrc(irc)
 		b = True
 		for id in ids:
@@ -1134,7 +1152,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		else:
 			irc.reply('item not found or not enough rights to see detail')
 		self._tickle(irc)
-	detail = wrap(detail,['private','user','int'])
+	detail = wrap(detail,['user','int'])
 	
 	def affect (self,irc,msg,args,user,uid):
 		"""<id>
@@ -1147,7 +1165,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		else:
 			irc.reply('item not found or not enough rights to see affected users')
 		self._tickle(irc)
-	affect = wrap(affect, ['private','user','int'])
+	affect = wrap(affect, ['user','int'])
 	
 	def mark(self,irc,msg,args,user,ids,message):
 		"""<id> [,<id>] <message>
@@ -1175,36 +1193,60 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	mark = wrap(mark,['user',commalist('int'),'text'])
 	
-	def query (self,irc,msg,args,user,text):
-		"""<pattern|hostmask>
+	def query (self,irc,msg,args,user,optlist,text):
+		"""[--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>
 
-		returns known mode changes with deep search, channel's ops can only see items for their channels"""
+		search inside ban database, --deep to search on log, --never returns items setted forever and active, 
+		--active returns only active modes, --channel reduces results to a specific channel"""
 		i = self.getIrc(irc)
-		results = i.search(irc,text,msg.prefix,self.getDb(irc.network))
+		deep = False
+		never = False
+		active = False
+		channel = None
+		for (option, arg) in optlist:
+			if option == 'deep':
+				deep = True
+			elif option == 'never':
+				never = True
+			elif option == 'active':
+				active = True
+			elif option == 'channel':
+				channel = arg
+		if never:
+			active = True
+		results = i.search(irc,text,msg.prefix,self.getDb(irc.network),deep,active,never,channel)
 		if len(results):
 			irc.replies(results,None,None,False,None,True)
 		else:
 			irc.reply('nothing found')
-	query = wrap(query,['private','user','text'])
+	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
 	
-	def pending (self, irc, msg, args, channel, mode, pattern, notExpired):
-		"""[<channel>] [<mode>] [<nick|hostmask>] [boolean, never expire items only]
+	def pending (self, irc, msg, args, channel, optlist):
+		"""[--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] 
 
 		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
+		mode = None
+		oper = None
+		never = False
+		for (option, arg) in optlist:
+			if option == 'mode':
+				mode = arg
+			elif option == 'oper':
+				oper = arg
+			elif option == 'never':
+				never = True
 		i = self.getIrc(irc)
-		if pattern in i.nicks:
-			pattern = self.getNick(pattern).prefix
+		if oper in i.nicks:
+			oper = self.getNick(irc,oper).prefix
 		results = []
 		if not mode:
-			modes = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
-			results = i.pending(irc,channel,modes,msg.prefix,pattern,self.getDb(irc.network),False)
-		else:
-			results = i.pending(irc,channel,mode,msg.prefix,pattern,self.getDb(irc.network),notExpired)
+			mode = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
+		results = i.pending(irc,channel,mode,msg.prefix,oper,self.getDb(irc.network),never)
 		if len(results):
-			irc.reply(' '.join(results), private=True)
+			irc.reply(', '.join(results), private=True)
 		else:
 			irc.reply('no results')
-	pending = wrap(pending,['op',additional('letter'),optional('hostmask'),optional('boolean')])
+	pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces'}),])
 	
 	def _modes (self,numModes,chan,modes,f):
 		for i in range(0, len(modes), numModes):
@@ -1404,7 +1446,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				irc.reply(' '.join(getBestPattern(n,irc)))
 				return
 			irc.reply('nick not found or wrong hostmask given')
-	getmask = wrap(getmask,['owner','text'])
+	getmask = wrap(getmask,['op','text'])
 	
 	def isvip (self,irc,msg,args,channel,nick):
 		"""[<channel>] <nick> 
