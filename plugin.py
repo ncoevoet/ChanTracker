@@ -2749,7 +2749,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for item in tolift:
 					f = None
 					if self.registryValue('announceBotEdit',channel=item.channel):
-						i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f)
+						f = self._logChan
+					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f)
 				self.forceTickle = True
 		self._tickle(irc)
 	
