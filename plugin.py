@@ -1222,9 +1222,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
 	
 	def pending (self, irc, msg, args, channel, optlist):
-		"""[--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] 
+		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] 
 
-		returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper"""
+		returns active items for --mode if given, filtered by --oper if given, --never never expire only if given"""
 		mode = None
 		oper = None
 		never = False
@@ -2364,20 +2364,20 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		protected = ircdb.makeChannelCapability(channel, 'protected')
 		if ircdb.checkCapability(n.prefix, protected):
 			return True
-		chan = self.getChan(irc,channel)
-		ignoresModes = self.registryValue('modesToAskWhenOpped',channel=channel)
-		vip = False
-		for ignore in ignoresModes:
-			items = chan.getItemsFor(ignore)
-			if items:
-				for item in items:
-					if match(item,n,irc):
-						vip = True
-						break
-			if vip:
-				break
-		return vip
-	
+#		chan = self.getChan(irc,channel)
+#		ignoresModes = self.registryValue('modesToAskWhenOpped',channel=channel)
+#		vip = False
+#		for ignore in ignoresModes:
+#			items = chan.getItemsFor(ignore)
+#			if items:
+#				for item in items:
+#					if match(item,n,irc):
+#						vip = True
+#						break
+#			if vip:
+#				break
+		return False
+		
 	def doPrivmsg (self,irc,msg):
 		if msg.nick == irc.nick:
 			self._tickle(irc)
@@ -2626,6 +2626,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		c = db.cursor()
 		toCommit = False
 		toexpire = []
+		tolift = []
 		if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels:
 			modes = ircutils.separateModes(msg.args[1:])
 			chan = self.getChan(irc,channel)
@@ -2652,20 +2653,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								nick = affected.split('!')[0]
 								if self._isVip(irc,channel,self.getNick(irc,nick)):
 									continue
+								if m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel) and not irc.nick == nick:
+									for k in list(chan.getItems()):
+										if k in self.registryValue('modesToAskWhenOpped',channel=channel):
+											items = chan.getItemsFor(k)
+											if len(items):
+												for active in items:
+													active = items[active]
+													if match(active.value,self.getNick(irc,nick),irc):
+														tolift.append(active)
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if nick in irc.state.channels[channel].users and nick != irc.nick:
 										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
 										self.forceTickle = True
 										kicked = True
-								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
+								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel) and msg.nick == irc.nick:
 									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
 										chan.queue.enqueue(('-o',nick))
 									if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
 										chan.queue.enqueue(('-h',nick))
 									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 										chan.queue.enqueue(('-v',nick))
-							self.forceTickle = True
+								
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
@@ -2734,6 +2744,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
 					i.edit(irc,item.channel,item.mode,item.value,self.registryValue('autoExpire',channel=item.channel),irc.prefix,self.getDb(irc.network),self._schedule,f)
+				self.forceTickle = True
+			if len(tolift):
+				for item in tolift:
+					f = None
+					if self.registryValue('announceBotEdit',channel=item.channel):
+						i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f)
 				self.forceTickle = True
 		self._tickle(irc)
 	

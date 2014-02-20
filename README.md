@@ -11,8 +11,8 @@ This supybot plugin keeps records of channel mode changes, in a sqlite database 
 	!edit <id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever) -- change expiration of some active modes
 	!info <id> returns information about a mode change
 	!mark id> [,<id>] <message> add a comment about a mode change
-	!pending [<channel>] [<mode>] [<nick|hostmask>]) -- returns active items for mode if given otherwise all modes are returned, if hostmask given, filtered by oper
-	!query <text> returns matched modes changes with deep search
+	!pending [<channel>] (pending [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] ) -- returns active items for --mode if given filtered by --oper if given, --never never expire only if given
+	!query [--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>) -- search inside ban database, --deep to search on log, --never returns items setted forever and active, --active returns only active modes, --channel reduces results to a specific channel
 	!match [<channel>] <nick|hostmask> returns list of modes that affects the nick,hostmask given
 	!detail <id> returns log from a mode change
 	!remove [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
@@ -125,13 +125,15 @@ On regular spam purpose, you should not use massRepeat feature, but simply repea
 	!config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
 	!config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
 
-Bot will do nothing against user with protected capabilities ( #channel,protected ) and people in +eI list ( supybot.plugins.ChanTracker.modesToAskWhenOpped ) with those protection features enabled.
+Bot will do nothing against user with protected capabilities ( #channel,protected ) with those protection features enabled.
 
 Bot will kick by users affected by +b see :
 
 	!config supybot.plugins.ChanTracker.kickMode
 	!config supybot.plugins.ChanTracker.kickMessage
 
+Bot will remove exempt, or Invite exempted for people banned if 'doActionAgainstAffected' for given channel is True
+	
 Note : bot will only kick people if the ban was set by itself, if an op place a ban, bot will not kick affected users
 
 If the main purpose of your bot is to manage bans etc, and never interacts with users you should, as owner remove all plugin with 'owner defaultcapabilities remove <pluginname>', it will prevent the bot to answer to various command, and being used as a flood tool by others. ( like !echo SPAM )
