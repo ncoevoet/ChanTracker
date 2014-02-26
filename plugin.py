@@ -1424,8 +1424,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('invalid pattern given')
 	check = wrap (check,['op','text'])
 	
-	def getmask (self,irc,msg,args,prefix):
-		"""<nick|hostmask> 
+	def getmask (self,irc,msg,args,channel,prefix):
+		"""[<channel>] <nick|hostmask> 
 
 		returns a list of hostmask's pattern, best first, mostly used for debug"""
 		i = self.getIrc(irc)
