@@ -1065,7 +1065,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
-		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] <reason>
+		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] [<reason>]
 
 		change expiration and mark of an active mode change, if you got this message while the bot prompted you, your changes were not saved"""
 		i = self.getIrc(irc)
@@ -1096,7 +1096,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.replySuccess()
 		else:
 			irc.reply('item not found, already removed or not enough rights to modify it')		
-	editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),rest('text')])
+	editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),optional('text')])
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
 		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever
@@ -2016,6 +2016,24 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if len(reason):
 					if reason.startswith('requested by') and self.registryValue('announceKick',channel=channel):
 						self._logChan(irc,channel,'[%s] %s has left (%s)' % (channel,msg.prefix,reason))
+						if self.registryValue('addKickMessageInComment',channel=channel):
+							chan = self.getChan(irc,channel)
+							found = None
+							for mode in self.registryValue('modesToAsk',channel=channel):
+								items = chan.getItemsFor(mode)
+								for k in items:
+									item = items[k]
+									f = match(item.value,n,irc)
+									if f:
+										found = item
+										break
+								if found:
+									break
+							if found:
+								f = None
+								if self.registryValue('announceBotMark',channel=channel):
+									f = self._logChan
+								i.mark(irc,found.uid,reason,irc.prefix,self.getDb(irc.network),f)
 					n.addLog(channel,'has left [%s]' % (reason))
 				else:
 					n.addLog(channel,'has left')
@@ -2081,6 +2099,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				f = None
 				if self.registryValue('announceBotMark',channel=channel):
 					f = self._logChan
+				i = self.getIrc(irc)
 				i.mark(irc,found.uid,'kicked by %s (%s)' % (msg.nick,reason),irc.prefix,self.getDb(irc.network),f)
 		self._tickle(irc)
 
