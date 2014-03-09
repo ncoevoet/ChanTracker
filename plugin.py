@@ -344,6 +344,7 @@ class Ircd (object):
 			s = 'was active %s and ended on [%s]' % (utils.timeElapsed(removed_at-begin_at),floatToGMT(removed_at))
 			if end_at != begin_at:
 				s = s + ' ,initialy for %s' % utils.timeElapsed(end_at-begin_at)
+			s = s + ', removed by %s' % removed_by
 			results.append(s)
 		c.execute("""SELECT oper, comment FROM comments WHERE ban_id=? ORDER BY at DESC""",(uid,))
 		L = c.fetchall()
