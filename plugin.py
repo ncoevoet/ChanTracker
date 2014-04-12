@@ -629,7 +629,7 @@ class Ircd (object):
 			c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""",(uid,prefix,current,message))
 			db.commit()
 			f = None
-			if prefix != irc.prefix and ct.registryValue('announceEdit',channel=channel):
+			if prefix != irc.prefix and ct.registryValue('announceMark',channel=channel):
 				f = ct._logChan
 			elif prefix == irc.prefix and ct.registryValue('announceBotMark',channel=channel):
 				f = ct._logChan
@@ -1179,7 +1179,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			item = i.getItem(irc,id)
 			if item:
 				f = None
-				if msg.prefix != irc.prefix and self.registryValue('announceEdit',channel=item.channel):
+				if msg.prefix != irc.prefix and self.registryValue('announceMark',channel=item.channel):
 					f = self._logChan
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotMark',channel=item.channel):
 					f = self._logChan
