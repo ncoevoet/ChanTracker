@@ -60,7 +60,7 @@ def modes(channel, args=(), prefix='', msg=None):
     modes = args
     if msg and not prefix:
         prefix = msg.prefix
-    return IrcMsg(prefix=prefix, command='MODE',
+    return ircmsgs.IrcMsg(prefix=prefix, command='MODE',
                   args=[channel] + ircutils.joinModes(modes), msg=msg)
 
 def matchHostmask (pattern,n):
@@ -1273,7 +1273,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		itself. it bypass autoexpire and everything, bot will ask for OP, if needed.
 		"""
 		def f(L):
-			return modes(channel,L)
+			return applymodes(channel,L)
 		self._modes(irc.state.supported.get('modes', 1),self.getChan(irc,channel),ircutils.separateModes(modes),f)
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1645,7 +1645,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		c = db.cursor()
 		c.execute("""CREATE TABLE bans (
 				id INTEGER PRIMARY KEY,
-				channel VARCHAR(1000) NOT NULL,
+				channel VARCHAR(1000) NOT NULL,http://www.tf2outpost.com/
 				oper VARCHAR(1000) NOT NULL,
 				kind VARCHAR(1) NOT NULL,
 				mask VARCHAR(1000) NOT NULL,
@@ -1709,7 +1709,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		while len(i.queue):
 			irc.queueMsg(i.queue.dequeue())
 		def f(L):
-			return modes(channel,L)
+			return applymodes(channel,L)
 		for channel in list(irc.state.channels.keys()):
 			chan = self.getChan(irc,channel)
 			# check expired items
