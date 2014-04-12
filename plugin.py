@@ -55,8 +55,6 @@ cache = utils.structures.CacheDict(4000)
 
 def applymodes(channel, args=(), prefix='', msg=None):
     """Returns a MODE that applies changes on channel."""
-    if conf.supybot.protocols.irc.strictRfc():
-        assert isChannel(channel), repr(channel)
     modes = args
     if msg and not prefix:
         prefix = msg.prefix
