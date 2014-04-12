@@ -53,7 +53,7 @@ ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
 
 cache = utils.structures.CacheDict(4000)
 
-def modes(channel, args=(), prefix='', msg=None):
+def applymodes(channel, args=(), prefix='', msg=None):
     """Returns a MODE that applies changes on channel."""
     if conf.supybot.protocols.irc.strictRfc():
         assert isChannel(channel), repr(channel)
