@@ -53,6 +53,16 @@ ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
 
 cache = utils.structures.CacheDict(4000)
 
+def modes(channel, args=(), prefix='', msg=None):
+    """Returns a MODE that applies changes on channel."""
+    if conf.supybot.protocols.irc.strictRfc():
+        assert isChannel(channel), repr(channel)
+    modes = args
+    if msg and not prefix:
+        prefix = msg.prefix
+    return IrcMsg(prefix=prefix, command='MODE',
+                  args=[channel] + ircutils.joinModes(modes), msg=msg)
+
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
@@ -1262,7 +1272,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		itself. it bypass autoexpire and everything, bot will ask for OP, if needed.
 		"""
 		def f(L):
-			return ircmsgs.modes(channel,L)
+			return modes(channel,L)
 		self._modes(irc.state.supported.get('modes', 1),self.getChan(irc,channel),ircutils.separateModes(modes),f)
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1698,7 +1708,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		while len(i.queue):
 			irc.queueMsg(i.queue.dequeue())
 		def f(L):
-			return ircmsgs.modes(channel,L)
+			return modes(channel,L)
 		for channel in list(irc.state.channels.keys()):
 			chan = self.getChan(irc,channel)
 			# check expired items
