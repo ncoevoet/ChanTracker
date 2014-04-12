@@ -167,9 +167,9 @@ def match (pattern,n,irc):
 		if len(p):
 			# remove ':'
 			p = p[1:]
-		if p.find('$') != -1:
+		if p.find(extprefix) != -1 and not p.endswith(extprefix):
 			# forward
-			p = p[(p.rfind('$')+1):]
+			p = p[(p.rfind(extprefix)+1):]
 		if t == 'a':
 			cache[key] = matchAccount (pattern,p,negate,n,extprefix)
 		elif t == 'r':
@@ -856,6 +856,7 @@ class Chan (object):
 			else:
 				# if begin_at == end_at --> that means forever
 				c.execute("""INSERT INTO bans VALUES (NULL, ?, ?, ?, ?, ?, ?,NULL, NULL)""", (self.name,by,mode,value,when,when))
+				i.isNew = True
 				uid = c.lastrowid
 				# leave channel's users list management to supybot
 				ns = []
@@ -933,6 +934,7 @@ class Item (object):
 		self.removed_by = None
 		self.asked = False
 		self.affects = []
+		self.isNew = False
 		
 	def __repr__(self):
 		end = self.expire
@@ -1856,7 +1858,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if irc.isChannel(channel) and channel in irc.state.channels:
 			if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 				chan = self.getChan(irc,channel)
-				chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network),False)
+				item = chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network),False)
+				# added expire date if new modes were added when the bot was offline
+				expire = self.registryValue('autoExpire',channel=item.channel)
+				if expire > 0 and item.isNew:
+					f = None
+					if self.registryValue('announceBotEdit',channel=item.channel):
+						f = self._logChan
+					i = self.getIrc(irc)
+					i.edit(irc,item.channel,item.mode,item.value,expire,irc.prefix,self.getDb(irc.network),self._schedule,f)
+					item.isNew = False
+					self.forceTickle = True
 	
 	def _endList (self,irc,msg,channel,mode):
 		if irc.isChannel(channel) and channel in irc.state.channels:
