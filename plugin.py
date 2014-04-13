@@ -1145,7 +1145,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			for message in results:
 				irc.queueMsg(ircmsgs.privmsg(msg.nick,message))
-			#irc.replies(results,None,None,False,None,True)
 		else:
 			irc.reply('item not found or not enough rights to see information')
 		self._tickle(irc)
@@ -1158,7 +1157,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.log (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results,None,None,False,None,True)
+			irc.replies(results,None,None,False)
 		else:
 			irc.reply('item not found or not enough rights to see detail')
 		self._tickle(irc)
@@ -1171,7 +1170,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		results = i.affect (irc,uid,msg.prefix,self.getDb(irc.network))
 		if len(results):
-			irc.replies(results,None,None,False,None,True)
+			irc.replies(results,None,None,False)
 		else:
 			irc.reply('item not found or not enough rights to see affected users')
 		self._tickle(irc)
@@ -1226,7 +1225,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			active = True
 		results = i.search(irc,text,msg.prefix,self.getDb(irc.network),deep,active,never,channel)
 		if len(results):
-			irc.replies(results,None,None,False,None,True)
+			irc.replies(results,None,None,False)
 		else:
 			irc.reply('nothing found')
 	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
