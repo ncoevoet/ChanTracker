@@ -2676,7 +2676,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for change in modes:
 				(mode,value) = change
 				m = mode[1:]
-				log.debug('%s - %s / %s' % (mode,value,m))
 				if value:
 					value = str(value).lstrip().rstrip()
 					item = None
@@ -2765,7 +2764,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in announces:
 							msgs.append('[%s %s]' % (mode,value))
 				else:
-					log.debug('%s --> %s' % (m,m in announces))
 					if n:
 						n.addLog(channel,'sets %s' % mode)
 					if m in announces:

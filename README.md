@@ -92,14 +92,17 @@ The bot can have a "reporting channel" like an -ops channel, where it forwards a
 
 You can tweak which information you would like to be forwarded to the reporting channel. Some reporting is activated by default like topic changes, mode changes, etc, some not, like bot's ban/quiet edit/mark etc, take a look at:
 
-	!hostmask add your_account *!*@something
-	!admin capability add your_account #myChannel,op
 	!search supybot.plugins.ChanTracker.announce
 
 If desired, the bot can send a private message to the op that sets a tracked mode. Note the op must be known as channel's op by the bot; the bot owner automatically has that capability:
 
-
 	!config channel #myChannel supybot.plugins.ChanTracker.askOpAboutMode True
+
+You can add op capability to someone that way:
+	
+	!user register opaccount password
+	!hostmask add opaccount *!*@something
+	!admin capability add opaccount #myChannel,op
 
 The bot can set a default duration for new tracked mode changes, in order to auto remove them:
 
