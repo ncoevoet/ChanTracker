@@ -87,7 +87,7 @@ conf.registerChannelValue(ChanTracker, 'announceWithNotice',
     registry.Boolean(False,"""use NOTICE instead of PRIVMSG to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModes',
-    registry.CommaSeparatedListOfStrings(['b','q','e','I','r','l','v','o','h','k','n','t','F'],"""announce modes listed to logChannel"""))
+    registry.CommaSeparatedListOfStrings(['b','q','e','I','r','l','v','o','h','k','n','t','F','i','t'],"""announce modes listed to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeSync',
     registry.Boolean(False,"""announce to logChannel that synchronisation of channel modes to tracking database has completed"""))
