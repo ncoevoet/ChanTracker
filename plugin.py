@@ -54,12 +54,11 @@ ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
 cache = utils.structures.CacheDict(4000)
 
 def applymodes(channel, args=(), prefix='', msg=None):
-    """Returns a MODE that applies changes on channel."""
-    modes = args
-    if msg and not prefix:
-        prefix = msg.prefix
-    return ircmsgs.IrcMsg(prefix=prefix, command='MODE',
-                  args=[channel] + ircutils.joinModes(modes), msg=msg)
+	"""Returns a MODE that applies changes on channel."""
+	modes = args
+	if msg and not prefix:
+		prefix = msg.prefix
+	return ircmsgs.IrcMsg(prefix=prefix, command='MODE', args=[channel] + ircutils.joinModes(modes), msg=msg)
 
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
@@ -1974,7 +1973,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
 				i = self.getIrc(irc)
-				i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
+				if self.registryValue ('announceWithNotice',channel=channel):
+					i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
+				else:
+					i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
 				self.forceTickle = True
 	
 	def doJoin (self,irc,msg):
@@ -2670,14 +2672,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			modes = ircutils.separateModes(msg.args[1:])
 			chan = self.getChan(irc,channel)
 			msgs = []
+			announces = list(self.registryValue('announceModes',channel=channel))
 			overexpire = self.registryValue('autoExpire',channel=channel)
 			for change in modes:
 				(mode,value) = change
+				m = mode[1:]
 				if value:
-					value = value.lstrip().rstrip()
+					value = str(value).lstrip().rstrip()
 					item = None
 					if '+' in mode:
-						m = mode[1:]
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
@@ -2729,7 +2732,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							# flush pending queue, if items are waiting
 							self.forceTickle = True
 					else:
-						m = mode[1:]
 						if m == 'o' and value == irc.nick:
 							# prevent bot to sent many -o modes when server takes time to reply
 							chan.deopAsked = False
@@ -2741,40 +2743,38 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if item:
 						if '+' in mode:
 							if not len(item.affects):
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s]' % (str(item.uid),mode,value))
 							elif len(item.affects) != 1:
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
 							else:
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
 						else:
 							if not len(item.affects):
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s %s]' % (str(item.uid),mode,value,str(utils.timeElapsed(item.removed_at-item.when))))
 							elif len(item.affects) != 1:
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 							else:
-								if self.registryValue('announceMode',channel=channel):
+								if m in announces:
 									msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 					else:
-						if mode.find ('o') != -1 or mode.find('h') != -1 or mode.find ('v') != -1:
-							if self.registryValue('announceVoiceAndOpMode',channel=channel):
-								msgs.append('[%s %s]' % (mode,value))
-						else:
+						if m in announces:
 							msgs.append('[%s %s]' % (mode,value))
 				else:
 					if n:
 						n.addLog(channel,'sets %s' % mode)
-					msgs.append(mode)
+					if m in announces:
+						msgs.append(mode)
 			if toCommit:
 				db.commit()
 			c.close()
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
-			if self.registryValue('announceMode',channel=channel) and len(msgs):
+			if len(self.registryValue('announceModes',channel=channel)) and len(msgs):
 				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
 				self.forceTickle = True
 			if len(toexpire):
@@ -2802,12 +2802,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def do478(self,irc,msg):
 		# message when ban list is full after adding something to eqIb list
 		(nick,channel,ban,info) = msg.args
-		if info == 'Channel ban list is full':
-			if self.registryValue('logChannel',channel=channel) in irc.state.channels:
-				L = []
-				for user in list(irc.state.channels[self.registryValue('logChannel',channel=channel)].users):
-					L.append(user)
-				self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
+		if self.registryValue('logChannel',channel=channel) in irc.state.channels:
+			L = []
+			for user in list(irc.state.channels[self.registryValue('logChannel',channel=channel)].users):
+				L.append(user)
+			self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
 		self._tickle(irc)
 	
 	 # protection features

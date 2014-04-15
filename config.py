@@ -43,84 +43,84 @@ def configure(advanced):
 ChanTracker = conf.registerPlugin('ChanTracker')
 
 conf.registerGlobalValue(ChanTracker, 'pool',
-    registry.Integer(60, """delay between two check about mode removal, in seconds, note, it's also based on irc activity, so removal may be delayed a bit"""))
+    registry.Integer(60, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit"""))
 
 conf.registerGlobalValue(ChanTracker, 'CAPS',
-    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked to ircd, that permits to track username and account changes"""))
+    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked of ircd that permits tracking username and account changes"""))
 
 conf.registerGlobalValue(ChanTracker, 'logsSize',
-    registry.PositiveInteger(60, """number of messages to keep, per nick - not per nick per channel"""))
+    registry.PositiveInteger(60, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
 
 conf.registerGlobalValue(ChanTracker, 'quietCommand',
-    registry.String("CS QUIET $channel $hostmask","""$channel and $hostmask will be replaced at runtime"""))
+    registry.String("CS QUIET $channel $hostmask","""command issued to quiet a user; $channel and $hostmask will be replaced at runtime"""))
 
 conf.registerGlobalValue(ChanTracker, 'unquietCommand',
-    registry.String("CS UNQUIET $channel $hostmask","""$channel and $hostmask will be replaced at runtime"""))
+    registry.String("CS UNQUIET $channel $hostmask","""command issued to unquiet a user $channel and $hostmask will be replaced at runtime"""))
 
 #now per channel
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
-    registry.String("CS OP $channel $nick", """command used by the op to grant op"""))
+    registry.String("CS OP $channel $nick", """command used to obtain channel operator mode"""))
 
 conf.registerChannelValue(ChanTracker, 'modesToAsk',
-    registry.CommaSeparatedListOfStrings(['b','q'], """sync lists for those modes on join"""))
+    registry.CommaSeparatedListOfStrings(['b','q'], """list of channel modes to sync into the bot's tracking database when it joins the channel"""))
     
 conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
-    registry.CommaSeparatedListOfStrings(['e','I'], """sync lists for those modes when opped, only asked one time"""))
+    registry.CommaSeparatedListOfStrings(['e','I'], """list of channel modes to sync into the bot's tracking database when it is opped"""))
 
 # per channel settings
 # related to ban tracking
 
 conf.registerChannelValue(ChanTracker, 'autoExpire',
-    registry.Integer(-1, """-1 means disabled, otherwise it's in seconds, only affects new change"""))
+    registry.Integer(-1, """default expiration time for newly placed bans; -1 disables auto-expiration, otherwise it's in seconds"""))
 
 # related to logChannel
     
 conf.registerChannelValue(ChanTracker, 'logChannel',
-    registry.String("", """where bot annonces op's actions, various usefull messages are send, you should set one"""))
+    registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages"""))
 
 conf.registerChannelValue(ChanTracker, 'announceOthers',
-    registry.Boolean(True,"""forward quieted/banned users messages to logChannel, used when bot stay opped and channel is +z,
-messages from user flagged as bad, or when channel is under attack will not be forwarded"""))
+    registry.Boolean(True,"""forward messages from quieted/banned users to logChannel; used when bot stays opped and channel is +z (reduced moderation).
+Messages from users flagged as bad, or when channel is under attack will not be forwarded"""))
 
-conf.registerChannelValue(ChanTracker, 'announceMode',
-    registry.Boolean(True,"""announce mode changes to logChannel"""))
-    
-conf.registerChannelValue(ChanTracker, 'announceVoiceAndOpMode',
-    registry.Boolean(True,"""announce mode changes to logChannel"""))
+conf.registerChannelValue(ChanTracker, 'announceWithNotice',
+    registry.Boolean(False,"""use NOTICE instead of PRIVMSG to logChannel"""))
+
+conf.registerChannelValue(ChanTracker, 'announceModes',
+    registry.CommaSeparatedListOfStrings(['b','q','e','I','r','l','v','o','h','k','n','t','F','i','t'],"""announce modes listed to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeSync',
-    registry.Boolean(False,"""announce mode sync to logChannel"""))
+    registry.Boolean(False,"""announce to logChannel that synchronisation of channel modes to tracking database has completed"""))
 
 conf.registerChannelValue(ChanTracker, 'announceKick',
-    registry.Boolean(True,"""announce kick,remove,kill and kline to logChannel"""))
+    registry.Boolean(True,"""announce kick, remove, kill and kline to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceTopic',
     registry.Boolean(True,"""announce topic changes to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceEdit',
-    registry.Boolean(True,"""announce item edit to logChannel"""))
+    registry.Boolean(True,"""announce tracker item description edits to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceMark',
-    registry.Boolean(True,"""announce item mark to logChannel"""))
+    registry.Boolean(True,"""announce item expiration settings (marks) to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceInTimeEditAndMark',
-    registry.Boolean(False,"""announce just placed edit and mark to logChannel when using do, q, b, e, i commands"""))
+    registry.Boolean(False,"""announce new comments (edits) and expiries (marks) to logChannel when they are created by the do, q, b, e, i commands"""))
 
 conf.registerChannelValue(ChanTracker, 'announceMassRemoval',
-    registry.Boolean(False,"""announce undo * ( edit ) changes to logChannel"""))
+    registry.Boolean(False,"""announce mass ban removals 'undo *', 'uq *', 'ub *' to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceBotEdit',
-    registry.Boolean(False,"""announce item autoExpire, bot's triggered protection to logChannel"""))
+    registry.Boolean(False,"""when banning based on a channel protection trigger (such as flood prevention), announce the items comment (edit) to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceBotMark',
-    registry.Boolean(False,"""announce item autoExpire, bot's triggered protection to logChannel"""))
+    registry.Boolean(False,"""when banning based on a channel protection trigger (such as flood prevention), announce the items expiry (mark) to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceNotice',
-    registry.Boolean(True,"""announce channel's notices to logChannel"""))
+    registry.Boolean(True,"""announce channel notices to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceCtcp',
-    registry.Boolean(True,"""announce channel's ctcps to logChannel"""))
+    registry.Boolean(True,"""announce channel ctcps to logChannel"""))
 
 # others settings
 
@@ -132,22 +132,22 @@ conf.registerChannelValue(ChanTracker, 'keepOp',
 
 conf.registerChannelValue(ChanTracker, 'kickMode',
     registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, 
-    use if with caution, if an op ban *!*@*, bot will kick everyone on the channel"""))
+    use if with caution, if an op bans *!*@*, bot will kick everyone on the channel"""))
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
 
 conf.registerChannelValue(ChanTracker, 'doActionAgainstAffected',
-    registry.Boolean(True, """devoice,deop,dehalfop affected user by a mode change"""))
+    registry.Boolean(True, """devoice, deop, dehalfop user affected by a mode change"""))
     
 conf.registerChannelValue(ChanTracker, 'useChannelBansForPermanentBan',
-    registry.Boolean(True, """do check onjoin if someone matchs a permanent ban"""))
+    registry.Boolean(True, """when users join the channel, check if the match a permanent ban"""))
 
 conf.registerChannelValue(ChanTracker, 'addKickMessageInComment',
-    registry.Boolean(False, """add kick message to mode comment"""))
+    registry.Boolean(False, """add kick message to mode comment in tracking database"""))
     
 conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
-    registry.Boolean(False,"""Ask the op who added a mode changes in pm about duration and comment"""))
+    registry.Boolean(False,"""In a private message, ask the op who added a mode about the duration of the ban and a comment on why it was set"""))
 
 conf.registerChannelValue(ChanTracker, 'checkEvade',
     registry.Boolean(True,"""bot will apply same duration and mode than the ban evaded, currently only work when someone identify to an account, and has ip computed"""))
@@ -161,11 +161,11 @@ conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
 conf.registerChannelValue(ChanTracker, 'floodPermit',
 registry.Integer(-1,"""Number of messages allowed during floodLife, -1 to disable, advice 4"""))
 conf.registerChannelValue(ChanTracker, 'floodLife',
-registry.PositiveInteger(7,"""Duration of messages's life in flood counter, advice 7, in seconds"""))
+registry.PositiveInteger(7,"""Duration of messages's life in flood counter, in seconds, advice 7"""))
 conf.registerChannelValue(ChanTracker, 'floodMode',
 registry.String('q',"""mode used by the bot when flood detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'floodDuration',
-registry.PositiveInteger(60,"""punition in seconds"""))
+registry.PositiveInteger(60,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'floodComment',
 registry.String('flood detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -173,11 +173,11 @@ registry.String('flood detected',"""comment added on mode changes database, empt
 conf.registerChannelValue(ChanTracker, 'lowFloodPermit',
 registry.Integer(-1,"""Number of messages allowed during lowFloodLife, -1 to disable, advice 5"""))
 conf.registerChannelValue(ChanTracker, 'lowFloodLife',
-registry.Integer(13,"""Duration of messages's life in lowFlood counter, advice 13, in seconds"""))
+registry.Integer(13,"""Duration of messages's life in lowFlood counter, in seconds, advice 13"""))
 conf.registerChannelValue(ChanTracker, 'lowFloodMode',
 registry.String('q',"""mode used by the bot when low flood detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'lowFloodDuration',
-registry.PositiveInteger(180,"""punition in seconds"""))
+registry.PositiveInteger(180,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'lowFloodComment',
 registry.String('low flood detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -186,13 +186,13 @@ conf.registerChannelValue(ChanTracker, 'repeatPermit',
 registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, note, first message doesn't count, 
 so if you want to trigger it after 3 repeat, you must set it to 1, advice 4"""))
 conf.registerChannelValue(ChanTracker, 'repeatLife',
-registry.PositiveInteger(120,"""Duration of messages's life in lowFlood counter, advice 120, in seconds"""))
+registry.PositiveInteger(120,"""Duration of messages's life in lowFlood counter in seconds, advice 120"""))
 conf.registerChannelValue(ChanTracker, 'repeatPercent',
 registry.Probability(0.85,"""percent of similarity needed between previous and current message to trigger a repeat count"""))
 conf.registerChannelValue(ChanTracker, 'repeatMode',
 registry.String('q',"""mode used by the bot when repeat detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'repeatDuration',
-registry.PositiveInteger(180,"""punition in seconds"""))
+registry.PositiveInteger(180,"""punishment duration  in seconds"""))
 conf.registerChannelValue(ChanTracker, 'repeatComment',
 registry.String('repeat detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -205,9 +205,9 @@ if repeat comes from differences sources that helps, it also add a pattern that 
 during massRepeatDuration, note, the first two message doesn't count, 
 so if you want to trigger it after 3 repeat, you must set it to 1"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatLife',
-registry.PositiveInteger(60,"""Duration of messages's life in massRepeat counter, advice 120, in seconds"""))
+registry.PositiveInteger(60,"""Duration of messages's life in massRepeat counter, in seconds, advice 120"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPercent',
-registry.Probability(0.95,"""percent of similarity needed between previous and current message to trigger a repeat count"""))
+registry.Probability(0.95,"""percentage similarity between previous and current message to trigger a repeat count"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatMode',
 registry.String('q',"""mode used by the bot when repeat detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatDuration',
@@ -217,11 +217,11 @@ registry.String('mass repeat detected',"""comment added on mode changes database
 
 # YES IT'S ANNOYING
 conf.registerChannelValue(ChanTracker, 'capPermit',
-registry.Integer(-1,"""Number of UPPER text allowed, -1 to disable, advice 3"""))
+registry.Integer(-1,"""Number of UPPERCASE messages allowed, -1 to disable, advice 3; see capPercent for definition of an UPPERCASE message"""))
 conf.registerChannelValue(ChanTracker, 'capLife',
 registry.PositiveInteger(120,"""Duration in seconds before messages are removed from count, advice 120"""))
 conf.registerChannelValue(ChanTracker, 'capPercent',
-registry.Probability(0.75,"""percent of upper chars in a message to trigger a cap count"""))
+registry.Probability(0.75,"""percentage of uppercase chars in a message to trigger a cap count"""))
 conf.registerChannelValue(ChanTracker, 'capMode',
 registry.String('q',"""mode used by the bot when cap is triggered"""))
 conf.registerChannelValue(ChanTracker, 'capDuration',
@@ -235,7 +235,7 @@ registry.Integer(-1,"""Number of nick allowed per message, -1 to disable, advice
 conf.registerChannelValue(ChanTracker, 'hilightMode',
 registry.String('q',"""mode used by the bot when cap is triggered"""))
 conf.registerChannelValue(ChanTracker, 'hilightDuration',
-registry.PositiveInteger(180,"""punition in seconds"""))
+registry.PositiveInteger(180,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'hilightComment',
 registry.String('hilight detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -247,7 +247,7 @@ registry.PositiveInteger(3,"""Duration in seconds before messages are removed fr
 conf.registerChannelValue(ChanTracker, 'noticeMode',
 registry.String('q',"""mode used by the bot when notice is triggered"""))
 conf.registerChannelValue(ChanTracker, 'noticeDuration',
-registry.PositiveInteger(300,"""punition in seconds"""))
+registry.PositiveInteger(300,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'noticeComment',
 registry.String('notice detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -259,19 +259,19 @@ registry.PositiveInteger(3,"""Duration in seconds before messages are removed fr
 conf.registerChannelValue(ChanTracker, 'ctcpMode',
 registry.String('b',"""mode used by the bot when ctcp is triggered"""))
 conf.registerChannelValue(ChanTracker, 'ctcpDuration',
-registry.PositiveInteger(1800,"""punition in seconds"""))
+registry.PositiveInteger(1800,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'ctcpComment',
 registry.String('ctcp detected',"""comment added on mode changes database, empty for no comment"""))
 
 # channel join/part flood
 conf.registerChannelValue(ChanTracker, 'cyclePermit',
-registry.Integer(-1,"""Number of messages allowed, -1 to disable, count part and quit"""))
+registry.Integer(-1,"""Number of cycles allowed, -1 to disable, count part and quit"""))
 conf.registerChannelValue(ChanTracker, 'cycleLife',
-registry.PositiveInteger(180,"""Duration in seconds before messages are removed from count, advice 180"""))
+registry.PositiveInteger(180,"""Duration in seconds before cycles are removed from count, advice 180"""))
 conf.registerChannelValue(ChanTracker, 'cycleMode',
 registry.String('b',"""mode used by the bot when ctcp is triggered"""))
 conf.registerChannelValue(ChanTracker, 'cycleDuration',
-registry.PositiveInteger(1800,"""punition in seconds"""))
+registry.PositiveInteger(1800,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'cycleComment',
 registry.String('cycle detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -283,7 +283,7 @@ registry.PositiveInteger(60,"""Duration in seconds before messages are removed f
 conf.registerChannelValue(ChanTracker, 'massJoinMode',
 registry.String('+rq-z $~a',"""mode used by the bot when massjoin is triggered"""))
 conf.registerChannelValue(ChanTracker, 'massJoinDuration',
-registry.PositiveInteger(300,"""punition in seconds"""))
+registry.PositiveInteger(300,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'massJoinUnMode',
 registry.String('-rq+z $~a',"""mode used by the bot when massJoinDuration is finished"""))
 
@@ -295,7 +295,7 @@ registry.Integer(300,"""Duration in seconds before messages are removed from cou
 conf.registerChannelValue(ChanTracker, 'nickMode',
 registry.String('q',"""mode used by the bot when nick is triggered"""))
 conf.registerChannelValue(ChanTracker, 'nickDuration',
-registry.PositiveInteger(300,"""punition in seconds"""))
+registry.PositiveInteger(300,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'nickComment',
 registry.String('nick changes flood detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -307,7 +307,7 @@ registry.Integer(600,"""Duration in seconds before item are removed from count, 
 conf.registerChannelValue(ChanTracker, 'badMode',
 registry.String('b',"""mode used by the bot when bad is triggered"""))
 conf.registerChannelValue(ChanTracker, 'badDuration',
-registry.PositiveInteger(86400,"""punition in seconds"""))
+registry.PositiveInteger(86400,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'badComment',
 registry.String('bad detected',"""comment added on mode changes database, empty for no comment"""))
 
@@ -317,7 +317,7 @@ registry.Integer(-1,"""Number of bad action allowed, -1 to disable, advice 2, ea
 conf.registerChannelValue(ChanTracker, 'attackLife',
 registry.Integer(600,"""Duration in seconds before item are removed from count, advice 600"""))
 conf.registerChannelValue(ChanTracker, 'attackDuration',
-registry.PositiveInteger(1800,"""punition in seconds"""))
+registry.PositiveInteger(1800,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'attackMode',
 registry.String('+rq-z $~a',"""mode used by the bot when attack is triggered"""))
 conf.registerChannelValue(ChanTracker, 'attackUnMode',
