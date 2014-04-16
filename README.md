@@ -2,6 +2,8 @@
 
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc
 
+The plugin is used in various and large channels on freenode ( #bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, + 40 french channels and )
+
 ## Commands ##
 
 	!affect <id> returns affected users by a mode placed
@@ -23,6 +25,7 @@ The bot can be used to place and remove bans (rather than the the op setting cha
 
 	!q ian 10m argumentative again
 	!b ham 30d silly spammer
+	!b foo 1h30m must stop
 
 These can also be done via a private message to the bot, although you must include the channel in the message:
 
@@ -40,14 +43,16 @@ Alternatively, the bot can be used just to track the mode changes, with ops usin
 	/kick ham
 	/msg mybigbadbot 30d silly spammer
 
-If you annotate the bans within 3 minutes of setting them, then you can do so without any additional syntax as above; if you miss that window or are otherwise not not setting bans via the bot, the `pending`, `edit` and `mark` commands can be used to provide annotations and expiration information. For example, if you had not immediately annotated the 
+If you annotate the bans within 3 minutes of setting them, then you can do so without any additional syntax as above; if you miss that window or are otherwise not setting bans via the bot, the `pending`, `edit`, `mark` and `editandmark` commands can be used to provide annotations and expiration information. For example, if you had not immediately annotated the quiet.
 
+	/msg mybigbadbot query ian!*@*
 	/msg mybigbadbot pending #myChannel
 	<mybigbadbot> [#18 +q ian!*@* by me!~me@example.net on 2014-04-13 13:28:16 GMT]
 	/msg bigbadbot edit 18 20m
 	/msg bigbadbot mark 18 even more argumentative and EXTREMELY ANGRY
+	/msg bigbadbot editandmark 18 20m even more argumentative and EXTREMELY ANGRY
 
-ChanTracker also allows you to work out which users would be affected by a ban before it is placed and which bans affect a given user.
+ChanTracker also allows you to work out which users would be affected by a ban before it is placed and which bans affect a given user ( assuming the bot shares a channel with the user ).
 
 	/msg bigbadbot check #myChannel *!*@*.com     <-- oops?
 	/msg bigbadbot match #myChannel ian           <-- will return 
@@ -93,6 +98,7 @@ The bot can have a "reporting channel" like an -ops channel, where it forwards a
 You can tweak which information you would like to be forwarded to the reporting channel. Some reporting is activated by default like topic changes, mode changes, etc, some not, like bot's ban/quiet edit/mark etc, take a look at:
 
 	!search supybot.plugins.ChanTracker.announce
+	!config help supybot.plugins.ChanTracker.announceModes
 
 If desired, the bot can send a private message to the op that sets a tracked mode. Note the op must be known as channel's op by the bot; the bot owner automatically has that capability:
 
@@ -187,10 +193,19 @@ Even with all these channel protection features, the bot will do nothing against
 
 Maintaining separate bots for the banning/bantracking functions and other factoid, snarfing or amusement functions is good practice.
 
-If the main purpose of your bot is to manage bans etc, and never interacts with users you should, as owner remove all plugin with 'owner defaultcapabilities remove <pluginname>', it will prevent the bot to answer to various command, and being used as a flood tool by others. (like !echo SPAM)
+If the main purpose of your bot is to manage bans etc, and never interacts with users you should, as owner remove all plugin with 'owner defaultcapabilities remove <pluginname>', it will prevent the bot to answer to various command, and being used as a flood tool by others (like !echo SPAM). You could otherwise change the value of `config help supybot.capabilities.default` but be prepared to waste a lot of time each time you add a new user account on your bot.
 
 If your bot manage differents channels or community, remove all User.action from defaultcapabilities, create one user per channel/community, and add ops's hostmasks into it, it's easier to manage that way. Until you have someone with rights in 2 community/channels who will need a separate account.
 
+You should keep your bot quiet as possible, it should not replies to error, user without capabilities, etc :
+
+	supybot.reply.error.noCapability: True
+	supybot.reply.whenNotCommand: False
+	supybot.reply.error.detailed: False
+	
+You should also disable help, config, list until needed for registered users on the bot.
+	
+	
 It works with any version of supybot, vanilla, limnoria etc
 
 
