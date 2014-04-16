@@ -1640,7 +1640,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		c = db.cursor()
 		c.execute("""CREATE TABLE bans (
 				id INTEGER PRIMARY KEY,
-				channel VARCHAR(1000) NOT NULL,http://www.tf2outpost.com/
+				channel VARCHAR(1000) NOT NULL,
 				oper VARCHAR(1000) NOT NULL,
 				kind VARCHAR(1) NOT NULL,
 				mask VARCHAR(1000) NOT NULL,
