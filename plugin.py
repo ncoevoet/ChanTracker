@@ -1744,6 +1744,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				# chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
 				if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
 					chan.opAsked = True
+					def f ():
+						chan.opAsked = False
+					schedule.addEvent(f,time.time() + 300)
 					irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
 					retickle = True
 			if len(chan.queue) or len(chan.action):
@@ -1752,6 +1755,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if not chan.deopAsked:
 						if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
 							chan.opAsked = True
+							def f ():
+								chan.opAsked = False
+							schedule.addEvent(f,time.time() + 300)
 							irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
 							retickle = True
 				elif irc.nick in irc.state.channels[channel].ops:
