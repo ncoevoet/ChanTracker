@@ -1867,7 +1867,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				item = chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network),False)
 				# added expire date if new modes were added when the bot was offline
 				expire = self.registryValue('autoExpire',channel=item.channel)
-				if expire > 0 and item.isNew:
+				if expire > 0 and item.isNew and item.expire != item.when:
 					f = None
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
@@ -1875,6 +1875,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					i.edit(irc,item.channel,item.mode,item.value,expire,irc.prefix,self.getDb(irc.network),self._schedule,f)
 					item.isNew = False
 					self.forceTickle = True
+				item.isNew = False
 	
 	def _endList (self,irc,msg,channel,mode):
 		if irc.isChannel(channel) and channel in irc.state.channels:
