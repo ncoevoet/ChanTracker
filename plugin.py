@@ -963,8 +963,7 @@ class Nick (object):
 		# [float(timestamp),target,message]
 	
 	def setPrefix (self,prefix):
-		if prefix != None and not prefix == self.prefix:
-			self.prefix = prefix
+		self.prefix = prefix
 		return self
 	
 	def setIp (self,ip):
