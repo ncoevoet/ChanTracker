@@ -856,6 +856,7 @@ class Chan (object):
 				(uid,by,when,expire) = L[0]
 				c.execute("""SELECT ban_id,full FROM nicks WHERE ban_id=?""",(uid,))
 				L = c.fetchall()
+				i.isNew = False
 				if len(L):
 					for item in L:
 						(uid,full) = item
@@ -894,6 +895,8 @@ class Chan (object):
 			i.when = float(when)
 			i.expire = float(expire)
 			l[value] = i
+		else:
+			l[value].isNew = False
 		return l[value]
 		
 	def getItem (self,mode,value):
@@ -1872,7 +1875,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				item = chan.addItem(mode,value,prefix,float(date),self.getDb(irc.network),False)
 				# added expire date if new modes were added when the bot was offline
 				expire = self.registryValue('autoExpire',channel=item.channel)
-				if expire > 0 and item.isNew and item.expire != item.when:
+				if expire > 0 and item.isNew:
 					f = None
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
