@@ -155,6 +155,7 @@ Each of those detections has the same kind of settings: there is *Permit (-1 to 
 - b : ban the user
 - k : kick the user
 - r : remove (force part) the user, if the ircd has the feature. 'REMOVE $channel $nick :$reason'
+- d : debug > forward action to logChannel if configured
 
 For bans (b and q mode), you can choose the *Duration of the quiet/ban, and add a *Mark on the related quiet/ban. The 'bad' settings, when enabled (badPermit > -1) keeps track of users who did something wrong during badLife, and can end to badMode if the user exceeds the limit.
 

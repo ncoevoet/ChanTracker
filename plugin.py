@@ -2821,6 +2821,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	 # protection features
 	
 	def _act (self,irc,channel,mode,mask,duration,reason):
+		if mode == 'd':
+			if self.registryValue('logChannel',channel=channel) in irc.state.channels:
+				self._logChan(irc,channel,'[%s] debug %s %s %s %s' % (channel,mode,mask,duration,reason)
+			return
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			i = self.getIrc(irc)
 			if i.add(irc,channel,mode,mask,duration,irc.prefix,self.getDb(irc.network)):
