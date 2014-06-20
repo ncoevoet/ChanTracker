@@ -32,7 +32,7 @@ These can also be done via a private message to the bot, although you must inclu
 	/msg mybigbadbot q #myChannel ian 10m argumentative again
 	/msg mybigbadbot b #myChannel ham 30d silly spammer
 
-For each of these bans, the nick is used to generate a *!*@host ban. The desired mask can be given directly to the bot instead of the nick. Also note that, by default, the bot will also kick users that have a +b set against them (details below).
+For each of these bans, the nick is used to generate a \*!\*@host ban. The desired mask can be given directly to the bot instead of the nick. Also note that, by default, the bot will also kick users that have a +b set against them (details below).
 
 Alternatively, the bot can be used just to track the mode changes, with ops using the capabilities of their own irc clients to set bans. The same sequence as before:
 
