@@ -43,7 +43,7 @@ def configure(advanced):
 ChanTracker = conf.registerPlugin('ChanTracker')
 
 conf.registerGlobalValue(ChanTracker, 'pool',
-    registry.Integer(60, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit"""))
+    registry.Integer(60, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit, -1 to disable delay"""))
 
 conf.registerGlobalValue(ChanTracker, 'CAPS',
     registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked of ircd that permits tracking username and account changes"""))
@@ -87,7 +87,7 @@ conf.registerChannelValue(ChanTracker, 'announceWithNotice',
     registry.Boolean(False,"""use NOTICE instead of PRIVMSG to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModes',
-    registry.CommaSeparatedListOfStrings(['b','q','e','I','r','l','v','o','h','k','n','t','F','i','t'],"""announce modes listed to logChannel"""))
+    registry.CommaSeparatedListOfStrings(['b','q','e','I','r','l','v','o','h','k','n','t','F','i','t','s','n','c','C'],"""announce modes listed to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeSync',
     registry.Boolean(False,"""announce to logChannel that synchronisation of channel modes to tracking database has completed"""))
@@ -125,7 +125,7 @@ conf.registerChannelValue(ChanTracker, 'announceCtcp',
 # others settings
 
 conf.registerChannelValue(ChanTracker, 'doNothingAboutOwnOpStatus',
-    registry.Boolean(False, """bot will never try to change his own op status"""))
+    registry.Boolean(True, """bot will never try to change his own op status"""))
 
 conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
@@ -137,11 +137,14 @@ conf.registerChannelValue(ChanTracker, 'kickMode',
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
 
+conf.registerChannelValue(ChanTracker, 'trackAffected',
+    registry.Boolean(True, """bot tracks affected users by mode change, if you encounters too much lags/cpu usage, you could disable this feature, but bot will never kick again affected users or remove voice/op/exempt etc of affected users"""))
+
 conf.registerChannelValue(ChanTracker, 'doActionAgainstAffected',
     registry.Boolean(True, """devoice, deop, dehalfop user affected by a mode change"""))
     
 conf.registerChannelValue(ChanTracker, 'useChannelBansForPermanentBan',
-    registry.Boolean(True, """when users join the channel, check if the match a permanent ban"""))
+    registry.Boolean(True, """when users join the channel, check if user matchs a permanent ban setted in Channel plugin"""))
 
 conf.registerChannelValue(ChanTracker, 'addKickMessageInComment',
     registry.Boolean(False, """add kick message to mode comment in tracking database"""))
@@ -150,7 +153,7 @@ conf.registerChannelValue(ChanTracker, 'askOpAboutMode',
     registry.Boolean(False,"""In a private message, ask the op who added a mode about the duration of the ban and a comment on why it was set"""))
 
 conf.registerChannelValue(ChanTracker, 'checkEvade',
-    registry.Boolean(True,"""bot will apply same duration and mode than the ban evaded, currently only work when someone identify to an account, and has ip computed"""))
+    registry.Boolean(True,"""bot will apply same duration and mode than the ban evaded, currently only work when someone identify to an account, and the account is banned $a:account, and has ip computed"""))
 
 conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
     registry.Boolean(False,"""if bot is not opped, use services for quiet / unquiets"""))

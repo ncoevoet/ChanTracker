@@ -2,7 +2,7 @@
 
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc
 
-The plugin is used in various and large channels on freenode ( #bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, + 40 french channels and )
+The plugin is used in various and large channels on freenode ( #bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, #ubuntu-fr*,  + 40 french channels)
 
 ## Commands ##
 
@@ -58,33 +58,50 @@ ChanTracker also allows you to work out which users would be affected by a ban b
 	/msg bigbadbot match #myChannel ian           <-- will return 
 	<bigbadbot> [#21 +b ian!*@* by me!~me@example.net expires at 2014-04-13 15:20:03 GMT] "even angrier"
 
-
 ## Settings ##
 
-You should increase the ping interval because when the bot joins a channel, it requests lots of data and sometimes the server takes time to answer
+If you want the bot to manage its own op status, you can change the config value :
+
+        !config supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus False
+        !config channel #myChannel supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus True
+
+After the 'doNothingAboutOwnOpStatus' changed to False, bot will deop in each channel is in ( if opped ) so take a look at :
+
+        !config supybot.plugins.ChanTracker.keepOp False
+        !config channel #myChannel supybot.plugins.ChanTracker.keepOp True
+
+You should increase the ping interval because when the bot joins a channel because it requests lots of data and sometimes the server takes time to answer
 
 	!config supybot.protocols.irc.ping.interval 3600
 
-By default, **bot will not stay opped**, but you can configure that globally or per channel:
+Here list of data requested by the bot at join :
 
-	!config supybot.plugins.ChanTracker.keepOp False
-	!config channel #myChannel supybot.plugins.ChanTracker.keepOp True
+	JOIN :#channel
+	MODE :#channel
+	MODE :#channel b
+	MODE :#channel q
+	WHO :#channel
+	WHO #CHANNEL %tnuhiar,42
 
-If you don't want the bot to manage its own op status, you can change the config value :
+and if opped or at first op:
 
-	!config supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus True
-	!config channel #myChannel supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus False
-
+	MODE :#channel e
+	MODE :#channel I
+	
 The channel modes that will be tracked are currently defined here (qb, and eI if opped -- only ops can see the e and I lists for a channel):
 
 	!config supybot.plugins.ChanTracker.modesToAsk
 	!config supybot.plugins.ChanTracker.modesToAskWhenOpped
+	!config channel #myChannel supybot.plugins.ChanTracker.modesToAsk b
+	!config channel #myChannel supybot.plugins.ChanTracker.modesToAskWhenOpped e	
 
 The command used by the bot to op itself is editable here:
 
 	!config supybot.plugins.ChanTracker.opCommand by default it's "CS OP $channel $nick" 
 
-where $channel and $nick will be replaced by targeted channel and bot's nick at runtime
+Where $channel and $nick will be replaced by targeted channel and bot's nick at runtime, so you could replace it with :
+
+        !config supybot.plugins.ChanTracker.opCommand "PRIVMSG ChanServ :OP $channel $nick"
 
 For more readable date information in output, you should change this:
 
@@ -131,7 +148,6 @@ By default, if the bot is asked to set a ban (+b), it will also kick affected us
 	!config supybot.plugins.ChanTracker.kickMessage
 
 The bot will remove exception modes (that is exempt e, or invite exempt I) for people banned if 'doActionAgainstAffected' for given channel is True.
-
 
 ## Channel Protection ##
 
@@ -182,7 +198,7 @@ Example: not flooding: catch a wave of bots which sends the same message from di
 Example: a user repeating the same thing: (use repeat detection rather than massRepeat for this):
 
 	!config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
-	!config channel #channel supybot.plugins.ChanTracker.repeatLife 40 <-- keep previous messages during 60 seconds
+	!config channel #channel supybot.plugins.ChanTracker.repeatLife 40 <-- keep previous messages during 40 seconds
 	!config channel #channel supybot.plugins.ChanTracker.repeatPercent 0.88 <-- 1.00 for identical message, don't go too lower, you will get false positive
 	!config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
 	!config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
