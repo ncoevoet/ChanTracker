@@ -144,7 +144,7 @@ conf.registerChannelValue(ChanTracker, 'doActionAgainstAffected',
     registry.Boolean(True, """devoice, deop, dehalfop user affected by a mode change"""))
     
 conf.registerChannelValue(ChanTracker, 'useChannelBansForPermanentBan',
-    registry.Boolean(True, """when users join the channel, check if user matchs a permanent ban setted in Channel plugin"""))
+    registry.Boolean(True, """when users join the channel, check if user matchs a permanent ban set in Channel plugin"""))
 
 conf.registerChannelValue(ChanTracker, 'addKickMessageInComment',
     registry.Boolean(False, """add kick message to mode comment in tracking database"""))

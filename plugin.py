@@ -1207,7 +1207,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def query (self,irc,msg,args,user,optlist,text):
 		"""[--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>
 
-		search inside ban database, --deep to search on log, --never returns items setted forever and active, 
+		search inside ban database, --deep to search on log, --never returns items set forever and active, 
 		--active returns only active modes, --channel reduces results to a specific channel"""
 		i = self.getIrc(irc)
 		deep = False

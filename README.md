@@ -1,8 +1,8 @@
 # ChanTracker : a supybot plugin for ban tracking #
 
-This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc
+This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc.
 
-The plugin is used in various and large channels on freenode ( #bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, #ubuntu-fr*,  + 40 french channels)
+The plugin is used in various and large channels on freenode (#bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, #ubuntu-fr*, + 40 french channels)
 
 ## Commands ##
 
@@ -32,9 +32,9 @@ These can also be done via a private message to the bot, although you must inclu
     /msg mybigbadbot q #myChannel ian 10m argumentative again
     /msg mybigbadbot b #myChannel ham 30d silly spammer
 
-For each of these bans, the nick is used to generate a *!*@host ban. The desired mask can be given directly to the bot instead of the nick. Also note that, by default, the bot will also kick users that have a +b set against them (details below).
+For each of these bans, the nick is used to generate a \*!\*@host ban. The desired mask can be given directly to the bot instead of the nick. Note that by default, the bot will also kick users that have a +b set against them (details below).
 
-Alternatively, the bot can be used just to track the mode changes, with ops using the capabilities of their own irc clients to set bans. The same sequence as before:
+Alternatively, the bot can be used just to track the mode changes, with ops using the capabilities of their own IRC clients to set bans. The same sequence as before:
 
     /msg chanserv #myChannel op
     /mode #myChannel +q *!*@ranty.ian.home
@@ -60,12 +60,12 @@ ChanTracker also allows you to work out which users would be affected by a ban b
 
 ## Settings ##
 
-If you want the bot to manage its own op status, you can change the config value :
+If you want the bot to manage its own op status, you can change the config value:
 
     !config supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus False
     !config channel #myChannel supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus True
 
-After the 'doNothingAboutOwnOpStatus' changed to False, bot will deop in each channel is in ( if opped ) so take a look at :
+After the 'doNothingAboutOwnOpStatus' changed to False, bot will deop in each channel is in (if opped) so take a look at:
 
     !config supybot.plugins.ChanTracker.keepOp False
     !config channel #myChannel supybot.plugins.ChanTracker.keepOp True
@@ -74,7 +74,7 @@ You should increase the ping interval because when the bot joins a channel becau
 
     !config supybot.protocols.irc.ping.interval 3600
 
-Here list of data requested by the bot at join :
+Here list of data requested by the bot at join:
 
     JOIN :#channel
     MODE :#channel
@@ -112,7 +112,7 @@ The bot can have a "reporting channel" like an -ops channel, where it forwards a
     !config supybot.plugins.ChanTracker.logChannel #myGeneralSecretChannel
     !config channel #myChannel supybot.plugins.ChanTracker.logChannel #myChannel-ops
 
-You can tweak which information you would like to be forwarded to the reporting channel. Some reporting is activated by default like topic changes, mode changes, etc, some not, like bot's ban/quiet edit/mark etc, take a look at:
+You can tweak which information you would like to be forwarded to the reporting channel. Some reporting is activated by default like topic changes, mode changes, etc, some not, like bot's ban/quiet edit/mark etc. Take a look at:
 
     !search supybot.plugins.ChanTracker.announce
     !config help supybot.plugins.ChanTracker.announceModes
@@ -121,7 +121,7 @@ If desired, the bot can send a private message to the op that sets a tracked mod
 
     !config channel #myChannel supybot.plugins.ChanTracker.askOpAboutMode True
 
-You can add op capability to someone that way:
+You can add op capability to someone by doing:
     
     !user register opaccount password
     !hostmask add opaccount *!*@something
@@ -131,16 +131,16 @@ The bot can set a default duration for new tracked mode changes, in order to aut
 
     !config channel #myChannel supybot.plugins.ChanTracker.autoExpire 3600 (1h)
 
-The plugin can create persistent bans to help manage large ban lists that exceed the ircd's limits on the length of ban lists. The plugin can remove bans from the ircd ban list while checking all joining users against its own lists. If a user matches, then the ircd ban is reinstated:
+The plugin can create persistent bans to help manage large ban lists that exceed the IRCd's limits on the length of ban lists. The plugin can remove bans from the IRCd ban list while checking all joining users against its own lists. If a user matches, then the IRCd ban is reinstated:
 
     !config channel #myChannel supybot.plugins.ChanTracker.useChannelBansForPermanentBan true
     !channel ban add #myChannel *!*@mask
 
-With autoExpire enabled, the ircd list is pruned as appropriate and bans are rotated in a way to not reveal the pattern used for the match. Due to a supybot limitation, extended bans are not supported with this feature.
+With autoExpire enabled, the IRCd list is pruned as appropriate and bans are rotated in a way to not reveal the pattern used for the match. Due to a supybot limitation, extended bans are not supported with this feature.
 
 If supported by the ircd, the bot can track account changes and get GECOS and username information when a user joins the channel. This requires ircd CAP features:  http://tools.ietf.org/html/draft-mitchell-irc-capabilities-01
 
-The plugin also supports extended bans/quiets including $r, $x, $a (real name, full match and account name, respectively). If you want the plugin to support your ircd extended bans, please, report a bug or contact me directly.
+The plugin also supports extended bans/quiets including $r, $x, $a (real name, full match and account name, respectively). If you want the plugin to support your IRCd extended bans, please, report a bug or contact me directly.
 
 By default, if the bot is asked to set a ban (+b), it will also kick affected users (Note: bot will only kick people if the ban was set by the bot -- if an op places the ban, the bot will not kick affected users). See:
 
@@ -170,12 +170,12 @@ Each of those detections has the same kind of settings: there is *Permit (-1 to 
 - q : quiet the user
 - b : ban the user
 - k : kick the user
-- r : remove (force part) the user, if the ircd has the feature. 'REMOVE $channel $nick :$reason'
+- r : remove (force part) the user, if the IRCd has the feature. 'REMOVE $channel $nick :$reason'
 - d : debug > forward action to logChannel if configured
 
 For bans (b and q mode), you can choose the *Duration of the quiet/ban, and add a *Mark on the related quiet/ban. The 'bad' settings, when enabled (badPermit > -1) keeps track of users who did something wrong during badLife, and can end to badMode if the user exceeds the limit.
 
-Example: flood control: to quiet for 1 minute anyone who sends more than 4 messages in 7 seconds to #channel; if the user continues to flood, after 2 times they will be banned
+Example: flood control: to quiet for 1 minute anyone who sends more than 4 messages in 7 seconds to #channel; if the user continues to flood, after 2 times they will be banned:
 
     !config channel #channel supybot.plugins.ChanTracker.floodPermit 4 <-- max number of messages allowed
     !config channel #channel supybot.plugins.ChanTracker.floodLife 7 <-- in 7 seconds
@@ -191,7 +191,7 @@ Example: not flooding: catch a wave of bots which sends the same message from di
     !config channel #channel supybot.plugins.ChanTracker.massRepeatChars 200 <-- enable check only if there is at least 200 chars
     !config channel #channel supybot.plugins.ChanTracker.massRepeatPermit 0 <-- that means if first message matchs the seconds, it will trigger it
     !config channel #channel supybot.plugins.ChanTracker.massRepeatLife 60 <-- don't keep messages too long in memory, to avoid false positive
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.85 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages 
+    !config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.85 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages
     !config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
     !config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 1800  
 
@@ -221,7 +221,7 @@ You should keep your bot quiet as possible, it should not replies to error, user
     
 You should also disable help, config, list until needed for registered users on the bot. 
     
-It works with any version of supybot, vanilla, limnoria etc
+It works with any version of supybot, vanilla, limnoria, etc
 
 ## Bugs and Features ##
 
