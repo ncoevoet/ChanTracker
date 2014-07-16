@@ -2,22 +2,24 @@
 
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc.
 
-The plugin is used in various and large channels on freenode (#bitcoin, #bitcoin-otc, #bitcoin-pricetalk, #defocus, #wrongplanet, #ubuntu-fr*, + 40 french channels)
+The plugin is used in various and large channels on freenode (#bitcoin*, #defocus, #wrongplanet, #ubuntu-fr*, + 40 french channels), in oftc ( #debian )
 
 ## Commands ##
 
-    !affect <id> returns affected users by a mode placed
     !b,e,i,q [<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>) -- +mode targets for duration <reason> is mandatory
     !ub,ue,ui,uq [<channel>] <nick|hostmask|*> [<nick|hostmask>]) -- sets -mode on them, if * found, remove them all
     !check [<channel>] <pattern> returns list of users who will be affected by such pattern
     !edit <id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever) -- change expiration of some active modes
     !info <id> returns information about a mode change
+    !affect <id> returns affected users by a mode placed
     !mark <id> [,<id>] <message> add a comment about a mode change
+    !editandmark <id> [,<id>] [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] [<comment>] edit duration and add comment on a mode change
     !pending [<channel>] (pending [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] ) -- returns active items for --mode if given, filtered by --oper if given, --never never expire only if given
     !query [--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>) -- search inside ban database, --deep to search on log, --never returns items set forever and active, --active returns only active modes, --channel reduces results to a specific channel
     !match [<channel>] <nick|hostmask> returns list of modes that affects the nick,hostmask given
     !detail <id> returns log from a mode change
     !remove [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
+    !modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
 
 ## General Usage ##
 
@@ -175,7 +177,7 @@ Each of those detections has the same kind of settings: there is *Permit (-1 to 
 
 For bans (b and q mode), you can choose the *Duration of the quiet/ban, and add a *Mark on the related quiet/ban. The 'bad' settings, when enabled (badPermit > -1) keeps track of users who did something wrong during badLife, and can end to badMode if the user exceeds the limit.
 
-Example: flood control: to quiet for 1 minute anyone who sends more than 4 messages in 7 seconds to #channel; if the user continues to flood, after 2 times they will be banned:
+Example: flood control: to quiet for 1 minute anyone who sends more than 4 messages in 7 seconds to #channel; if the user continues to flood, after 2 times he will be banned:
 
     !config channel #channel supybot.plugins.ChanTracker.floodPermit 4 <-- max number of messages allowed
     !config channel #channel supybot.plugins.ChanTracker.floodLife 7 <-- in 7 seconds
@@ -193,8 +195,13 @@ Example: not flooding: catch a wave of bots which sends the same message from di
     !config channel #channel supybot.plugins.ChanTracker.massRepeatLife 60 <-- don't keep messages too long in memory, to avoid false positive
     !config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.85 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages
     !config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 1800  
-
+    !config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 1800 <- ban for 30 minutes
+    !config channel #channel supybot.plugins.ChanTracker.attackPermit 2 <- if bot triggers 3 actions during 
+    !config channel #channel supybot.plugins.ChanTracker.attackLife 300 <- 5 minutes
+    !config channel #channel supybot.plugins.chantracker.attackMode +rq $~a <- then bot will set those modes
+    !config channel #channel supybot.plugins.chantracker.attackDuration 1800 <- for 30 minutes
+    !config channel #channel supybot.plugins.chantracker.attackUnMode -rq $~a <- and bot will set those modes after 30 minutes
+    
 Example: a user repeating the same thing: (use repeat detection rather than massRepeat for this):
 
     !config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
@@ -210,6 +217,12 @@ Even with all these channel protection features, the bot will do nothing against
 Maintaining separate bots for the banning/bantracking functions and other factoid, snarfing or amusement functions is good practice.
 
 If the main purpose of your bot is to manage bans etc, and never interacts with users you should, as owner remove all plugin with 'owner defaultcapabilities remove <pluginname>', it will prevent the bot to answer to various command, and being used as a flood tool by others (like !echo SPAM). You could otherwise change the value of `config help supybot.capabilities.default` but be prepared to waste a lot of time each time you add a new user account on your bot.
+
+If 'supybot.capabilities.default' is changed to False, then, when you want to grant access to command for someone, you must do it that way:
+
+    !admin capability add accountname User
+    !admin capability add accountname User.whoami
+    !admin capability add accountname whoami
 
 If your bot manage differents channels or community, remove all User.action from defaultcapabilities, create one user per channel/community, and add ops's hostmasks into it, it's easier to manage that way. Until you have someone with rights in 2 community/channels who will need a separate account.
 

@@ -1233,7 +1233,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
 	
 	def pending (self, irc, msg, args, channel, optlist):
-		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] 
+		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] 
 
 		returns active items for --mode if given, filtered by --oper if given, --never never expire only if given"""
 		mode = None
@@ -1256,7 +1256,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(results):
 			irc.reply(', '.join(results), private=True)
 		else:
-			irc.reply('no results')
+			irc.reply('no result')
 	pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces'}),])
 	
 	def _modes (self,numModes,chan,modes,f):
@@ -1286,7 +1286,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not msg.nick == irc.nick and not b:
 				irc.reply('unknown pattern or pattern already active')
 		else:
-			irc.reply('selected mode is not supported by config')
+			irc.reply('selected mode is not supported by config, see modesToAsk and modesToAskWhenOpped')
 			
 	do = wrap(do,['op','letter',commalist('something'),any('getTs',True),rest('text')])
 	
@@ -1398,7 +1398,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def match (self,irc,msg,args,channel,prefix):
 		"""[<channel>] <nick>
 
-		returns active mode that targets nick given, nick must be in a channel shared by with the bot"""
+		returns active mode that targets nick given, nick must be in a channel shared with the bot"""
 		i = self.getIrc(irc)
 		n = None
 		if prefix in i.nicks:

@@ -43,10 +43,10 @@ def configure(advanced):
 ChanTracker = conf.registerPlugin('ChanTracker')
 
 conf.registerGlobalValue(ChanTracker, 'pool',
-    registry.Integer(60, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit, -1 to disable delay"""))
+    registry.Integer(-1, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit, -1 to disable delay"""))
 
 conf.registerGlobalValue(ChanTracker, 'CAPS',
-    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked of ircd that permits tracking username and account changes"""))
+    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked to the IRCd, that way bot can track username and account changes, without any additional request"""))
 
 conf.registerGlobalValue(ChanTracker, 'logsSize',
     registry.PositiveInteger(60, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
