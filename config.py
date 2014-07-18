@@ -83,6 +83,9 @@ conf.registerChannelValue(ChanTracker, 'announceOthers',
     registry.Boolean(True,"""forward messages from quieted/banned users to logChannel; used when bot stays opped and channel is +z (reduced moderation).
 Messages from users flagged as bad, or when channel is under attack will not be forwarded"""))
 
+conf.registerChannelValue(ChanTracker, 'announceModeMadeByIgnored',
+    registry.Boolean(True,"""announce channel modes made by ignored user"""))
+
 conf.registerChannelValue(ChanTracker, 'announceWithNotice',
     registry.Boolean(False,"""use NOTICE instead of PRIVMSG to logChannel"""))
 

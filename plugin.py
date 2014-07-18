@@ -2784,8 +2784,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
 			if len(self.registryValue('announceModes',channel=channel)) and len(msgs):
-				self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
-				self.forceTickle = True
+				if self.registryValue('announceModeMadeByIgnored',channel=channel) or not ircdb.checkIgnored(msg.prefix,channel):
+					self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
+					self.forceTickle = True
 			if len(toexpire):
 				for item in toexpire:
 					f = None
