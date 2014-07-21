@@ -1482,7 +1482,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
 
-	def vacuum (self,irc,msg,args,user):
+	def vacuum (self,irc,msg,args):
 		"""VACUUM the database"""
 		db = self.getDb(irc.network)
                 c = db.cursor()
