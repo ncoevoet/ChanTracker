@@ -841,6 +841,8 @@ class Chan (object):
 		# eqIb(+*) (-ov) pattern prefix when 
 		# mode : eqIb -ov + ?
 		l = self.getItemsFor(mode)
+		if not self.syn:
+			checkUser = False
 		if not value in l:
 			i = Item()
 			i.channel = self.name
@@ -2724,17 +2726,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 														tolift.append(active)
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
-									if nick in irc.state.channels[channel].users and nick != irc.nick:
-										chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
-										self.forceTickle = True
-										kicked = True
-								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel) and msg.nick == irc.nick:
-									if nick in irc.state.channels[channel].ops and not nick == irc.nick:
-										chan.queue.enqueue(('-o',nick))
-									if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
-										chan.queue.enqueue(('-h',nick))
-									if nick in irc.state.channels[channel].voices and not nick == irc.nick:
-										chan.queue.enqueue(('-v',nick))
+									if msg.nick == irc.nick or msg.nick == 'ChanServ':
+										if nick in irc.state.channels[channel].users and nick != irc.nick:
+											chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
+											self.forceTickle = True
+											kicked = True
+								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
+									if msg.nick == irc.nick or msg.nick == 'ChanServ':
+										if nick in irc.state.channels[channel].ops and not nick == irc.nick:
+											chan.queue.enqueue(('-o',nick))
+										if nick in irc.state.channels[channel].halfops and not nick == irc.nick:
+											chan.queue.enqueue(('-h',nick))
+										if nick in irc.state.channels[channel].voices and not nick == irc.nick:
+											chan.queue.enqueue(('-v',nick))
 								
 						# bot just got op
 						if m == 'o' and value == irc.nick:
