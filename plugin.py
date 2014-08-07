@@ -2009,6 +2009,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			n.setAccount(msg.args[1])
 		best = getBestPattern(n,irc)[0]
 		if msg.nick == irc.nick:
+			self.forceTickle = True
+			self._tickle(irc)
 			return
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
@@ -2178,6 +2180,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(msg.args) == 1:
 			reason = msg.args[0].lstrip().rstrip()
 		removeNick = True
+		if isBot:
+			self._ircs = ircutils.IrcDict()
+			return	
 		if not isBot:
 			n = self.getNick(irc,msg.nick)
 			patterns = getBestPattern(n,irc)
@@ -2999,6 +3004,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = len(sa.intersection(sb))
 		jacc = n / float(len(sa) + len(sb) - n)
 		return jacc
+	
+	def reset(self):
+		self._ircs = ircutils.IrcDict()
 	
 	def die(self):
 		self._ircs = ircutils.IrcDict()
