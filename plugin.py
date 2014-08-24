@@ -642,12 +642,15 @@ class Ircd (object):
 			elif prefix == irc.prefix and ct.registryValue('announceBotMark',channel=channel):
 				f = ct._logChan
 			if f:
-				f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
+				if ct.registryValue('useColorForAnnounces',channel=channel):
+					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (channel,ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+				else:
+					f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
 		c.close()
 		return b
 	
-	def mark (self,irc,uid,message,prefix,db,logFunction):
+	def mark (self,irc,uid,message,prefix,db,logFunction,ct):
 		# won't use channel,mode,value, because Item may be removed already
 		if not prefix or not message:
 			return False
@@ -665,12 +668,15 @@ class Ircd (object):
 			c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""",(uid,prefix,current,message))
 			db.commit()
 			if logFunction:
-				logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
+				if ct.registryValue('useColorForAnnounces',channel=channel):
+					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (channel,ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'green')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+				else:
+					logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
 		c.close()
 		return b
 	
-	def submark (self,irc,channel,mode,value,message,prefix,db,logFunction):
+	def submark (self,irc,channel,mode,value,message,prefix,db,logFunction,ct):
 		# add mark to an item which is not already in lists
 		if not channel or not mode or not value or not prefix:
 			return False
@@ -685,7 +691,7 @@ class Ircd (object):
 			(uid,oper) = L[0]
 			c.close()
 			# must not be occurs, but ..
-			return self.mark(irc,uid,message,prefix,db,logFunction)
+			return self.mark(irc,uid,message,prefix,db,logFunction,ct)
 		else:
 			if channel in self.channels:
 				chan = self.getChan(irc,channel)
@@ -723,7 +729,7 @@ class Ircd (object):
 				return True
 		return False
 	
-	def edit (self,irc,channel,mode,value,seconds,prefix,db,scheduleFunction,logFunction):
+	def edit (self,irc,channel,mode,value,seconds,prefix,db,scheduleFunction,logFunction,ct):
 		# edit eIqb duration
 		if not channel or not mode or not value or not prefix:
 			return False
@@ -764,7 +770,10 @@ class Ircd (object):
 					if scheduleFunction and newEnd != current:
 						scheduleFunction(irc,newEnd)
 			if logFunction:
-				logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
+				if ct.registryValue('useColorForAnnounces',channel=channel):
+					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (channel,ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'green')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
+				else:
+					logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
 		c.close()
 		return b
@@ -1094,13 +1103,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=item.channel):
 					f = None
-				be = i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
+				be = i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f,self)
 				f = None
 				if self.registryValue('announceMark',channel=item.channel):
 					f = self._logChan
 				if be:
 					if reason and len(reason):
-						bm = i.mark(irc,id,reason,msg.prefix,self.getDb(irc.network),f)
+						bm = i.mark(irc,id,reason,msg.prefix,self.getDb(irc.network),f,self)
 					else:
 						bm = True
 				b = b and be and bm
@@ -1128,7 +1137,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=item.channel):
 					f = None
-				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f)
+				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f,self)
 			else:
 				b = False;
 		if not msg.nick == irc.nick:
@@ -1194,7 +1203,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				elif msg.prefix == irc.prefix and self.registryValue('announceBotMark',channel=item.channel):
 					f = self._logChan
-				b = b and i.mark(irc,id,message,msg.prefix,self.getDb(irc.network),f)
+				b = b and i.mark(irc,id,message,msg.prefix,self.getDb(irc.network),f,self)
 			else:
 				b = b and i.markremoved(irc,id,message,msg.prefix,self.getDb(irc.network),self)
 		if not msg.nick == irc.nick:
@@ -1555,7 +1564,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							f = self._logChan
 						elif msg.prefix == irc.prefix and self.registryValue('announceBotMark',channel=channel):
 							f = self._logChan
-					i.submark(irc,channel,mode,item,reason,msg.prefix,self.getDb(irc.network),self._logChan)
+					i.submark(irc,channel,mode,item,reason,msg.prefix,self.getDb(irc.network),self._logChan,self)
 				n = n+1
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1598,7 +1607,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 			for item in targets:
 				r = self.getIrcdMode(irc,mode,item)
-				if i.edit(irc,channel,r[0],r[1],0,msg.prefix,self.getDb(irc.network),None,f):
+				if i.edit(irc,channel,r[0],r[1],0,msg.prefix,self.getDb(irc.network),None,f,self):
 					count = count + 1
 		self.forceTickle = True
 		self._tickle(irc)
@@ -1844,7 +1853,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								f = self._logChan
 						key = '%s%s' % (m,value)
 						del chan.update[key]
-						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._schedule,f)
+						b = i.edit(irc,item.channel,item.mode,item.value,expire,prefix,self.getDb(irc.network),self._schedule,f,self)
 						retickle = True
 			# update marks
 			if len(chan.mark):
@@ -1861,7 +1870,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								f = self._logChan
 							elif prefix == irc.prefix and self.registryValue('announceBotMark',channel=item.channel):
 								f = self._logChan
-						i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),f)
+						i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),f,self)
 						key = '%s%s' % (item.mode,value)
 						del chan.mark[key]
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending and not chan.deopAsked:
@@ -1891,7 +1900,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
 					i = self.getIrc(irc)
-					i.edit(irc,item.channel,item.mode,item.value,expire,irc.prefix,self.getDb(irc.network),self._schedule,f)
+					i.edit(irc,item.channel,item.mode,item.value,expire,irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 					item.isNew = False
 					self.forceTickle = True
 				item.isNew = False
@@ -2077,7 +2086,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								f = None
 								if self.registryValue('announceBotMark',channel=channel):
 									f = self._logChan
-								i.mark(irc,found.uid,reason,irc.prefix,self.getDb(irc.network),f)
+								i.mark(irc,found.uid,reason,irc.prefix,self.getDb(irc.network),f,self)
 					n.addLog(channel,'has left [%s]' % (reason))
 				else:
 					n.addLog(channel,'has left')
@@ -2144,7 +2153,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if self.registryValue('announceBotMark',channel=channel):
 					f = self._logChan
 				i = self.getIrc(irc)
-				i.mark(irc,found.uid,'kicked by %s (%s)' % (msg.nick,reason),irc.prefix,self.getDb(irc.network),f)
+				i.mark(irc,found.uid,'kicked by %s (%s)' % (msg.nick,reason),irc.prefix,self.getDb(irc.network),f,self)
 		self._tickle(irc)
 
 	def _rmNick (self,irc,n):
@@ -2346,7 +2355,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							f = None
 							if self.registryValue('announceBotMark',channel=found.channel):
 								f = self._logChan
-							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n,irc)[0]),irc.prefix,self.getDb(irc.network),f)
+							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n,irc)[0]),irc.prefix,self.getDb(irc.network),f,self)
 							self.forceTickle = True
 						
 		self._tickle(irc)
@@ -2430,18 +2439,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		protected = ircdb.makeChannelCapability(channel, 'protected')
 		if ircdb.checkCapability(n.prefix, protected):
 			return True
-#		chan = self.getChan(irc,channel)
-#		ignoresModes = self.registryValue('modesToAskWhenOpped',channel=channel)
-#		vip = False
-#		for ignore in ignoresModes:
-#			items = chan.getItemsFor(ignore)
-#			if items:
-#				for item in items:
-#					if match(item,n,irc):
-#						vip = True
-#						break
-#			if vip:
-#				break
 		return False
 		
 	def doPrivmsg (self,irc,msg):
@@ -2709,7 +2706,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
 							item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network),self.registryValue('trackAffected',channel=channel))
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-								data = [item.uid,m,value,channel,msg.prefix,'For [#%s +%s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (item.uid,m,value,channel,len(item.affects)),False]
+								data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
+								if self.registryValue('useColorForAnnounces',channel=channel):
+									data[5] = 'For [#%s +%s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
 								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
 								if msg.nick != irc.nick:
@@ -2744,7 +2743,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 											chan.queue.enqueue(('-h',nick))
 										if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 											chan.queue.enqueue(('-v',nick))
-								
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
@@ -2771,31 +2769,61 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						if '+' in mode:
 							if not len(item.affects):
 								if m in announces:
-									msgs.append('[#%s %s %s]' % (str(item.uid),mode,value))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue')))
+									else:
+										msgs.append('[#%s %s %s]' % (str(item.uid),mode,value))
 							elif len(item.affects) != 1:
 								if m in announces:
-									msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s - %s users]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),str(len(item.affects))))
+									else:
+										msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
 							else:
 								if m in announces:
-									msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s - %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),item.affects[0]))
+									else:
+										msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
 						else:
 							if not len(item.affects):
 								if m in announces:
-									msgs.append('[#%s %s %s %s]' % (str(item.uid),mode,value,str(utils.timeElapsed(item.removed_at-item.when))))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(utils.timeElapsed(item.removed_at-item.when))))
+									else:
+										msgs.append('[#%s %s %s %s]' % (str(item.uid),mode,value,str(utils.timeElapsed(item.removed_at-item.when))))
 							elif len(item.affects) != 1:
 								if m in announces:
-									msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s - %s users, %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
+									else:
+										msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 							else:
 								if m in announces:
-									msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										msgs.append('[#%s %s %s - %s, %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
+									else:
+										msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 					else:
 						if m in announces:
-							msgs.append('[%s %s]' % (mode,value))
+							if self.registryValue('useColorForAnnounces',channel=channel):
+								if '+' in mode:
+									msgs.append('[%s %s]' % (ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue')))
+								else:
+									msgs.append('[%s %s]' % (ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue')))
+							else:
+								msgs.append('[%s %s]' % (mode,value))
 				else:
 					if n:
 						n.addLog(channel,'sets %s' % mode)
 					if m in announces:
-						msgs.append(mode)
+						if self.registryValue('useColorForAnnounces',channel=channel):
+							if '+' in mode:
+								msgs.append(ircutils.bold(ircutils.mircColor(mode,'red')))
+							else:
+								msgs.append(ircutils.bold(ircutils.mircColor(mode,'green')))
+						else:
+							msgs.append(mode)
 			if toCommit:
 				db.commit()
 			c.close()
@@ -2810,14 +2838,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = None
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
-					i.edit(irc,item.channel,item.mode,item.value,self.registryValue('autoExpire',channel=item.channel),irc.prefix,self.getDb(irc.network),self._schedule,f)
+					i.edit(irc,item.channel,item.mode,item.value,self.registryValue('autoExpire',channel=item.channel),irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				self.forceTickle = True
 			if len(tolift):
 				for item in tolift:
 					f = None
 					if self.registryValue('announceBotEdit',channel=item.channel):
 						f = self._logChan
-					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f)
+					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				self.forceTickle = True
 		self._tickle(irc)
 	
@@ -2861,12 +2889,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan = self.getChan(irc,channel)
 				item = chan.getItem(mode,mask)
 				oldDuration = int(item.expire-item.when)
-				i.edit(irc,channel,mode,mask,int(oldDuration+duration),irc.prefix,self.getDb(irc.network),self._schedule,f)
+				i.edit(irc,channel,mode,mask,int(oldDuration+duration),irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				if reason and len(reason):
 					f = None
 					if self.registryValue('announceBotMark',channel=channel):
 						f = self._logChan
-					i.mark(irc,item.uid,reason,irc.prefix,self.getDb(irc.network),f)
+					i.mark(irc,item.uid,reason,irc.prefix,self.getDb(irc.network),f,self)
 			self.forceTickle = True
 			self._tickle(irc)
 		else:

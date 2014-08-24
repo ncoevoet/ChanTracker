@@ -79,6 +79,9 @@ conf.registerChannelValue(ChanTracker, 'autoExpire',
 conf.registerChannelValue(ChanTracker, 'logChannel',
     registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages"""))
 
+conf.registerChannelValue(ChanTracker, 'useColorForAnnounces',
+    registry.Boolean(False, """use colors for announces messages"""))
+
 conf.registerChannelValue(ChanTracker, 'announceOthers',
     registry.Boolean(True,"""forward messages from quieted/banned users to logChannel; used when bot stays opped and channel is +z (reduced moderation).
 Messages from users flagged as bad, or when channel is under attack will not be forwarded"""))
