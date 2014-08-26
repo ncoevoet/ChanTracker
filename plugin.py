@@ -1644,8 +1644,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				# loads extended who
 				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
 				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
-				i.lowQueue.enqueue(ircmsgs.ping(channel))
-				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+				# i.lowQueue.enqueue(ircmsgs.ping(channel))
+				# i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
 				self.forceTickle = True
 		return i.getChan (irc,channel)
 	
@@ -2847,6 +2847,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						f = self._logChan
 					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				self.forceTickle = True
+			self.forceTickle = True
 		self._tickle(irc)
 	
 	def do474(self,irc,msg):
@@ -2862,7 +2863,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			L = []
 			for user in list(irc.state.channels[self.registryValue('logChannel',channel=channel)].users):
 				L.append(user)
-			self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
+			if self.registryValue('useColorsForAnnounce',channel=channel):
+				self._logChannel(irc,channel,'[%s] %s : %s' % (channel,ircutils.bold(ircutils.mircColor(info,'red')),' '.join(L))) 
+			else:
+				self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
 		self._tickle(irc)
 	
 	 # protection features
@@ -2880,7 +2884,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if self.registryValue('announceInTimeEditAndMark',channel=channel):
 						if self.registryValue('announceBotMark',channel=channel):
 							f = self._logChan
-					i.submark(irc,channel,mode,mask,reason,irc.prefix,self.getDb(irc.network),f)
+					i.submark(irc,channel,mode,mask,reason,irc.prefix,self.getDb(irc.network),f,self)
 			else:
 				# increase duration, until the wrong action stopped
 				f = None
