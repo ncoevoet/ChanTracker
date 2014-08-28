@@ -382,9 +382,8 @@ class Ircd (object):
 		c.close()
 		return results
 	
-	def pending(self,irc,channel,mode,prefix,pattern,db,never):
+	def pending(self,irc,channel,mode,prefix,pattern,db,never,ids,duration):
 		# returns active items for a channel mode
-		log.debug('%s never' % never)
 		if not channel or not mode or not prefix:
 			return []
 		if not ircdb.checkCapability(prefix, '%s,op' % channel):
@@ -393,6 +392,7 @@ class Ircd (object):
 		results = []
 		r = []
 		c = db.cursor()
+		t = time.time()
 		for m in mode:
 			items = chan.getItemsFor(m)
 			if len(items):
@@ -402,7 +402,12 @@ class Ircd (object):
 						if item.when == item.expire or not item.expire:
 							r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
 					else:
-						r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+						if duration > 0:
+							log.debug('%s -> %s : %s' % (duration,item.when,(t-item.when)))
+							if (t - item.when) > duration:
+								r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+						else:
+							r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
 		r.sort(reverse=True)
 		if len(r):
 			for item in r:
@@ -416,7 +421,9 @@ class Ircd (object):
 					message = ' "%s"' % comment
 				else: 
 					message = ''
-				if expire and expire != when:
+				if ids:
+					results.append('%s' % uid)
+				elif expire and expire != when:
 					results.append('[#%s +%s %s by %s expires at %s]%s' % (uid,mode,value,by,floatToGMT(expire),message))
 				else:
 					results.append('[#%s +%s %s by %s on %s]%s' % (uid,mode,value,by,floatToGMT(when),message))	
@@ -1245,12 +1252,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
 	
 	def pending (self, irc, msg, args, channel, optlist):
-		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] 
+		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
 
-		returns active items for --mode if given, filtered by --oper if given, --never never expire only if given"""
+		returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids), --duration (item longer than)"""
 		mode = None
 		oper = None
 		never = False
+		ids = False
+		duration = -1
 		for (option, arg) in optlist:
 			if option == 'mode':
 				mode = arg
@@ -1258,18 +1267,25 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				oper = arg
 			elif option == 'never':
 				never = True
+			elif option == 'ids':
+				ids = True
+			elif option == 'duration':
+				duration = int(arg)
+		if never and duration > 0:
+			irc.reply("you can't use --never and --duration at same time")
+			return
 		i = self.getIrc(irc)
 		if oper in i.nicks:
 			oper = self.getNick(irc,oper).prefix
 		results = []
 		if not mode:
 			mode = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
-		results = i.pending(irc,channel,mode,msg.prefix,oper,self.getDb(irc.network),never)
+		results = i.pending(irc,channel,mode,msg.prefix,oper,self.getDb(irc.network),never,ids,duration)
 		if len(results):
 			irc.reply(', '.join(results), private=True)
 		else:
 			irc.reply('no result')
-	pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces'}),])
+	pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'duration' : 'getTs'})])
 	
 	def _modes (self,numModes,chan,modes,f):
 		for i in range(0, len(modes), numModes):
