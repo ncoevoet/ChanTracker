@@ -332,3 +332,9 @@ registry.String('+rq-z $~a',"""mode used by the bot when attack is triggered""")
 conf.registerChannelValue(ChanTracker, 'attackUnMode',
 registry.String('-rq+z $~a',"""mode used by the bot when attackDuration is finished"""))
 
+conf.registerChannelValue(ChanTracker, 'netsplitModes',
+registry.String('',"""leave empty for no modes changes"""))
+conf.registerChannelValue(ChanTracker, 'netsplitUnmodes',
+registry.String('',"""leave empty for no modes changes"""))
+conf.registerChannelValue(ChanTracker, 'netsplitDuration',
+registry.PositiveInteger(600,"""duration of netsplit state when detected, it disables massJoin and cycle detection, and could set specific modes"""))

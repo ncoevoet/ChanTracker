@@ -830,6 +830,7 @@ class Chan (object):
 		self.spam = ircutils.IrcDict()
 		self.repeatLogs = ircutils.IrcDict()
 		self.nicks = ircutils.IrcDict()
+		self.netsplit = False
 	
 	def isWrong (self,pattern):
 		if 'bad' in self.spam and pattern in self.spam['bad']:
@@ -2183,11 +2184,36 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								del chan.spam[k][best]
 		schedule.addEvent(nrm,time.time()+self.registryValue('cycleLife')+10)
 	
+	def _split (self,irc,channel):
+		chan = self.getChan(irc,channel)
+		if not chan.netsplit:
+			def f(L):
+				return applymodes(channel,L)
+			chan.netsplit = True
+			def d ():
+				chan.netsplit = False
+				unmodes = self.registryValue('netsplitUnmodes',channel=channel)
+				if len(unmodes):
+					chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,unmodes)))
+					self.forceTickle = True
+					self._tickle(irc)
+			schedule.addEvent(d,time.time()+self.registryValue('netsplitDuration',channel=channel)+1)
+			modes = self.registryValue('netsplitModes',channel=channel)
+			if len(modes):
+				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
+				self.forceTickle = True
+				self._tickle(irc)
+				
 	def doQuit (self,irc,msg):
 		isBot = msg.nick == irc.nick
 		reason = None
 		if len(msg.args) == 1:
 			reason = msg.args[0].lstrip().rstrip()
+		if reason and reason == '*.net *.split':		
+			for channel in irc.state.channels:
+				chan = self.getChan(irc,channel)
+				if msg.nick in chan.nicks and not chan.netsplit:
+					self._split(irc,channel)								
 		removeNick = True
 		if isBot:
 			self._ircs = ircutils.IrcDict()
@@ -2926,6 +2952,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				log.error('%s %s %s %s %s unsupported mode' % (channel,mode,mask,duration,reason))
 	
 	def _isSomething (self,irc,channel,key,prop):
+		chan = self.getChan(irc,channel)
+		if prop == 'massJoin' or prop == 'cycle' and chan.netsplit:
+			return False
 		limit = self.registryValue('%sPermit' % prop,channel=channel)
 		if limit < 0:
 			return False
