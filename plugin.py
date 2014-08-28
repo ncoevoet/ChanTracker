@@ -2109,6 +2109,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							mode = self.registryValue('%sMode' % kind,channel=channel)
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
+							forward = self.registryValue('cycleForward',channel=channel)
+							if kind == 'cycle' and len(forward):
+								best = best + '$' + forward
 							self._act(irc,channel,mode,best,duration,comment)
 							self.forceTickle = True
 		if canRemove:
@@ -2254,6 +2257,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							mode = self.registryValue('%sMode' % kind,channel=channel)
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
+							forward = self.registryValue('cycleForward',channel=channel)
+							if kind == 'cycle' and len(forward):
+								best = best + '$' + forward
 							self._act(irc,channel,mode,best,duration,comment)
 							self.forceTickle = True
 			if removeNick:

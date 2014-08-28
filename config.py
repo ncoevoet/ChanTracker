@@ -283,6 +283,8 @@ conf.registerChannelValue(ChanTracker, 'cycleDuration',
 registry.PositiveInteger(1800,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'cycleComment',
 registry.String('cycle detected',"""comment added on mode changes database, empty for no comment"""))
+conf.registerChannelValue(ChanTracker, 'cycleForward',
+registry.String('',"""if your ircd supports that, you can forward the user to a specific channel"""))
 
 # channel massJoin from an host
 conf.registerChannelValue(ChanTracker, 'massJoinPermit',
