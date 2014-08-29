@@ -778,7 +778,7 @@ class Ircd (object):
 						scheduleFunction(irc,newEnd)
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (channel,ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'green')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
+					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (channel,ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
