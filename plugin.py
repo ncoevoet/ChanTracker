@@ -1807,8 +1807,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							adding = False
 							while len(chan.queue):
 								L.append(chan.queue.pop())
-								if L[index][0].find ('+') != -1:
-									adding = True
+								mm = L[index][0].replace("+","")
+								if L[index][0].find ('+') != -1 and mm in self.registryValue('modesToAsk',channel=channel):
+									if mm in self.registryValue('kickMode',channel=channel) or self.registryValue('doActionAgainstAffected',channel=channel):
+										adding = True
 								index = index + 1
 							# remove duplicates ( should not happens but .. )
 							S = set(L)
