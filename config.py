@@ -207,22 +207,24 @@ registry.String('repeat detected',"""comment added on mode changes database, emp
 
 # mass repeat detection
 conf.registerChannelValue(ChanTracker, 'massRepeatChars',
-registry.PositiveInteger(20,"""number of chars needed to enter massRepeat detection"""))
+registry.PositiveInteger(100,"""number of chars needed to enter massRepeat detection"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPermit',
-registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, a bit different to repeat, because it doesn't track user but channel messages, 
-if repeat comes from differences sources that helps, it also add a pattern that will match future repeat, 
-during massRepeatDuration, note, the first two message doesn't count, 
-so if you want to trigger it after 3 repeat, you must set it to 1"""))
+registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, tracks message repetition from various sources on the given channel"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatLife',
-registry.PositiveInteger(60,"""Duration of messages's life in massRepeat counter, in seconds, advice 120"""))
+registry.PositiveInteger(120,"""Duration of messages's life in massRepeat counter, in seconds"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPercent',
 registry.Probability(0.95,"""percentage similarity between previous and current message to trigger a repeat count"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatMode',
-registry.String('q',"""mode used by the bot when repeat detection is triggered"""))
+registry.String('b',"""mode used by the bot when repeat detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatDuration',
-registry.PositiveInteger(180,"""punition in seconds"""))
+registry.PositiveInteger(1800,"""punition in seconds"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatComment',
 registry.String('mass repeat detected',"""comment added on mode changes database, empty for no comment"""))
+conf.registerChannelValue(ChanTracker, 'massRepeatPatternLife',
+registry.PositiveInteger(300,"""duration of pattern life"""))
+conf.registerChannelValue(ChanTracker, 'massRepeatPatternLength',
+registry.Integer(-1,"""if -1, it uses the default system to compare strings, otherwise, it try to find the longest common message, and use it as a regexp pattern, 
+if found string < length setted, it uses the default string compare"""))
 
 # YES IT'S ANNOYING
 conf.registerChannelValue(ChanTracker, 'capPermit',
