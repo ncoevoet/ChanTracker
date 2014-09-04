@@ -651,7 +651,7 @@ class Ircd (object):
 				f = ct._logChan
 			if f:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (channel,ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -677,7 +677,7 @@ class Ircd (object):
 			db.commit()
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (channel,ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'green')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'green')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -786,7 +786,7 @@ class Ircd (object):
 		c.close()
 		return b
 	
-	def resync (self,irc,channel,mode,db,logFunction):
+	def resync (self,irc,channel,mode,db,logFunction,ct):
 		# here sync mode lists, if items were removed when bot was offline, mark records as removed
 		c = db.cursor()
 		c.execute("""SELECT id,channel,mask FROM bans WHERE channel=? AND kind=?AND removed_at is NULL ORDER BY id""",(channel,mode))
@@ -805,11 +805,17 @@ class Ircd (object):
 						if not item:
 							c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (current,'offline!offline@offline',int(uid)))
 							commits = commits + 1
-							msgs.append('[#%s %s]' % (uid,mask))
+							if ct.registryValue('useColorForAnnounces',channel=channel):
+								msgs.append('[#%s %s]' % (ircutils.mircColor(uid,'yellow'),ircutils.mircColor(mask,'light blue')))
+							else:
+								msgs.append('[#%s %s]' % (uid,mask))
 		if commits > 0:
 			db.commit()
 			if logFunction:
-				logFunction(irc,channel,'[%s] [%s] %s removed: %s' % (channel,mode,commits, ' '.join(msgs)))
+				if ct.registryValue('useColorForAnnounces',channel=channel):
+					logFunction(irc,channel,'[%s] [%s] %s removed: %s' % (ircutils.bold(channel),ircutils.mircColor(mode,'green'),commits, ' '.join(msgs)))
+				else:
+					logFunction(irc,channel,'[%s] [%s] %s removed: %s' % (channel,mode,commits, ' '.join(msgs)))
 		c.close()
 
 class Chan (object):
@@ -1136,6 +1142,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		change expiration of some active modes"""
 		i = self.getIrc(irc)
 		b = True
+		sf = None
+		if not len(ids) > 1:
+			sf = self._schedule
 		for id in ids:
 			item = i.getItem(irc,id)
 			if item:
@@ -1146,9 +1155,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 				if getDuration(seconds) == 0 and not self.registryValue('announceInTimeEditAndMark',channel=item.channel):
 					f = None
-				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),self._schedule,f,self)
+				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),sf,f,self)
 			else:
 				b = False;
+		if not sf and duration > 0:
+			self._schedule(irc,float(time.time())+duration)
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
@@ -1937,8 +1948,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self.registryValue('announceModeSync',channel=channel):
 				f = self._logChan
 				if b:
-					self._logChan(irc,channel,'[%s] sync %s' % (channel,chan.dones))
-			i.resync(irc,channel,mode,self.getDb(irc.network),f)
+					if self.registryValue('useColorForAnnounces',channel=channel):
+						f(irc,channel,'[%s] sync %s' % (ircutils.bold(channel),chan.dones))
+					else:
+						f(irc,channel,'[%s] sync %s' % (channel,chan.dones))
+			i.resync(irc,channel,mode,self.getDb(irc.network),f,self)
 		self._tickle(irc)
 	
 	def do346 (self,irc,msg):
@@ -2013,7 +2027,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not chan.syn:
 				chan.syn = True
 				if self.registryValue('announceModeSync',channel=channel):
-					self._logChan(irc,channel,"[%s] is ready" % channel)
+					if self.registryValue('useColorForAnnounces',channel=channel):
+						self._logChan(irc,channel,"[%s] is ready" % ircutils.bold(channel))
+					else:
+						self._logChan(irc,channel,"[%s] is ready" % channel)
 		self._tickle(irc)
 	
 	def _logChan (self,irc,channel,message):
@@ -2088,7 +2105,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				if len(reason):
 					if reason.startswith('requested by') and self.registryValue('announceKick',channel=channel):
-						self._logChan(irc,channel,'[%s] %s has left (%s)' % (channel,msg.prefix,reason))
+						if self.registryValue('useColorForAnnounces',channel=channel):
+							self._logChan(irc,channel,'[%s] %s has left (%s)' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),reason))
+						else:
+							self._logChan(irc,channel,'[%s] %s has left (%s)' % (channel,msg.prefix,reason))
 						if self.registryValue('addKickMessageInComment',channel=channel):
 							chan = self.getChan(irc,channel)
 							found = None
@@ -2157,7 +2177,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,target)
 		n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
 		if self.registryValue('announceKick',channel=channel):
-			self._logChan(irc,channel,'[%s] %s kicks %s (%s)' % (channel,msg.nick,n.prefix,reason))
+			if self.registryValue('useColorForAnnounces',channel=channel):
+				self._logChan(irc,channel,'[%s] %s kicks %s (%s)' % (ircutils.bold(channel),msg.nick,ircutils.mircColor(n.prefix,'light blue'),reason))
+			else:
+				self._logChan(irc,channel,'[%s] %s kicks %s (%s)' % (channel,msg.nick,n.prefix,reason))
 		if len(reason) and msg.prefix != irc.prefix and self.registryValue('addKickMessageInComment',channel=channel):
 			chan = self.getChan(irc,channel)
 			found = None
@@ -2231,11 +2254,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		reason = None
 		if len(msg.args) == 1:
 			reason = msg.args[0].lstrip().rstrip()
-		if reason and reason == '*.net *.split':		
+		if reason and reason == '*.net *.split':
 			for channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
 				if msg.nick in chan.nicks and not chan.netsplit:
-					self._split(irc,channel)								
+					self._split(irc,channel)
 		removeNick = True
 		if isBot:
 			self._ircs = ircutils.IrcDict()
@@ -2260,7 +2283,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						chan = self.getChan(irc,channel)
 						if msg.nick in chan.nicks:
 							if self.registryValue('announceKick',channel=channel):
-								self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
+								if self.registryValue('useColorForAnnounces',channel=channel):
+									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),ircutils.mircColor(reason,'red')))
+								else:
+									self._logChan(irc,channel,'[%s] %s has quit (%s)' % (channel,msg.prefix,reason))
 			for channel in irc.state.channels:
 				chan = self.getChan(irc,channel)
 				if msg.nick in chan.nicks:
@@ -2457,7 +2483,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							self._act(irc,channel,mode,best,duration,comment)
 							self._isBad(irc,channel,best)
 							self.forceTickle = True
-						if not isMass and isNotice:
+						if isNotice:
 							isBad = self._isSomething(irc,channel,best,'bad')
 						if not isMass:
 							if isNotice or isBad:
@@ -2473,7 +2499,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								self.forceTickle = True
 					if self.registryValue('announceNotice',channel=channel):
 						if not chan.isWrong(best):
-							self._logChan(irc,channel,'[%s] %s notice "%s"' % (channel,msg.prefix,text))
+							if self.registryValue('useColorForAnnounces',channel=channel):
+								self._logChan(irc,channel,'[%s] %s notice "%s"' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),text))
+							else:
+								self._logChan(irc,channel,'[%s] %s notice "%s"' % (channel,msg.prefix,text))
 						
 		self._tickle(irc)
 	
@@ -2598,7 +2627,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if not chan.isWrong(best):
 					# prevent the bot to flood logChannel with bad user craps
 					if self.registryValue('announceCtcp',channel=channel) and isCtcpMsg and not isAction:
-						self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
+						if self.registryValue('useColorForAnnounces',channel=channel):
+							self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),text))
+						else:
+							self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
 						self.forceTickle = True
 					else:
 						if self.registryValue('announceOthers',channel=channel) and irc.nick in irc.state.channels[channel].ops and 'z' in irc.state.channels[channel].modes:
@@ -2621,7 +2653,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										if found:
 											break
 									if found:
-										message = '[%s] [#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
+										if self.registryValue('useColorForAnnounces',channel=channel):
+											message = '[%s] [#%s +%s %s] <%s> %s' % (ircutils.bold(channel),found[0].uid,ircutils.mircColor(found[0].mode,'red'),ircutils.mircColor(found[0].value,'light blue'),msg.nick,text)
+										else:
+											message = '[%s] [#%s +%s %s] <%s> %s' % (channel,found[0].uid,found[0].mode,found[0].value,msg.nick,text)
 							if message:
 								self._logChan(irc,channel,message)
 			elif irc.nick == channel:
@@ -2686,7 +2721,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				i.askedItems[prefix][found[0]][6] = True
 				i.lowQueue.enqueue(ircmsgs.privmsg(nick,found[5]))
 				self.forceTickle
-		schedule.addEvent(unAsk,time.time() + 180 * len(list(i.askedItems[prefix])))				
+		schedule.addEvent(unAsk,time.time() + 180 * len(list(i.askedItems[prefix])))
 
 	def doTopic(self, irc, msg):
 		if len(msg.args) == 1:
@@ -2698,7 +2733,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if n:
 				n.addLog(channel,'sets topic "%s"' % msg.args[1])
 			if self.registryValue('announceTopic',channel=channel):
-				self._logChan(irc,channel,'[%s] %s sets topic "%s"' % (channel,msg.prefix,msg.args[1]))
+				if self.registryValue('useColorForAnnounces',channel=channel):
+					self._logChan(irc,channel,'[%s] %s sets topic "%s"' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),msg.args[1]))
+				else:
+					self._logChan(irc,channel,'[%s] %s sets topic "%s"' % (channel,msg.prefix,msg.args[1]))
 				self.forceTickle = True
 		self._tickle(irc)
 	
@@ -2884,7 +2922,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				self.forceTickle = True
 			if len(self.registryValue('announceModes',channel=channel)) and len(msgs):
 				if self.registryValue('announceModeMadeByIgnored',channel=channel) or not ircdb.checkIgnored(msg.prefix,channel):
-					self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
+					if self.registryValue('useColorForAnnounces',channel=channel):
+						self._logChan(irc,channel,'[%s] %s sets %s' % (ircutils.bold(channel),msg.nick,' '.join(msgs)))
+					else: 
+						self._logChan(irc,channel,'[%s] %s sets %s' % (channel,msg.nick,' '.join(msgs)))
 					self.forceTickle = True
 			if len(toexpire):
 				for item in toexpire:
