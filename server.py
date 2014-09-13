@@ -7,13 +7,14 @@ import supybot.utils as utils
 import sqlite3
 import collections
 import urllib
+from StringIO import StringIO
 
 host = 'http://domain.tld'
-port = 6666
-username = 'login'
+port = 80
+username = 'username'
 password = 'password'
-filename = '/home/user/bot/data/networkname/ChanTracker.db'
-channels = ['#channelA','#channelb'] # empty to allows view of all channels recorded, otherwise restrict the views to channels
+filename = '/home/botaccount/data/networkname/ChanTracker.db'
+channels = [] # empty to allows view of all channels recorded, otherwise restrict the views to channels
 
 # usage python server.py
 
@@ -69,6 +70,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 
 	def page (self,query):
 		h = '%s:%s/' % (host,port)
+		body = []
 		if not query:
 			return
 		if query.startswith('/?username='):
@@ -88,20 +90,21 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 				else:
 					query = '/?hash=%s' % base64string
 		if not query.startswith('/?hash='):
-			body = '<html>\n<head>\n<title>ChanTracker</title>\n'
-			body += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n'
-			body += "</head>\n<body>\n"
-			body += '<form action="%s">\n' % h
-			body += '<p>Username:<input name="username" /></p>\n' 
-			body += '<p>Password:<input name="password" type="password"/></p>\n'
-			body += '<input type="submit" value="Login" />\n'
-			body += "</form>\n"
-			body += "</body>\n<html>\n"
+			body.append('<html>\n<head>\n<title>ChanTracker</title>\n')
+			body.append('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n')
+			body.append("</head>\n<body>\n")
+			body.append('<form action="%s">\n' % h)
+			body.append('<p>Username:<input name="username" /></p>\n') 
+			body.append('<p>Password:<input name="password" type="password"/></p>\n')
+			body.append('<input type="submit" value="Login" />\n')
+			body.append("</form>\n")
+			body.append("</body>\n<html>\n")
 			self.send_response(200)
 			self.send_header("Content-type","text/html")
-			self.send_header("Content-length",str(len(body)))
+			full = ''.join(body)
+			self.send_header("Content-length",str(len(full)))
 			self.end_headers()
-			self.wfile.write(body)
+			self.wfile.write(full)
 			return
 		if query.startswith('/?hash='):
 			a = query.split('&')[0]
@@ -111,19 +114,19 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 			q = '?hash=%s' % base64string
 			query = urllib.unquote( query )
 			print query
-		body = '<html style="text-align:center;font-size:1.2em;">\n<head>\n<title>BanTracker - %s</title>\n' % query
-		body += '<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n'
-		body += '<link rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.min.css"></link>\n'
-		body += '<script src="http://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>\n'
-		body += '</head>\n<body style="margin:0.5em;width:98%;margin-left:auto;margin-right:auto;text-align:left;" class="container">\n'
-		body += '<div class="row"><div class="col-xs-6">\n'
-		body += '<form action="%s" class="form">\n' % q
-		body += '<div class="input-group">'
-		body += '<input type="hidden" name="hash" value="%s">' % base64string
-		body += '<input name="search" class="form-control" />\n'
-		body += '<span class="input-group-btn"><button type="submit" class="btn btn-default">Search</button></span>\n'
-		body += '</div></form></div>\n'
-		body += '<div class="clearfix"></div>\n'
+		body.append('<html style="text-align:center;font-size:1.2em;">\n<head>\n<title>BanTracker - %s</title>\n' % query)
+		body.append('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n')
+		body.append('<link rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.min.css"></link>\n')
+#		body.append('<script src="http://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>\n')
+		body.append('</head>\n<body style="margin:0.5em;width:98%;margin-left:auto;margin-right:auto;text-align:left;" class="container">\n')
+		body.append('<div class="row"><div class="col-xs-6">\n')
+		body.append('<form action="%s" class="form">\n' % q)
+		body.append('<div class="input-group">')
+		body.append('<input type="hidden" name="hash" value="%s">' % base64string)
+		body.append('<input name="search" class="form-control" />\n')
+		body.append('<span class="input-group-btn"><button type="submit" class="btn btn-default">Search</button></span>\n')
+		body.append('</div></form></div></div>\n')
+		body.append('<div class="clearfix"></div>\n')
 		db = self._getbandb()
 		c = db.cursor()
 		if query:
@@ -131,80 +134,87 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 			if query.startswith('/&id='):
 				search = query.split('/&id=')[1]
 				c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC""",(search,))
-				if c.rowcount:
-					ban = c.fetchall()[0]
+				r = c.fetchall()
+				if len(r):
+					ban = r[0]
 					(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 					if not len(channels) or channel in channels:
-						body += '<h3>#%s</h3>\n' % id
-						body += '<p>#%s by %s in %s : +%s : %s</p>\n' % (id,oper,channel,kind,mask)
-						body += '<p>Begin at %s</p>\n' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
+						body.append('<h3>#%s</h3>\n' % id)
+						body.append('<p>#%s by %s in %s : +%s : %s</p>\n' % (id,oper,channel,kind,mask))
+						body.append('<p>Begin at %s</p>\n' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at))))
 						was = float(begin_at) == float(end_at)
 						if was:
 							was = 'forever'
 						else:
 							was = timeElapsed(float(end_at) - float(begin_at))
-						body += '<p>Original duration : %s</p>\n' % was
+						body.append('<p>Original duration : %s</p>\n' % was)
 						if not removed_at:
 							if was != 'forever':
-								body += '<p>%s</p>\n' % 'It will expire in %s' % timeElapsed(float(end_at) - time.time())
+								body.append('<p>%s</p>\n' % 'It will expire in %s' % timeElapsed(float(end_at) - time.time()))
 						else:
-							body += '<p>%s</p>\n' % 'Removed after %s on %s by %s' % (timeElapsed(float(removed_at)-float(begin_at)),time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at))),removed_by)
+							body.append('<p>%s</p>\n' % 'Removed after %s on %s by %s' % (timeElapsed(float(removed_at)-float(begin_at)),time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at))),removed_by))
 						c.execute("""SELECT full, log FROM nicks WHERE ban_id=?""",(id,))
-						if c.rowcount:
-							users = c.fetchall()
-							body += '<h3>Logs</h3>\n'
+						r = c.fetchall()
+						if len(r):
+							users = r
+							body.append('<h3>Logs</h3>\n')
 							for u in users:
 								(full,log) = u
-								body += '<p>for %s</p>\n' % full
+								body.append('<p>for %s</p>\n' % full)
 								if log != '':
-									body +='<ul>\n'
+									body.append('<ul>\n')
 									for line in log.split('\n'):
 										 if line != '':
-											 body += '<li>%s</li>\n' % line
-									body += '</ul>\n'
+											 body.append('<li>%s</li>\n' % line)
+									body.append('</ul>\n')
 						c.execute("""SELECT oper, at, comment FROM comments WHERE ban_id=?""",(id,))
-						if c.rowcount:
-							body += '<h3>Comments</h3>\n'
-							body += '<ul>\n'
-							comments = c.fetchall()
+						r = c.fetchall()
+						if len(r):
+							body.append('<h3>Comments</h3>\n')
+							body.append('<ul>\n')
+							comments = r
 							for com in comments:
 								(oper,at,comment) = com
 								s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(at)))
-								body += '<li>%s by %s : %s</li>\n' % (s,oper,comment)
-							body += '</ul>\n'
-			if query.startswith('/&channel='):
+								body.append('<li>%s by %s : %s</li>\n' % (s,oper,comment))
+							body.append('</ul>\n')
+			elif query.startswith('/&channel='):
 				search = '#'+query.split('/&channel=')[1]
 				c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE channel=? ORDER BY id DESC""",(search,))
-				if c.rowcount:
-					bans = c.fetchall()
+				r = c.fetchall()
+				if len(r):
+					bans = r
 					for ban in bans:
 						(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 						ar.append([int(id),channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by])
-			if query.startswith('/&removed_by='):
+			elif query.startswith('/&removed_by='):
 				search = query.split('/&removed_by=')[1]
 				c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE removed_by=? ORDER BY id DESC""",(search,))
-				if c.rowcount:
-					bans = c.fetchall()
+				r = c.fetchall()
+				if len(r):
+					bans = r
 					for ban in bans:
 						(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 						ar.append([int(id),channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by])               
-			if query.startswith('/&oper='):
+			elif query.startswith('/&oper='):
 				search = query.split('/&oper=')[1]
 				c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE oper=? ORDER BY id DESC""",(search,))
-				if c.rowcount:
-					bans = c.fetchall()
+				r = c.fetchall()
+				if len(r):
+					bans = r
 					for ban in bans:
 						(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 						ar.append([int(id),channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by])
-			if query.startswith('/&mask='):
+			elif query.startswith('/&mask='):
 				search = query.split('/&mask=')[1]
 				glob = '*%s*' % search
 				like = '%'+search+'%' 
 				c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""",(glob,like,glob,like))
 				L = [] 
 				a = {} 
-				if c.rowcount:
-					bans = c.fetchall()
+				r = c.fetchall()
+				if len(r):
+					bans = r
 					d = {}
 					for ban in bans:
 						(id,full) = ban
@@ -212,14 +222,16 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 							d[id] = id
 					for id in d:
 						c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC""",(int(id),))
-						if c.rowcount:
-							bans = c.fetchall()
+						r = c.fetchall()
+						if len(r):
+							bans = r
 							for ban in bans:
 								(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 								a[str(id)] = ban
 				c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE mask GLOB ? OR mask LIKE ? ORDER BY id DESC""",(glob,like))
-				if c.rowcount:
-					bans = c.fetchall()
+				r = c.fetchall()
+				if len(r):
+					bans = r
 					for ban in bans:
 						(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 						a[str(id)] = ban
@@ -232,7 +244,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 						return item[0]
 					ar.sort(key=sort_function)
 					ar.sort(reverse=True)
-			if query.startswith('/&search='):
+			elif query.startswith('/&search='):
 				search = query.split('/&search=')[1]
 				search = search.replace('+','*')
 				print search
@@ -242,42 +254,43 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 					c.execute("""SELECT ban_id, full FROM nicks WHERE full GLOB ? OR full LIKE ? OR log GLOB ? OR log LIKE  ? ORDER BY ban_id DESC""",(s,qu,s,qu))
 					L = []
 					a = {}
-					if c.rowcount:
-						bans = c.fetchall()
+					r = c.fetchall()
+					if len(r):
+						bans = r
 						d = {}
 						for ban in bans:
 							(id,full) = ban
 							if not id in d:
 								d[id] = id
 						for id in d:
-							c = db.cursor()
-							c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC""",(int(id),))
-							if c.rowcount:
-								bans = c.fetchall()
+							c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC""",(int(id),))						
+							r = c.fetchall()
+							if len(r):
+								bans = r
 								for ban in bans:
 									(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 									a[id] = ban
-					c = db.cursor()
 					c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE mask GLOB ? OR mask LIKE ? OR channel GLOB ? OR channel LIKE ? OR oper GLOB ? OR oper LIKE ? ORDER BY id DESC""",(s,qu,s,qu,s,qu))
-					if c.rowcount:
-						bans = c.fetchall()
+					r = c.fetchall()
+					if len(r):
+						bans = r
 						for ban in bans:
 							(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 							a[id] = ban
-					c = db.cursor()
 					c.execute("""SELECT ban_id, comment FROM comments WHERE comment GLOB ? OR comment LIKE ? ORDER BY ban_id DESC""",(s,qu))
+					r = c.fetchall()
 					d = {}
-					if c.rowcount:
-						bans = c.fetchall()
+					if len(r):
+						bans = r
 						for ban in bans:
 							(id,full) = ban
 							d[id] = id
 						for id in d:
 							if not id in a:
-								c = db.cursor()
-								c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC""",(int(id),))
-								if c.rowcount:
-									bans = c.fetchall()
+								c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=? ORDER BY id DESC LIMIT 1""",(int(id),))
+								r = c.fetchall()
+								if len(r):
+									bans = r
 									for ban in bans:
 										(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 										a[id] = ban
@@ -291,56 +304,59 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 						ar.sort(key=sort_function)
 						ar.sort(reverse=True)
 				else:
-					body += '<p>nothing found</p>\n'
+					body.append('<p>nothing found</p>\n')
 			if len(ar):
+				print 'found %s results' % len(ar)
 				i = 0
-				body += '<h3>results <small>%s</small></h3>' % search
-				body += '<table class="table table-bordered sortable">\n'
-				body += '<thead><tr><th>ID</th><th>Channel</th><th>Operator</th><th>Kind</th><th>Target</th><th>Begin date</th><th>End date</th><th>Removed date</th><th>Removed by</th><th>affected</th></tr></thead>\n'
-				body += '<tbody>\n'
+				body.append('<h3>results <small>%s</small></h3>' % search)
+				body.append('<div class="row"><div class="col-xs-12"><table class="table table-bordered sortable">\n')
+				body.append('<thead><tr><th>ID</th><th>Channel</th><th>Operator</th><th>Kind</th><th>Target</th><th>Begin date</th><th>End date</th><th>Removed date</th><th>Removed by</th></tr></thead>\n')
+				body.append('<tbody>\n')
 				while i < len(ar):
 					(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ar[i]
 					if not len(channels) or channel in channels:
-						body += '<tr>\n'
-						body += '<td><a href="%s%s&id=%s">%s</a></td>\n' % (h,q,id,id)
-						body += '<td><a href="%s%s&channel=%s">%s</a></td>\n' % (h,q,channel.split('#')[1],channel)
-						body += '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'oper':oper}),oper)
-						body += '<td>+%s</td>\n' % kind
-						body += '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'mask':mask}),mask)
+						body.append('<tr>\n')
+						body.append('<td><a href="%s%s&id=%s">%s</a></td>\n' % (h,q,id,id))
+						body.append('<td><a href="%s%s&channel=%s">%s</a></td>\n' % (h,q,channel.split('#')[1],channel))
+						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'oper':oper}),oper))
+						body.append('<td>+%s</td>\n' % kind)
+						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'mask':mask}),mask))
 						s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
-						body += '<td>%s</td>\n' % s
+						body.append('<td>%s</td>\n' % s)
 						if end_at and end_at != begin_at:
 							s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(end_at)))
-							body += '<td>%s</td>\n' % s
+							body.append( '<td>%s</td>\n' % s)
 						else:
-							body += '<td></td>'
+							body.append( '<td></td>')
 						if removed_at:
 							s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at)))
-							body += '<td>%s</td>' % s
+							body.append( '<td>%s</td>' % s)
 						else:
-							body += '<td></td>\n' 
+							body.append( '<td></td>\n' )
 						if removed_by:
-							body += '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'removed_by':removed_by}),removed_by)
+							body.append( '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'removed_by':removed_by}),removed_by))
 						else:
-							body += '<td></td>\n'
-						affected = ''
-						try:
-							c.execute("""SELECT full, log FROM nicks WHERE ban_id=?""",(id,))
-							affected = len(c.fetchall())
-						except:
-							affected = ''
-						body += '<td>%s</td>\n' % affected
-						body += '</tr>\n'
+							body.append( '<td></td>\n')
+#						affected = ''
+#						try:
+#							c.execute("""SELECT full, log FROM nicks WHERE ban_id=?""",(id,))
+#							affected = len(c.fetchall())
+#						except:
+#							affected = ''
+#						body.append( '<td>%s</td>\n' % affected)
+						body.append( '</tr>\n')
 					i = i+1
-				body += '</tbody>\n'
-				body += '</table>\n'
-		c.close()
-		body += "</body></html>"
+				body.append('</tbody>\n')
+				body.append('</table></div>\n')
+		body.append("</body></html>")
 		self.send_response(200)
 		self.send_header("Content-type","text/html")
-		self.send_header("Content-length",str(len(body)))
+		full = ''.join(body)
+		print 'html lines %s' % len(full)
+		self.send_header("Content-length",len(full))
 		self.end_headers()
-		self.wfile.write(body)
+		self.wfile.write(full)
+		c.close()
 
 	def _getbandb (self):
 		if os.path.exists(filename):
