@@ -1158,8 +1158,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				b = b and i.edit(irc,item.channel,item.mode,item.value,getDuration(seconds),msg.prefix,self.getDb(irc.network),sf,f,self)
 			else:
 				b = False;
-		if not sf and duration > 0:
-			self._schedule(irc,float(time.time())+duration)
+		if not sf and getDuration(seconds) > 0:
+			self._schedule(irc,float(time.time())+getDuration(seconds))
 		if not msg.nick == irc.nick:
 			if b:
 				irc.replySuccess()
