@@ -128,6 +128,12 @@ conf.registerChannelValue(ChanTracker, 'announceNotice',
 conf.registerChannelValue(ChanTracker, 'announceCtcp',
     registry.Boolean(True,"""announce channel ctcps to logChannel"""))
 
+conf.registerChannelValue(ChanTracker, 'announceNagMode',
+    registry.CommaSeparatedListOfStrings([], """bot will announce that channel has such mode at announceNagInterval"""))
+
+conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
+    registry.PositiveInteger(300,"""interval between two check about announceNagMode, this setting is global."""))
+
 # others settings
 
 conf.registerChannelValue(ChanTracker, 'doNothingAboutOwnOpStatus',

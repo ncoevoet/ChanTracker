@@ -1100,7 +1100,25 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._ircs = ircutils.IrcDict()
 		self.getIrc(irc)
 		self.recaps = re.compile("[A-Z]")
+                schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
+	def checkNag (self):
+		if world:
+			if world.ircs:
+				for irc in world.ircs:
+					for channel in irc.state.channels:
+						if self.registryValue('logChannel',channel=channel) in irc.state.channels:
+							toNag = ''
+							for mode in self.registryValue('announceNagMode',channel=channel):
+								if mode in irc.state.channels[channel].modes:
+									toNag = mode
+									break
+							if len(toNag):
+								message = '[%s] has %s mode' % (channel,toNag)
+								if self.registryValue('useColorForAnnounces',channel=channel):
+									message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
+								self._logChan(irc,channel,message)
+		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
 		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] [<reason>]
