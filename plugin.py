@@ -1100,7 +1100,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._ircs = ircutils.IrcDict()
 		self.getIrc(irc)
 		self.recaps = re.compile("[A-Z]")
-                schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
+		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
 	def checkNag (self):
 		if world:
@@ -1592,14 +1592,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		targets = []
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
-					targets.append(item)
-				elif item in i.nicks or item in irc.state.channels[channel].users:
+				if item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
 					patterns = getBestPattern(n,irc)
 					# when resync patterns may be empty, until the bot computed WHO
 					if len(patterns):
 						targets.append(patterns[0])
+				elif ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
+					targets.append(item)
 		n = 0
 		for item in targets:
 			r = self.getIrcdMode(irc,mode,item)
