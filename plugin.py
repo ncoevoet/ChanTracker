@@ -779,7 +779,7 @@ class Ircd (object):
 						scheduleFunction(irc,newEnd)
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (channel,ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
+					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
@@ -2655,7 +2655,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							message = None
 							if 'm' in irc.state.channels[channel].modes:
 								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
-									message = '[%s] [+m] <%s> %s' % (channel,msg.prefix,text)
+									if self.registryValue('useColorForAnnounces',channel=channel):
+										message = '[%s] [+m] <%s> %s' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),text)
+									else:
+										message = '[%s] [+m] <%s> %s' % (channel,msg.prefix,text)
 							if not message:
 								if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
 									modes = self.registryValue('modesToAsk',channel=channel)
@@ -2976,7 +2979,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for user in list(irc.state.channels[self.registryValue('logChannel',channel=channel)].users):
 				L.append(user)
 			if self.registryValue('useColorsForAnnounce',channel=channel):
-				self._logChannel(irc,channel,'[%s] %s : %s' % (channel,ircutils.bold(ircutils.mircColor(info,'red')),' '.join(L))) 
+				self._logChannel(irc,channel,'[%s] %s : %s' % (ircutils.bold(channel),ircutils.bold(ircutils.mircColor(info,'red')),' '.join(L))) 
 			else:
 				self._logChan(irc,channel,'[%s] %s : %s' % (channel,info,' '.join(L)))
 		self._tickle(irc)
