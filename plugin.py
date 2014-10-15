@@ -722,13 +722,17 @@ class Ircd (object):
 		c.execute("""SELECT id,oper FROM bans WHERE channel=? AND kind=? AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""",(channel,mode,value))
 		L = c.fetchall()
 		if len(L):
+			(id,oper) = L[0]
 			c.close()
-			# TODO maybe edit item here ?
+			if channel in self.channels:
+				chan = self.getChan(irc,channel)
+				hash = '%s%s' % (mode,value)
+				chan.update[hash] = [mode,value,seconds,prefix]
+				return True
 			return False
 		else:
 			if channel in self.channels:
 				chan = self.getChan(irc,channel)
-				item = chan.getItem(mode,value)
 				hash = '%s%s' % (mode,value)
 				# prepare item update after being set ( we don't have id yet )
 				chan.update[hash] = [mode,value,seconds,prefix]
