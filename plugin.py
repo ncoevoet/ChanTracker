@@ -1148,28 +1148,35 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								self._logChan(irc,channel,message)
 		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
-	def extract (self,irc,msg,args,channel):
-		"""[<channel>]
+	def extract (self,irc,msg,args,channel,newChannel):
+		"""[<channel>] [<newChannel>]
 		
-		returns a snapshot of ChanTracker's settings for the given <channel>, it helps when you configure it for a new channel"""
+		returns a snapshot of ChanTracker's settings for the given <channel>, if <newChannel> provided, settings are copied"""
 		namespace = 'supybot.plugins.ChanTracker'
 		group = getWrapper(namespace)
 		L = listGroup(group)
 		msgs = []
+		props = []
 		for prop in L:
 			p = getWrapper('%s.%s' % (namespace,prop))
 			if p.channelValue:
 				value = str(p) or ''
 				channelValue = str(p.get(channel))
 				if value != channelValue:
+					props.append([prop,channelValue])
 					msgs.append(ircmsgs.privmsg(msg.nick,'config channel %s %s.%s %s' % (channel,namespace,prop,channelValue)))
 		if len(msgs):
-			for m in msgs:
-				irc.queueMsg(m)
+			if newChannel:
+				for prop in props:
+					newChan = getWrapper('%s.%s.%s' % (namespace,prop[0],newChannel))
+					newChan.set(prop[1])
+			else:
+				for m in msgs:
+					irc.queueMsg(m)
 			irc.replySuccess()
 		else:
 			irc.reply("%s uses global's settings" % channel)
-	extract = wrap(extract,['owner','channel'])
+	extract = wrap(extract,['owner','private','channel',optional('channel')])
 
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
 		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] [<reason>]
