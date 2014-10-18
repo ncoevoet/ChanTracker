@@ -1148,7 +1148,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								self._logChan(irc,channel,message)
 		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
-	def extract (self,irc,msg,args,channel,newChannel):
+	def extract (self,irc,msg,args,channel,newChannel=None):
 		"""[<channel>] [<newChannel>]
 		
 		returns a snapshot of ChanTracker's settings for the given <channel>, if <newChannel> provided, settings are copied"""
