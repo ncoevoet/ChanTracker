@@ -42,6 +42,8 @@ import supybot.callbacks as callbacks
 import supybot.ircdb as ircdb
 import supybot.log as log
 import supybot.schedule as schedule
+import supybot.registry as registry
+import supybot.conf as conf
 import socket
 import re
 import sqlite3
@@ -1087,6 +1089,28 @@ def getDuration (seconds):
 		return -1
 	return seconds[0]
 
+def getWrapper(name):
+	parts = registry.split(name)
+	group = getattr(conf, parts.pop(0))
+	while parts:
+		try:
+			group = group.get(parts.pop(0))
+		except (registry.NonExistentRegistryEntry,
+				registry.InvalidRegistryName):
+			raise registry.InvalidRegistryName, name
+	return group
+
+def listGroup(group):
+	L = []
+	for (vname, v) in group._children.iteritems():
+		if hasattr(group, 'channelValue') and group.channelValue and \
+			ircutils.isChannel(vname) and not v._children:
+			continue
+		if hasattr(v, 'channelValue') and v.channelValue:
+			L.append(vname)
+		utils.sortBy(str.lower, L)
+	return L
+
 class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	"""This plugin keeps records of channel mode changes and permits to manage them over time
 	it also have some channel protection features
@@ -1123,6 +1147,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
 								self._logChan(irc,channel,message)
 		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
+
+	def extract (self,irc,msg,args,channel):
+		"""[<channel>]
+		
+		returns a snapshot of ChanTracker's settings for the given <channel>, it helps when you configure it for a new channel"""
+		namespace = 'supybot.plugins.ChanTracker'
+		group = getWrapper(namespace)
+		L = listGroup(group)
+		msgs = []
+		for prop in L:
+			p = getWrapper('%s.%s' % (namespace,prop))
+			if p.channelValue:
+				value = str(p) or ''
+				channelValue = str(p.get(channel))
+				if value != channelValue:
+					msgs.append(ircmsgs.privmsg(msg.nick,'config channel %s %s.%s %s' % (channel,namespace,prop,channelValue)))
+		if len(msgs):
+			for m in msgs:
+				irc.queueMsg(m)
+			irc.replySuccess()
+		else:
+			irc.reply("%s uses global's settings" % channel)
+	extract = wrap(extract,['owner','channel'])
 
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
 		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] [<reason>]
