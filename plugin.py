@@ -1440,7 +1440,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
-	e = wrap(e,['op',commalist('something'),any('getTs'),rest('text')])
+	e = wrap(e,['op',commalist('something'),any('getTs',True),rest('text')])
 	
 	def undo (self, irc, msg, args, channel, mode, items):
 		"""[<channel>] <mode> <nick|hostmask|*> [<nick|hostmask|*>]
@@ -1899,6 +1899,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if L[index][0].find ('+') != -1 and mm in self.registryValue('modesToAsk',channel=channel):
 									if mm in self.registryValue('kickMode',channel=channel) or self.registryValue('doActionAgainstAffected',channel=channel):
 										adding = True
+								if L[index][0].find ('+') != -1 and mm in self.registryValue('modesToAskWhenOpped',channel=channel):
+									adding = True
 								index = index + 1
 							# remove duplicates ( should not happens but .. )
 							S = set(L)
