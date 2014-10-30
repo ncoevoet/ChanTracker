@@ -62,7 +62,7 @@ ChanTracker also allows you to work out which users would be affected by a ban b
 
 ## Settings ##
 
-If you want the bot to manage its own op status, you can change the config value:
+**If you want the bot to manage its own op status, you must change the config value**:
 
     !config supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus False
     !config channel #myChannel supybot.plugins.ChanTracker.doNothingAboutOwnOpStatus True
