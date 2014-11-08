@@ -1601,7 +1601,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def vacuum (self,irc,msg,args):
 		"""VACUUM the database"""
 		db = self.getDb(irc.network)
-                c = db.cursor()
+		c = db.cursor()
 		c.execute('VACUUM')
 		c.close()
 		irc.replySuccess()
