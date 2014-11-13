@@ -1398,7 +1398,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 		+<mode> targets for duration <reason> is mandatory"""
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
-			b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason)
+			b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason,False)
 			if not msg.nick == irc.nick and not b:
 				irc.reply('unknown pattern or pattern already active')
 		else:
@@ -1410,25 +1410,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+q targets for duration <reason> is mandatory"""
-		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason)
+		b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
 	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def b (self, irc, msg, args, channel, items, seconds, reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+	def b (self, irc, msg, args, channel, items, optlist, seconds, reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [--perm] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
-		+b targets for duration <reason> is mandatory"""
-		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason)
+		+b targets for duration <reason> is mandatory, add --perm if you want to add it to permanent bans of Channel"""
+		perm = False
+		for (option, arg) in optlist:
+			if option == 'perm':
+				perm = True
+		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason,perm)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
-	b = wrap(b,['op',commalist('something'),any('getTs',True),rest('text')])
+	b = wrap(b,['op',commalist('something'),getopts({'perm':''}),any('getTs',True),rest('text')])
 	
 	def i (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+I targets for duration <reason> is mandatory"""
-		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason)
+		b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
 	i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
@@ -1437,7 +1441,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+e targets for duration <reason> is mandatory"""
-		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason)
+		b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
 	e = wrap(e,['op',commalist('something'),any('getTs',True),rest('text')])
@@ -1645,7 +1649,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return irc.state.supported['extban'].split(',')[0]
 		return ''
 	
-	def _adds (self,irc,msg,args,channel,mode,items,duration,reason):
+	def _adds (self,irc,msg,args,channel,mode,items,duration,reason,perm):
 		i = self.getIrc(irc)
 		targets = []
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
@@ -1662,6 +1666,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for item in targets:
 			r = self.getIrcdMode(irc,mode,item)
 			if i.add(irc,channel,r[0],r[1],duration,msg.prefix,self.getDb(irc.network)):
+				if perm and r[1].find(self.getIrcdExtbansPrefix(irc)) == -1:
+					chan = ircdb.channels.getChannel(channel)
+					chan.addBan(r[1],0)
+					ircdb.channels.setChannel(channel, chan)
 				if reason:
 					f = None
 					if self.registryValue('announceInTimeEditAndMark',channel=channel):
