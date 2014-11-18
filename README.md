@@ -2,7 +2,7 @@
 
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc.
 
-The plugin is used in various and large channels on freenode (#bitcoin*, #defocus, #wrongplanet, #ubuntu-fr*, + 40 french channels), in oftc ( #debian )
+The plugin is used in various and large channels on freenode and others networks
 
 ## Commands ##
 
@@ -20,6 +20,7 @@ The plugin is used in various and large channels on freenode (#bitcoin*, #defocu
     !detail <id> returns log from a mode change
     !remove [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
     !modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
+    !summary [<channel>] returns some stats about <channel>
 
 ## General Usage ##
 
@@ -82,7 +83,6 @@ Here list of data requested by the bot at join:
     MODE :#channel
     MODE :#channel b
     MODE :#channel q
-    WHO :#channel
     WHO #CHANNEL %tnuhiar,42
 
 and if opped or at first op:
@@ -94,7 +94,7 @@ The channel modes that will be tracked are currently defined here (qb, and eI if
 
     !config supybot.plugins.ChanTracker.modesToAsk
     !config supybot.plugins.ChanTracker.modesToAskWhenOpped
-    !config channel #myChannel supybot.plugins.ChanTracker.modesToAsk b
+    !config channel #myChannel supybot.plugins.ChanTracker.modesToAsk b, q
     !config channel #myChannel supybot.plugins.ChanTracker.modesToAskWhenOpped e	
 
 The command used by the bot to op itself is editable here:
@@ -104,6 +104,12 @@ The command used by the bot to op itself is editable here:
 Where $channel and $nick will be replaced by targeted channel and bot's nick at runtime, so you could replace it with :
 
         !config supybot.plugins.ChanTracker.opCommand "PRIVMSG ChanServ :OP $channel $nick"
+
+You can also tell the bot to use ChanServ for quiet and unquiet, if it has +r flag, on freenode:
+
+	!config supybot.plugins.ChanTracker.useChanServForQuiets True
+	!config supybot.plugins.ChanTracker.quietCommand "PRIVMSG ChanServ :QUIET $channel $hostmask"
+	!config supybot.plugins.ChanTracker.quietCommand "PRIVMSG ChanServ :UNQUIET $channel $hostmask"
 
 For more readable date information in output, you should change this:
 
@@ -137,6 +143,7 @@ The plugin can create persistent bans to help manage large ban lists that exceed
 
     !config channel #myChannel supybot.plugins.ChanTracker.useChannelBansForPermanentBan true
     !channel ban add #myChannel *!*@mask
+    !b #example baduser,baduser2 --perm 1w stop trolling ( --perm add computed hostmasks to Channel.ban )
 
 With autoExpire enabled, the IRCd list is pruned as appropriate and bans are rotated in a way to not reveal the pattern used for the match. Due to a supybot limitation, extended bans are not supported with this feature.
 
@@ -166,6 +173,8 @@ The plugin has a lot of built-in channel protection features that can be enabled
 - nick: nick change spam
 - cycle: join/part flood
 - massJoin
+
+You should tweak settings to fits your needs, do not use default values. It really depends channel's population and usage ...
 
 Each of those detections has the same kind of settings: there is *Permit (-1 to disable), *Life (which is the time interval over which the bot will track previous messages/behaviour), *Mode (which allows you to select which action you want to use against the user). The action modes that can be set are:
 
