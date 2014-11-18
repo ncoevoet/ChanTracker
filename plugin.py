@@ -866,6 +866,43 @@ class Chan (object):
 		if not mode in self._lists:
 			self._lists[mode] = ircutils.IrcDict()
 		return self._lists[mode]
+	
+	def summary (self,db):
+		r = []
+		c = db.cursor()
+		c.execute("""SELECT id,oper,kind,removed_at FROM bans WHERE channel=?""",(self.name,))
+		L = c.fetchall()
+		total = {}
+		opers = {}
+		if len(L):
+			for item in L:
+				(id,oper,kind,removed_at) = item
+				if not kind in total:
+					total[kind] = {}
+					total[kind]['active'] = 0
+					total[kind]['removed'] = 0
+				if not removed_at:
+					total[kind]['active'] = total[kind]['active'] + 1
+				else:
+					total[kind]['removed'] = total[kind]['removed'] + 1
+				if not oper in opers:
+					opers[oper] = {}
+				if not kind in opers[oper]:
+					opers[oper][kind] = {}
+					opers[oper][kind]['active'] = 0
+					opers[oper][kind]['removed'] = 0
+				if not removed_at:
+					opers[oper][kind]['active'] = opers[oper][kind]['active'] + 1
+				else:
+					opers[oper][kind]['removed'] = opers[oper][kind]['removed'] + 1
+			for kind in total:
+				r.append('+%s: %s/%s (active/total)' % (kind,total[kind]['active'],total[kind]['active']+total[kind]['removed']))
+			for oper in opers:
+				r.append('%s:' % oper)
+				for kind in opers[oper]:
+					r.append('+%s: %s/%s (active/total)' % (kind,opers[oper][kind]['active'],opers[oper][kind]['active']+opers[oper][kind]['removed']))
+		c.close()
+		return r
 
 	def addItem (self,mode,value,by,when,db,checkUser=True):
 		# eqIb(+*) (-ov) pattern prefix when 
@@ -1147,6 +1184,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
 								self._logChan(irc,channel,message)
 		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
+
+	def summary (self,irc,msg,args,channel):
+		"""[<channel>]
+
+		returns various statistics about channel activity"""
+		c = self.getChan(irc,channel)
+		messages = c.summary(self.getDb(irc.network))
+		for message in messages:
+			irc.queueMsg(ircmsgs.privmsg(msg.nick,message))
+		irc.replySuccess()
+	summary = wrap(summary,['op','channel'])
 
 	def extract (self,irc,msg,args,channel,newChannel=None):
 		"""[<channel>] [<newChannel>]
