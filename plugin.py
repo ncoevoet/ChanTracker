@@ -3234,6 +3234,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _isMassRepeat(self,irc,channel,message):
 		if self.registryValue('massRepeatPermit',channel=channel) < 0 or len(message) < self.registryValue('massRepeatChars',channel=channel):
 			return False
+		message = message.lower()
 		chan = self.getChan(irc,channel)
 		life = self.registryValue('massRepeatLife',channel=channel)
 		if not channel in chan.repeatLogs or chan.repeatLogs[channel].timeout != life:
