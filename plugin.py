@@ -1618,7 +1618,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				username = a[1]
 				prefix = a[0]
 				n.setPrefix(prefix)
-				n.setUsername(username)
+				n.setRealname(username)
 			else:
 				n.setPrefix(prefix)
 			if ircutils.isUserHostmask(prefix):
