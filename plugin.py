@@ -3200,13 +3200,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if limit == -1:
 			return False
 		count = 0
-		messages = message.split(' ')
 		users = []
+		msg = message.lower()
 		for user in list(irc.state.channels[channel].users):
-			users.append(user)
-		for m in messages:
-			for user in users:
-				if m == user:
+			if len(user) > 2:
+				users.append(user.lower())
+		for user in users:
+				if msg.find(user) != -1:
 					count = count + 1
 					break
 		return count > limit
