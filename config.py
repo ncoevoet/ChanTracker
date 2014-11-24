@@ -132,7 +132,7 @@ conf.registerChannelValue(ChanTracker, 'announceNagMode',
     registry.CommaSeparatedListOfStrings([], """bot will announce that channel has such mode at announceNagInterval"""))
 
 conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
-    registry.PositiveInteger(300,"""interval between two check about announceNagMode, this setting is global."""))
+    registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
 
 # others settings
 

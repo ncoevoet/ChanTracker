@@ -1165,7 +1165,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._ircs = ircutils.IrcDict()
 		self.getIrc(irc)
 		self.recaps = re.compile("[A-Z]")
-		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
+		if self.registryValue('announceNagInterval') > 0:
+			schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
 	def checkNag (self):
 		if world:
@@ -1183,7 +1184,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if self.registryValue('useColorForAnnounces',channel=channel):
 									message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
 								self._logChan(irc,channel,message)
-		schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
+		if self.registryValue('announceNagInterval') > 0
+			schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
 	def summary (self,irc,msg,args,channel):
 		"""[<channel>]
