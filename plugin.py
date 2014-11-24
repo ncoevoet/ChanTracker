@@ -1498,7 +1498,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <mode> <nick|hostmask|*> [<nick|hostmask|*>]
 
 		sets -<mode> on them, if * found, remove them all"""
-		b = self._removes(irc,msg,args,channel,mode,items)
+		b = self._removes(irc,msg,args,channel,mode,items,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown patterns, already removed or unsupported mode')
 	undo = wrap(undo,['op','letter',many('something')])
@@ -1507,25 +1507,29 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
 		sets -q on them, if * found, remove them all"""
-		b = self._removes(irc,msg,args,channel,'q',items)
+		b = self._removes(irc,msg,args,channel,'q',items,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown patterns, already removed or unsupported mode')
 	uq = wrap(uq,['op',many('something')])
 	
-	def ub (self, irc, msg, args, channel, items):
-		"""[<channel>] <nick|hostmask|*> [<nick|hostmask>]
+	def ub (self, irc, msg, args, channel, optlist, items):
+		"""[<channel>] [--perm] <nick|hostmask|*> [<nick|hostmask>] 
 
-		sets -b on them, if * found, remove them all"""
-		b = self._removes(irc,msg,args,channel,'b',items)
+		sets -b on them, if * found, remove them all, --perm to remove them for permanent bans"""
+		perm = False
+		for (option, arg) in optlist:
+			if option == 'perm':
+				perm = True
+		b = self._removes(irc,msg,args,channel,'b',items,perm)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown patterns, already removed or unsupported mode')
-	ub = wrap(ub,['op',many('something')])
+	ub = wrap(ub,['op',getopts({'perm':''}),many('something')])
 	
 	def ui (self, irc, msg, args, channel, items):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
 		sets -I on them, if * found, remove them all"""
-		b = self._removes(irc,msg,args,channel,'I',items)
+		b = self._removes(irc,msg,args,channel,'I',items,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown patterns, already removed or unsupported mode')
 	ui = wrap(ui,['op',many('something')])
@@ -1534,7 +1538,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		"""[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
 		sets -e on them, if * found, remove them all"""
-		b = self._removes(irc,msg,args,channel,'e',items)
+		b = self._removes(irc,msg,args,channel,'e',items,False)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown patterns, already removed or unsupported mode')
 	ue = wrap(ue,['op',many('something')])
@@ -1714,7 +1718,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for item in targets:
 			r = self.getIrcdMode(irc,mode,item)
 			if i.add(irc,channel,r[0],r[1],duration,msg.prefix,self.getDb(irc.network)):
-				if perm and r[1].find(self.getIrcdExtbansPrefix(irc)) == -1:
+				if perm:
 					chan = ircdb.channels.getChannel(channel)
 					chan.addBan(r[1],0)
 					ircdb.channels.setChannel(channel, chan)
@@ -1731,7 +1735,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 		return len(items) == n
 	
-	def _removes (self,irc,msg,args,channel,mode,items):
+	def _removes (self,irc,msg,args,channel,mode,items,perm=False):
 		i = self.getIrc(irc)
 		chan = self.getChan(irc,channel)
 		targets = []
@@ -1768,6 +1772,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					f = self._logChan
 			for item in targets:
 				r = self.getIrcdMode(irc,mode,item)
+				if perm:
+					chan = ircdb.channels.getChannel(channel)
+					try:
+						chan.removeBan(item)
+					except:
+						self.log.info('%s is not in Channel.ban' % item)
+					ircdb.channels.setChannel(channel, chan)
 				if i.edit(irc,channel,r[0],r[1],0,msg.prefix,self.getDb(irc.network),None,f,self):
 					count = count + 1
 		self.forceTickle = True
