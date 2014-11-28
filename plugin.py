@@ -1184,7 +1184,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if self.registryValue('useColorForAnnounces',channel=channel):
 									message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
 								self._logChan(irc,channel,message)
-		if self.registryValue('announceNagInterval') > 0
+		if self.registryValue('announceNagInterval') > 0:
 			schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
 	def summary (self,irc,msg,args,channel):
