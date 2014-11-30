@@ -1259,7 +1259,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if b:
 			irc.replySuccess()
 		else:
-			irc.reply('item not found, already removed or not enough rights to modify it')		
+			irc.reply('item not found, already removed or not enough rights to modify it')
+		self.forceTickle = True
 	editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),optional('text')])
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
@@ -2915,6 +2916,26 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							self.unOp(irc,channel)
 			chan.deopPending = True
 			schedule.addEvent(unOpBot,float(time.time()+10))
+	
+	def hasExtendedSharedBan (self,irc,fromChannel,target):
+		# todo add support for others ircd if supported, currently only freenode
+		match = '$j:%s' % fromChannel
+		kicks = []
+		for channel in irc.state.channels:
+			if match in irc.state.channels[channel].bans and self.registryValue('doActionAgainstAffected',channel=channel):
+				L = []
+				for nick in list(irc.state.channels[self.name].users):
+					L.append(nick)
+				for nick in L:
+					n = self.getNick(irc,nick)
+					m = match(target,n,irc)
+					if m:
+						kicks.append([nick,channel])
+		if len(kicks):
+			for kick in kicks:
+				chan = self.getChan(irc,kick[1])
+				chan.action.enqueue(ircmsgs.kick(kick[1],kick[0],self.registryValue('kickMessage',channel=kick[1])))
+			self.forceTickle = True
 			
 	def doMode(self, irc, msg):
 		channel = msg.args[0]
@@ -2984,6 +3005,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 											chan.queue.enqueue(('-h',nick))
 										if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 											chan.queue.enqueue(('-v',nick))
+						if m == 'b':
+							self.hasExtendedSharedBan(irc,channel,value)
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
@@ -3255,7 +3278,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		patchan = 'pattern%s' % channel
 		# specific case where bot will try to find the largest pattern to use
 		if self.registryValue('massRepeatPatternLength',channel=channel) > 0:
-			if not patchan in chan.repeatLogs or chan.repeatLogs[channel].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
+			if not patchan in chan.repeatLogs or chan.repeatLogs[patchan].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
 				chan.repeatLogs[patchan] = utils.structures.TimeoutQueue(self.registryValue('massRepeatPatternLife',channel=channel))
 			logs = chan.repeatLogs[patchan]
 			for msg in logs:
@@ -3263,6 +3286,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if message.find(msg) != -1:
 					# increment massrepeat trigger
 					self._isSomething(irc,channel,channel,'massRepeat')
+					chan.repeatLogs[channel].enqueue(message)
 					return True
 		logs = chan.repeatLogs[channel]
 		trigger = self.registryValue('massRepeatPercent',channel=channel)
@@ -3271,7 +3295,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for msg in logs:
 			if self._strcompare(message,msg) >= trigger:
 				if self.registryValue('massRepeatPatternLength',channel=channel) > 0:
-					if not patchan in chan.repeatLogs or chan.repeatLogs[channel].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
+					if not patchan in chan.repeatLogs or chan.repeatLogs[patchan].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
 						chan.repeatLogs[patchan] = utils.structures.TimeoutQueue(self.registryValue('massRepeatPatternLife',channel=channel))
 					pattern = self._largestpattern(message,msg)
 					if pattern and len(pattern) > self.registryValue('massRepeatPatternLength',channel=channel):
