@@ -2919,10 +2919,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def hasExtendedSharedBan (self,irc,fromChannel,target):
 		# todo add support for others ircd if supported, currently only freenode
-		match = '$j:%s' % fromChannel
+		b = '$j:%s' % fromChannel
 		kicks = []
 		for channel in irc.state.channels:
-			if match in irc.state.channels[channel].bans and self.registryValue('doActionAgainstAffected',channel=channel):
+			if b in irc.state.channels[channel].bans and self.registryValue('doActionAgainstAffected',channel=channel):
 				L = []
 				for nick in list(irc.state.channels[channel].users):
 					L.append(nick)
