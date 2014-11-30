@@ -2924,7 +2924,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for channel in irc.state.channels:
 			if match in irc.state.channels[channel].bans and self.registryValue('doActionAgainstAffected',channel=channel):
 				L = []
-				for nick in list(irc.state.channels[self.name].users):
+				for nick in list(irc.state.channels[channel].users):
 					L.append(nick)
 				for nick in L:
 					n = self.getNick(irc,nick)
