@@ -1708,8 +1708,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		targets = []
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
+			chan = self.getChan(irc,channel)
 			for item in items:
-				if item in i.nicks or item in irc.state.channels[channel].users:
+				if item in chan.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
 					patterns = getBestPattern(n,irc)
 					# when resync patterns may be empty, until the bot computed WHO
