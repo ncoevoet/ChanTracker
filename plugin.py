@@ -1571,7 +1571,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	k = wrap(k,['op','nickInChannel',additional('text')])
 	
 	def match (self,irc,msg,args,channel,prefix):
-		"""[<channel>] <nick>
+		"""[<channel>] <nick|hostmask#username>
 
 		returns active mode that targets nick given, nick must be in a channel shared with the bot"""
 		i = self.getIrc(irc)
@@ -1579,8 +1579,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if prefix in i.nicks:
 			n = self.getNick(irc,prefix)
 		else:
-			irc.reply('unknow nick')
-			return
+			if ircutils.isUserHostmask(prefix):
+				n = Nick(0)
+				if prefix.find('#') != -1:
+					a = prefix.split('#')
+					username = a[1]
+					prefix = a[0]
+					n.setPrefix(prefix)
+					n.setRealname(username)
+				else:
+					n.setPrefix(prefix)
+			else:
+				irc.reply('unknow nick')
+				return
 		results = i.against(irc,channel,n,msg.prefix,self.getDb(irc.network))
 		if len(results):
 			irc.reply(' '.join(results), private=True)
