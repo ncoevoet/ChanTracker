@@ -3018,7 +3018,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 											chan.queue.enqueue(('-h',nick))
 										if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 											chan.queue.enqueue(('-v',nick))
-										if m == 'q' and self.registryValue('quietMessage',channel=channel).length and not chan.attacked:
+										if m == 'q' and len(self.registryValue('quietMessage',channel=channel)) and not chan.attacked:
 											qm = self.registryValue('quietMessage',channel=channel)
 											if self.registryValue('quietNotice',channel=channel):
 												irc.queueMsg(ircmsgs.notice(nick,qm))
