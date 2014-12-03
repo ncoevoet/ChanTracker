@@ -851,6 +851,7 @@ class Chan (object):
 		self.repeatLogs = ircutils.IrcDict()
 		self.nicks = ircutils.IrcDict()
 		self.netsplit = False
+		self.attacked = False
 	
 	def isWrong (self,pattern):
 		if 'bad' in self.spam and pattern in self.spam['bad']:
@@ -3017,6 +3018,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 											chan.queue.enqueue(('-h',nick))
 										if nick in irc.state.channels[channel].voices and not nick == irc.nick:
 											chan.queue.enqueue(('-v',nick))
+										if m == 'q' and self.registryValue('quietMessage',channel=channel).length and not chan.attacked:
+											qm = self.registryValue('quietMessage',channel=channel)
+											if self.registryValue('quietNotice',channel=channel):
+												irc.queueMsg(ircmsgs.notice(nick,qm))
+											else:
+												irc.queueMsg(ircmsgs.privmsg(nick,qm))
 						if m == 'b':
 							self.hasExtendedSharedBan(irc,channel,value)
 						# bot just got op
@@ -3227,13 +3234,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def _isBad (self,irc,channel,key):
 		b = self._isSomething(irc,channel,key,'bad')
 		if b:
-			if self._isSomething(irc,channel,channel,'attack'):
+			chan = self.getChan(irc,channel)
+			if self._isSomething(irc,channel,channel,'attack') and not chan.attacked:
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
-				chan = self.getChan(irc,channel)
+				chan.attacked = True
 				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():
 					if channel in list(irc.state.channels.keys()):
 						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackUnMode',channel=channel))))
+						chan.attacked = False
 				schedule.addEvent(unAttack,float(time.time()+self.registryValue('attackDuration',channel=channel)))
 		return b
 	

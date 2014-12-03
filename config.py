@@ -57,6 +57,9 @@ conf.registerGlobalValue(ChanTracker, 'quietCommand',
 conf.registerGlobalValue(ChanTracker, 'unquietCommand',
     registry.String("CS UNQUIET $channel $hostmask","""command issued to unquiet a user $channel and $hostmask will be replaced at runtime"""))
 
+conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
+    registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
+
 #now per channel
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
@@ -131,9 +134,6 @@ conf.registerChannelValue(ChanTracker, 'announceCtcp',
 conf.registerChannelValue(ChanTracker, 'announceNagMode',
     registry.CommaSeparatedListOfStrings([], """bot will announce that channel has such mode at announceNagInterval"""))
 
-conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
-    registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
-
 # others settings
 
 conf.registerChannelValue(ChanTracker, 'doNothingAboutOwnOpStatus',
@@ -148,6 +148,12 @@ conf.registerChannelValue(ChanTracker, 'kickMode',
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
+
+conf.registerChannelValue(ChanTracker, 'quietMessage',
+    registry.String("", """leave empty if you don't want the bot to tell something to the user when he has been quieted ( by/via the bot ), in any case, if channel is under attack: bot will not send message"""))
+
+conf.registerChannelValue(ChanTracker, 'quietNotice',
+    registry.Boolean(False, """if False, private message is used, if 'quietMessage' is not empty"""))
 
 conf.registerChannelValue(ChanTracker, 'trackAffected',
     registry.Boolean(True, """bot tracks affected users by mode change, if you encounter too much lags/cpu usage, you could disable this feature, but bot will never kick again affected users or remove voice/op/exempt etc of affected users"""))
