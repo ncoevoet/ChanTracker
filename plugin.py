@@ -1527,7 +1527,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		b = self._removes(irc,msg,args,channel,'b',items,perm)
 		if not msg.nick == irc.nick and not b:
 			if perm:
-				irc.reply('unknown patterns or already removed, you may try "channel ban remove %s %s"' % (channel,len(items) == 1 ? items[0] : ''))
+				if len(items) == 1:
+					irc.reply('unknown patterns or already removed, you may try "channel ban remove %s %s"' % (channel,items[0]))
+				else:
+					irc.reply('unknown patterns or already removed, you may try "channel ban remove %s %s"' % (channel,''))
 			else:
 				irc.reply('unknown patterns, already removed or unsupported mode')
 	ub = wrap(ub,['op',getopts({'perm':''}),many('something')])
