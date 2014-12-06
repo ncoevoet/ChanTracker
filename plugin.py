@@ -653,7 +653,7 @@ class Ircd (object):
 				f = ct._logChan
 			if f:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -679,7 +679,7 @@ class Ircd (object):
 			db.commit()
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -785,7 +785,7 @@ class Ircd (object):
 						scheduleFunction(irc,newEnd)
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(str(uid),'orange'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
+					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(str(uid),'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
@@ -812,7 +812,7 @@ class Ircd (object):
 							c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (current,'offline!offline@offline',int(uid)))
 							commits = commits + 1
 							if ct.registryValue('useColorForAnnounces',channel=channel):
-								msgs.append('[#%s %s]' % (ircutils.mircColor(uid,'yellow'),ircutils.mircColor(mask,'light blue')))
+								msgs.append('[#%s %s]' % (ircutils.mircColor(uid,'yellow','black'),ircutils.mircColor(mask,'light blue')))
 							else:
 								msgs.append('[#%s %s]' % (uid,mask))
 		if commits > 0:
@@ -2986,7 +2986,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
 								data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
 								if self.registryValue('useColorForAnnounces',channel=channel):
-									data[5] = 'For [#%s +%s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
+									data[5] = 'For [#%s +%s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
 								self.addToAsked (irc,msg.prefix,data,msg.nick)
 							if overexpire > 0:
 								if msg.nick != irc.nick:
@@ -3056,38 +3056,38 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							if not len(item.affects):
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue')))
+										msgs.append('[#%s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue')))
 									else:
 										msgs.append('[#%s %s %s]' % (str(item.uid),mode,value))
 							elif len(item.affects) != 1:
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s - %s users]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),str(len(item.affects))))
+										msgs.append('[#%s %s %s - %s users]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),str(len(item.affects))))
 									else:
 										msgs.append('[#%s %s %s - %s users]' % (str(item.uid),mode,value,str(len(item.affects))))
 							else:
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s - %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),item.affects[0]))
+										msgs.append('[#%s %s %s - %s]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'red')),ircutils.mircColor(value,'light blue'),item.affects[0]))
 									else:
 										msgs.append('[#%s %s %s - %s]' % (str(item.uid),mode,value,item.affects[0]))
 						else:
 							if not len(item.affects):
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(utils.timeElapsed(item.removed_at-item.when))))
+										msgs.append('[#%s %s %s %s]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(utils.timeElapsed(item.removed_at-item.when))))
 									else:
 										msgs.append('[#%s %s %s %s]' % (str(item.uid),mode,value,str(utils.timeElapsed(item.removed_at-item.when))))
 							elif len(item.affects) != 1:
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s - %s users, %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
+										msgs.append('[#%s %s %s - %s users, %s]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 									else:
 										msgs.append('[#%s %s %s - %s users, %s]' % (str(item.uid),mode,value,str(len(item.affects)),str(utils.timeElapsed(item.removed_at-item.when))))
 							else:
 								if m in announces:
 									if self.registryValue('useColorForAnnounces',channel=channel):
-										msgs.append('[#%s %s %s - %s, %s]' % (ircutils.mircColor(str(item.uid),'yellow'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
+										msgs.append('[#%s %s %s - %s, %s]' % (ircutils.mircColor(str(item.uid),'yellow','black'),ircutils.bold(ircutils.mircColor(mode,'green')),ircutils.mircColor(value,'light blue'),item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 									else:
 										msgs.append('[#%s %s %s - %s, %s]' % (str(item.uid),mode,value,item.affects[0],str(utils.timeElapsed(item.removed_at-item.when))))
 					else:
