@@ -502,7 +502,7 @@ class Ircd (object):
 		c.close()
 		return results
 
-	def search (self,irc,pattern,prefix,db,deep,active,never,channel):
+	def search (self,irc,pattern,prefix,db,deep,active,never,channel,ids):
 		# deep search inside database, 
 		# results filtered depending prefix capability
 		c = db.cursor()
@@ -588,7 +588,9 @@ class Ircd (object):
 			msgs = []
 			while i < len(results):
 				(uid,mask,kind,chan) = results[i]
-				if channel and len(channel):
+				if ids:
+					msgs.append('%s' % uid)
+				elif channel and len(channel):
 					msgs.append('[#%s +%s %s]' % (uid,kind,mask))
 				else:
 					msgs.append('[#%s +%s %s in %s]' % (uid,kind,mask,chan))
@@ -1364,15 +1366,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	mark = wrap(mark,['user',commalist('int'),'text'])
 	
 	def query (self,irc,msg,args,user,optlist,text):
-		"""[--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>
+		"""[--deep] [--never] [--active] [--ids] [--channel=<channel>] <pattern|hostmask|comment>
 
 		search inside ban database, --deep to search on log, --never returns items set forever and active, 
-		--active returns only active modes, --channel reduces results to a specific channel"""
+		--active returns only active modes, --ids returns only ids, --channel reduces results to a specific channel"""
 		i = self.getIrc(irc)
 		deep = False
 		never = False
 		active = False
 		channel = None
+		ids = False
 		for (option, arg) in optlist:
 			if option == 'deep':
 				deep = True
@@ -1382,14 +1385,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				active = True
 			elif option == 'channel':
 				channel = arg
+			elif option == 'ids':
+				ids = True
 		if never:
 			active = True
-		results = i.search(irc,text,msg.prefix,self.getDb(irc.network),deep,active,never,channel)
+		results = i.search(irc,text,msg.prefix,self.getDb(irc.network),deep,active,never,channel,ids)
 		if len(results):
 			irc.replies(results,None,None,False)
 		else:
 			irc.reply('nothing found')
-	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'active' : '','channel':'channel'}),'text'])
+	query = wrap(query,['user',getopts({'deep': '', 'never': '', 'ids':'', 'active' : '','channel':'channel'}),'text'])
 	
 	def pending (self, irc, msg, args, channel, optlist):
 		"""[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
