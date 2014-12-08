@@ -655,7 +655,7 @@ class Ircd (object):
 				f = ct._logChan
 			if f:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					f(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					f(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -681,7 +681,7 @@ class Ircd (object):
 			db.commit()
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
+					logFunction(irc,channel,'[%s] [#%s %s %s] marked by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],message))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] marked by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],message))
 			b = True
@@ -787,7 +787,7 @@ class Ircd (object):
 						scheduleFunction(irc,newEnd)
 			if logFunction:
 				if ct.registryValue('useColorForAnnounces',channel=channel):
-					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(str(uid),'orange','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
+					logFunction(irc,channel,'[%s] [#%s %s %s] edited by %s: %s' % (ircutils.bold(channel),ircutils.mircColor(str(uid),'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % kind,'red')),ircutils.mircColor(mask,'light blue'),prefix.split('!')[0],reason))
 				else:
 					logFunction(irc,channel,'[%s] [#%s +%s %s] edited by %s: %s' % (channel,uid,kind,mask,prefix.split('!')[0],reason))
 			b = True
