@@ -3224,8 +3224,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def _isSomething (self,irc,channel,key,prop):
 		chan = self.getChan(irc,channel)
-		if prop == 'massJoin' or prop == 'cycle' and chan.netsplit:
-			return False
+		if prop == 'massJoin' or prop == 'cycle':
+			if chan.netsplit:
+				return False
 		limit = self.registryValue('%sPermit' % prop,channel=channel)
 		if limit < 0:
 			return False
@@ -3308,35 +3309,39 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if not channel in chan.repeatLogs or chan.repeatLogs[channel].timeout != life:
 			chan.repeatLogs[channel] = utils.structures.TimeoutQueue(life)
 		patchan = 'pattern%s' % channel
-		# specific case where bot will try to find the largest pattern to use
 		if self.registryValue('massRepeatPatternLength',channel=channel) > 0:
 			if not patchan in chan.repeatLogs or chan.repeatLogs[patchan].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
 				chan.repeatLogs[patchan] = utils.structures.TimeoutQueue(self.registryValue('massRepeatPatternLife',channel=channel))
 			logs = chan.repeatLogs[patchan]
 			for msg in logs:
-				# if we find the string in the message, then 
 				if message.find(msg) != -1:
-					# increment massrepeat trigger
-					self._isSomething(irc,channel,channel,'massRepeat')
-					chan.repeatLogs[channel].enqueue(message)
+#					self.log.debug('mass repeat "%s" is found in "%s"' % (msg,message))
+					#self._isSomething(irc,channel,channel,'massRepeat')
 					return True
 		logs = chan.repeatLogs[channel]
 		trigger = self.registryValue('massRepeatPercent',channel=channel)
 		result = False
 		flag = False
+		pattern = None
 		for msg in logs:
 			if self._strcompare(message,msg) >= trigger:
+#				self.log.debug('mass repeat "%s" matchs "%s"' % (message,msg))
 				if self.registryValue('massRepeatPatternLength',channel=channel) > 0:
-					if not patchan in chan.repeatLogs or chan.repeatLogs[patchan].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
-						chan.repeatLogs[patchan] = utils.structures.TimeoutQueue(self.registryValue('massRepeatPatternLife',channel=channel))
 					pattern = self._largestpattern(message,msg)
 					if pattern and len(pattern) > self.registryValue('massRepeatPatternLength',channel=channel):
-						self.log.debug('mass repeat pattern added %s' % pattern)
-						chan.repeatLogs[patchan].enqueue(pattern)
+						pattern = pattern
+					else:
+						pattern = None
 				flag = True
 				break
 		if flag:
 			result = self._isSomething(irc,channel,channel,'massRepeat')
+#			self.log.debug('mass repeat flagged and %s : "%s" / %s' % (result,message,pattern))
+			if result and pattern:
+				if not patchan in chan.repeatLogs or chan.repeatLogs[patchan].timeout != self.registryValue('massRepeatPatternLife',channel=channel):
+					chan.repeatLogs[patchan] = utils.structures.TimeoutQueue(self.registryValue('massRepeatPatternLife',channel=channel))
+#				self.log.debug('mass repeat pattern added "%s"' % pattern)
+				chan.repeatLogs[patchan].enqueue(pattern)					
 		chan.repeatLogs[channel].enqueue(message)
 		return result
 	
