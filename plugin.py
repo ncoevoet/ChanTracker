@@ -705,6 +705,7 @@ class Ircd (object):
 			# must not be occurs, but ..
 			return self.mark(irc,uid,message,prefix,db,logFunction,ct)
 		else:
+			c.close()
 			if channel in self.channels:
 				chan = self.getChan(irc,channel)
 				item = chan.getItem(mode,value)
@@ -735,6 +736,7 @@ class Ircd (object):
 				return True
 			return False
 		else:
+			c.close()
 			if channel in self.channels:
 				chan = self.getChan(irc,channel)
 				hash = '%s%s' % (mode,value)
@@ -1884,6 +1886,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				comment TEXT NOT NULL
 				)""")
 		db.commit()
+		c.close()
 		return db
 	
 	def getDb(self, irc):
@@ -3120,7 +3123,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							msgs.append(mode)
 			if toCommit:
 				db.commit()
-			c.close()
+			
 			if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
 				self.forceTickle = True
 			if len(self.registryValue('announceModes',channel=channel)) and len(msgs):
@@ -3145,6 +3148,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				self.forceTickle = True
 			self.forceTickle = True
+		c.close()
 		self._tickle(irc)
 	
 	def do474(self,irc,msg):
