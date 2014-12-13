@@ -1472,8 +1472,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('unknown pattern, or pattern already active')
 	q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 	
-	def b (self, irc, msg, args, channel, items, optlist, seconds, reason):
-		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [--perm] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+	def b (self, irc, msg, args, channel, optlist, items, seconds, reason):
+		"""[<channel>] [--perm] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
 
 		+b targets for duration <reason> is mandatory, add --perm if you want to add it to permanent bans of Channel"""
 		perm = False
@@ -1483,7 +1483,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason,perm)
 		if not msg.nick == irc.nick and not b:
 			irc.reply('unknown pattern, or pattern already active')
-	b = wrap(b,['op',commalist('something'),getopts({'perm':''}),any('getTs',True),rest('text')])
+	b = wrap(b,['op',getopts({'perm':''}),commalist('something'),any('getTs',True),rest('text')])
 	
 	def i (self, irc, msg, args, channel, items, seconds, reason):
 		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
