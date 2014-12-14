@@ -70,7 +70,7 @@ def matchHostmask (pattern,n):
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
 	if host.find('/') != -1:
 		# cloaks
-		if host.startswith('gateway/web/freenode/ip.'):
+		if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/web/cgi-irc/kiwiirc.com/ip.'):
 			n.ip = cache[host] = host.split('ip.')[1]
 	else:
 		# trying to get ip
@@ -210,7 +210,7 @@ def getBestPattern (n,irc):
 	if ident.startswith('~'):
 		ident = '*'
 	else:
-		if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('unaffiliated/'):
+		if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/web/cgi-irc/kiwiirc.com/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('unaffiliated/'):
 			ident = '*'
 	if n.ip != None:
 		if len(n.ip.split(':')) > 4:
@@ -219,7 +219,7 @@ def getBestPattern (n,irc):
 			m = a[0]+':'+a[1]+':'+a[2]+':'+a[3]+':*'
 			results.append('*!%s@%s' % (ident,m))
 		else:
-			results.append('*!%s@%s' % (ident,n.ip))
+			results.append('*!%s@*%s' % (ident,n.ip))
 	if host.find('/') != -1:
 		# cloaks
 		if host.startswith('gateway/'):
