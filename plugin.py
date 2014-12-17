@@ -2954,10 +2954,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for nick in list(irc.state.channels[channel].users):
 					L.append(nick)
 				for nick in L:
-					n = self.getNick(irc,nick)
-					m = match(target,n,irc)
-					if m:
-						kicks.append([nick,channel])
+					if not self._isVip(irc,channel,self.getNick(irc,nick)):
+						n = self.getNick(irc,nick)
+						m = match(target,n,irc)
+						if m:
+							kicks.append([nick,channel])
 		if len(kicks):
 			for kick in kicks:
 				chan = self.getChan(irc,kick[1])
