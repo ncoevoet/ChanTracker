@@ -60,6 +60,9 @@ conf.registerGlobalValue(ChanTracker, 'unquietCommand',
 conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
     registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
 
+conf.registerChannelValue(ChanTracker, 'useIpForGateway',
+    registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
+
 #now per channel
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
