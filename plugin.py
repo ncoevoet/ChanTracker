@@ -71,15 +71,15 @@ def matchHostmask (pattern,n):
 	if host.find('/') != -1:
 		# cloaks
 		if host.startswith('gateway/web/freenode/ip.'):
-			n.ip = cache[host] = host.split('ip.')[1]
+			n.ip = cache[n.prefix] = host.split('ip.')[1]
 	else:
 		# trying to get ip
 		if host in cache:
-			n.ip = cache[host]
+			n.ip = cache[n.prefix]
 		else:
 			n.setIp(host)
 			if n.ip != None:
-				cache[host] = n.ip
+				cache[n.prefix] = n.ip
 			else:
 				try:
 					r = socket.getaddrinfo(host,None)
@@ -91,12 +91,10 @@ def matchHostmask (pattern,n):
 								u[item[4][0]] = item[4][0]
 								L.append(item[4][0])
 						if len(L) == 1:
-							cache[host] = L[0]
+							cache[n.prefix] = L[0]
 							n.setIp(L[0])
-						else:
-							cache[host] = None
 				except:
-					cache[host] = None
+					t = t
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
@@ -160,7 +158,7 @@ def match (pattern,n,irc):
 	key = pattern + ' :: ' + str(n)
 	if key in cache:
 		return cache[key]
-	cache[key] = None
+	#cache[key] = None
 	extprefix = ''
 	extmodes = ''
 	if 'extban' in irc.state.supported:
@@ -1047,6 +1045,8 @@ class Nick (object):
 		# [float(timestamp),target,message]
 	
 	def setPrefix (self,prefix):
+		if self.prefix != prefix:
+			self.ip = None
 		self.prefix = prefix
 		return self
 	
@@ -3030,12 +3030,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 													if match(active.value,self.getNick(irc,nick),irc):
 														tolift.append(active)
 								kicked = False
-								if m in self.registryValue('kickMode',channel=channel) and msg.nick == irc.nick: #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
+								if m in self.registryValue('kickMode',channel=channel): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if msg.nick == irc.nick or msg.nick == 'ChanServ':
-										if nick in irc.state.channels[channel].users and nick != irc.nick:
-											chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
-											self.forceTickle = True
-											kicked = True
+										if self.registryValue('kickMax',channel=channel) < 0 or len(item.affects) < self.registryValue('kickMax',channel=channel):
+											if nick in irc.state.channels[channel].users and nick != irc.nick:
+												chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
+												self.forceTickle = True
+												kicked = True
 								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
 									if msg.nick == irc.nick or msg.nick == 'ChanServ':
 										if nick in irc.state.channels[channel].ops and not nick == irc.nick:

@@ -148,6 +148,9 @@ conf.registerChannelValue(ChanTracker, 'keepOp',
 conf.registerChannelValue(ChanTracker, 'kickMode',
     registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, 
     use if with caution, if an op bans *!*@*, bot will kick everyone on the channel"""))
+
+conf.registerChannelValue(ChanTracker, 'kickMax',
+registry.Integer(-1,"""if > 0, disable kick if affected users > kickMax, avoid to cleanup entire channel with ban like *!*@*"""))
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.String("You are banned from this channel", """bot kick reason"""))
