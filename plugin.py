@@ -94,7 +94,7 @@ def matchHostmask (pattern,n):
 							cache[n.prefix] = L[0]
 							n.setIp(L[0])
 				except:
-					t = t
+					t = ''
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
