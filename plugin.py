@@ -998,7 +998,7 @@ class Chan (object):
 				i.uid = uid
 				i.mode = mode
 				i.value = value
-				i.channel = self.named
+				i.channel = self.name
 				i.by = oper
 				i.when = float(when)
 				i.expire = float(expire)
