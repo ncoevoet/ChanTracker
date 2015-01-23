@@ -205,7 +205,7 @@ def getBestPattern (n,irc,useIp=False):
 	if not n.prefix or not ircutils.isUserHostmask(n.prefix):
 		return []
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
-	if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('unaffiliated/') or ident.startswith('~'):
+	if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('gateway/vpn/') or host.startswith('unaffiliated/') or ident.startswith('~'):
 		ident = '*'
 	if n.ip != None:
 		if len(n.ip.split(':')) > 4:
@@ -226,7 +226,7 @@ def getBestPattern (n,irc,useIp=False):
 				host = '*%s' % host.split('ip.')[1]								
 			else:
 				h = host.split('/')
-				if host.find('x-') != -1:
+				if host.find('x-') != -1 and host.find('vpn/') == -1:
 					# gateway/type/(domain|account) [?/random]
 					p = ''
 					if len(h) > 3:
@@ -234,14 +234,11 @@ def getBestPattern (n,irc,useIp=False):
 						h = h[:3]
 						host = '%s%s' % ('/'.join(h),p)
 						(nick,i,h) = ircutils.splitHostmask(n.prefix)
-						if i.startswith('~'):
-							i = '*'
-						ident = i
 		elif host.startswith('nat/'):
 			h = host.replace('nat/','')
 			if h.find('/') != -1:
 				host = 'nat/%s/*' % h.split('/')[0]
-		if host.find('gateway/') != -1 and host.find('/x-') != -1:
+		if host.find('gateway/') != -1 and host.find('/x-') != -1 and host.find('vpn/') == -1:
 			host = '%s/*' % host.split('/x-')[0]
 	k = '*!%s@%s' % (ident,host)
 	if not k in results:
