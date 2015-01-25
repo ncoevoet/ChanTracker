@@ -81,7 +81,6 @@ def matchHostmask (pattern,n):
 				cache[n.prefix] = n.ip
 			else:
 				try:
-                                        socket.setsettimeout(5)
 					r = socket.getaddrinfo(host,None)
 					if r != None:
 						u = {}
