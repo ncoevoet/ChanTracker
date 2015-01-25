@@ -92,6 +92,7 @@ def matchHostmask (pattern,n):
 						if len(L) == 1:
 							cache[n.prefix] = L[0]
 							n.setIp(L[0])
+					cache[n.prefix] = n.ip
 				except:
 					cache[n.prefix] = None
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
@@ -2190,10 +2191,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				account = None
 			n = self.getNick(irc,nick)
 			prefix = '%s!%s@%s' % (nick,ident,host)
+			n.setPrefix(prefix)
 			if n.ip == None and ip != '255.255.255.255':
 				# validate ip
 				n.setIp(ip)
-			n.setPrefix(prefix)
 			n.setAccount(account)
 			n.setRealname(realname)
 			#channel = msg.args[1]
