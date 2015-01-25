@@ -77,11 +77,11 @@ def matchHostmask (pattern,n):
 		if host in cache:
 			n.ip = cache[n.prefix]
 		else:
-			n.setIp(host)
 			if n.ip != None:
 				cache[n.prefix] = n.ip
 			else:
 				try:
+                                        socket.setsettimeout(5)
 					r = socket.getaddrinfo(host,None)
 					if r != None:
 						u = {}
@@ -94,7 +94,7 @@ def matchHostmask (pattern,n):
 							cache[n.prefix] = L[0]
 							n.setIp(L[0])
 				except:
-					t = ''
+					cache[n.prefix] = None
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
