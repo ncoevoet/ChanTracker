@@ -50,6 +50,11 @@ import sqlite3
 import collections
 from operator import itemgetter
 
+try:
+	from ipaddress import ip_address as IPAddress, ip_network as IPNetwork
+except ImportError:
+	from netaddr import IPAddress, IPNetwork
+
 #due to more kind of pattern checked, increase size
 
 ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
@@ -62,6 +67,9 @@ def applymodes(channel, args=(), prefix='', msg=None):
 	if msg and not prefix:
 		prefix = msg.prefix
 	return ircmsgs.IrcMsg(prefix=prefix, command='MODE', args=[channel] + ircutils.joinModes(modes), msg=msg)
+
+mcidr = re.compile(r'^(\d{1,3}\.){0,3}\d{1,3}/\d{1,2}$')
+m6cidr = re.compile(r'^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}/\d{1,3}$')
 
 def matchHostmask (pattern,n):
 	# return the machted pattern for Nick
@@ -95,6 +103,12 @@ def matchHostmask (pattern,n):
 					cache[n.prefix] = n.ip
 				except:
 					cache[n.prefix] = None
+	if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(n.ip) in IPNetwork(pattern.split('@')[1]):
+		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
+			return '%s!%s@%s' % (nick,ident,n.ip)
+	if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(n.ip) in IPNetwork(pattern.split('@')[1]):
+		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
+			return '%s!%s@%s' % (nick,ident,n.ip)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 		return '%s!%s@%s' % (nick,ident,n.ip)
 	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
