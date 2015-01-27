@@ -103,10 +103,10 @@ def matchHostmask (pattern,n):
 					cache[n.prefix] = n.ip
 				except:
 					cache[n.prefix] = None
-	if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(n.ip) in IPNetwork(pattern.split('@')[1]):
+	if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(pattern.split('@')[1]):
 		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
 			return '%s!%s@%s' % (nick,ident,n.ip)
-	if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(n.ip) in IPNetwork(pattern.split('@')[1]):
+	if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(pattern.split('@')[1]):
 		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
 			return '%s!%s@%s' % (nick,ident,n.ip)
 	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
@@ -206,10 +206,7 @@ def match (pattern,n,irc):
 		p = pattern
 		if p.find(extprefix) != -1:
 			p = p.split(extprefix)[0]
-		if ircutils.isUserHostmask(p):
-			cache[key] = matchHostmask(p,n)
-		else:
-			log.error('%s pattern is not supported' % pattern)
+		cache[key] = matchHostmask(p,n)
 	return cache[key]
 
 def getBestPattern (n,irc,useIp=False):
