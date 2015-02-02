@@ -53,7 +53,10 @@ from operator import itemgetter
 try:
 	from ipaddress import ip_address as IPAddress, ip_network as IPNetwork
 except ImportError:
-	from netaddr import IPAddress, IPNetwork
+	try:
+		from netaddr import IPAddress, IPNetwork
+	except:
+		t = ''
 
 #due to more kind of pattern checked, increase size
 
@@ -103,16 +106,20 @@ def matchHostmask (pattern,n):
 					cache[n.prefix] = n.ip
 				except:
 					cache[n.prefix] = None
-	if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
-		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
+	try:
+		if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
+			if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
+				return '%s!%s@%s' % (nick,ident,n.ip)
+		if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%' % pattern.split('@')[1]):
+			if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
+				return '%s!%s@%s' % (nick,ident,n.ip)
+	except:
+		t = ''
+	if ircutils.isUserHostmask(pattern):
+		if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
 			return '%s!%s@%s' % (nick,ident,n.ip)
-	if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%' % pattern.split('@')[1]):
-		if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
-			return '%s!%s@%s' % (nick,ident,n.ip)
-	if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
-		return '%s!%s@%s' % (nick,ident,n.ip)
-	if ircutils.hostmaskPatternEqual(pattern,n.prefix):
-		return n.prefix
+		if ircutils.hostmaskPatternEqual(pattern,n.prefix):
+			return n.prefix
 	return None
 	
 def matchAccount (pattern,pat,negate,n,extprefix):
