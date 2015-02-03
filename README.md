@@ -4,6 +4,8 @@ This supybot plugin keeps records of channel mode changes in a sqlite database a
 
 The plugin is used in various and large channels on freenode and others networks
 
+For cidr supports, you must install ipaddress ( pip for python 2.7 https://pypi.python.org/pypi/py2-ipaddress ) or netaddr ( python 2.7 https://pypi.python.org/pypi/netaddr )
+
 ## Commands ##
 
     !b,e,i,q [<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>) -- +mode targets for duration <reason> is mandatory
