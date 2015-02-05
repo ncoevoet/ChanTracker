@@ -1960,7 +1960,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode == 'q' and l == 1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and not len(chan.queue):
+						if mode == 'q' and l == 1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
@@ -2970,12 +2970,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			chan.deopPending = True
 			schedule.addEvent(unOpBot,float(time.time()+10))
 	
-	def hasExtendedSharedBan (self,irc,fromChannel,target):
+	def hasExtendedSharedBan (self,irc,fromChannel,target,mode):
 		# todo add support for others ircd if supported, currently only freenode
 		b = '$j:%s' % fromChannel
 		kicks = []
 		for channel in irc.state.channels:
-			if b in irc.state.channels[channel].bans and self.registryValue('doActionAgainstAffected',channel=channel):
+			if b in irc.state.channels[channel].bans and mode in self.registryValue('kickMode',channel=channel):
 				L = []
 				for nick in list(irc.state.channels[channel].users):
 					L.append(nick)
@@ -3066,8 +3066,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 												irc.queueMsg(ircmsgs.notice(nick,qm))
 											else:
 												irc.queueMsg(ircmsgs.privmsg(nick,qm))
-						if m == 'b':
-							self.hasExtendedSharedBan(irc,channel,value)
+						if m in self.registryValue('kickMode',channel=channel):
+							self.hasExtendedSharedBan(irc,channel,value,m)
 						# bot just got op
 						if m == 'o' and value == irc.nick:
 							chan.opAsked = False
