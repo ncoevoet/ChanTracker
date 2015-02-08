@@ -1742,7 +1742,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							pattern = prefix + old + ':' + pattern
 					elif 'm' in modes:
 						# inspire ? 
-						if pattern and pattern.find(prefix) != 0:
+						mode = 'b'
+						if pattern and not pattern.startswith('m:'):
 							pattern = prefix + 'm' + ':' + pattern
 		return [mode,pattern]
 	
@@ -1794,16 +1795,17 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		count = 0
 		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
 			for item in items:
-				if ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
-					targets.append(item)
-				elif item in i.nicks or item in irc.state.channels[channel].users:
+				if item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
 					L = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
-					# here we check active items against Nick and add everything pattern which matchs him
+					self.log.debug('L is %s' % L)
+					# here we check active items against Nick and add each pattern which matchs him
 					for pattern in L:
 						m = match(L[pattern].value,n,irc)
 						if m:
 							targets.append(L[pattern].value)
+				elif ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
+					targets.append(item)
 				elif item == '*':
 					massremove = True
 					targets = []
@@ -2975,7 +2977,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		b = '$j:%s' % fromChannel
 		kicks = []
 		for channel in irc.state.channels:
-			if b in irc.state.channels[channel].bans and mode in self.registryValue('kickMode',channel=channel):
+			if b in irc.state.channels[channel].bans and mode in self.registryValue('kickMode',channel=channel) and not value.startswith('m:'):
 				L = []
 				for nick in list(irc.state.channels[channel].users):
 					L.append(nick)
@@ -3045,7 +3047,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 													if match(active.value,self.getNick(irc,nick),irc):
 														tolift.append(active)
 								kicked = False
-								if m in self.registryValue('kickMode',channel=channel): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
+								if m in self.registryValue('kickMode',channel=channel) and not value.startswith('m:'): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
 									if msg.nick == irc.nick or msg.nick == 'ChanServ':
 										if self.registryValue('kickMax',channel=channel) < 0 or len(item.affects) < self.registryValue('kickMax',channel=channel):
 											if nick in irc.state.channels[channel].users and nick != irc.nick:
@@ -3066,7 +3068,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 												irc.queueMsg(ircmsgs.notice(nick,qm))
 											else:
 												irc.queueMsg(ircmsgs.privmsg(nick,qm))
-						if m in self.registryValue('kickMode',channel=channel):
+						if m in self.registryValue('kickMode',channel=channel) and not value.startswith('m:'):
 							self.hasExtendedSharedBan(irc,channel,value,m)
 						# bot just got op
 						if m == 'o' and value == irc.nick:
