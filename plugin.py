@@ -1958,11 +1958,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			chan = self.getChan(irc,channel)
 			# check expired items
 			for mode in list(chan.getItems().keys()):
-				l = len(list(chan._lists[mode].keys()))
 				for value in list(chan._lists[mode].keys()):
 					item = chan._lists[mode][value]
 					if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-						if mode == 'q' and l == 1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
+						if mode == 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 0:
 							s = self.registryValue('unquietCommand')
 							s = s.replace('$channel',channel)
 							s = s.replace('$hostmask',item.value)
@@ -1977,10 +1976,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			# if chan.syn: # remove syn mandatory for support to unreal which doesn't like q list 
 			if len(chan.queue):
 				index = 0
-				l = len(list(chan.queue))
 				for item in list(chan.queue):
 					(mode,value) = item
-					if mode == '+q' and l == 1 and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
+					if mode == '+q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
 						s = self.registryValue('quietCommand')
 						s = s.replace('$channel',channel)
 						s = s.replace('$hostmask',value)
@@ -2352,7 +2350,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							forward = self.registryValue('cycleForward',channel=channel)
 							if kind == 'cycle' and len(forward):
 								best = best + '$' + forward
-							self._act(irc,channel,mode,best,duration,comment)
+							r = self.getIrcdMode(irc,mode,best)
+							self._act(irc,channel,r[0],r[1],duration,comment)
 							self.forceTickle = True
 		if canRemove:
 			self._rmNick(irc,n)
@@ -2506,7 +2505,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							forward = self.registryValue('cycleForward',channel=channel)
 							if kind == 'cycle' and len(forward):
 								best = best + '$' + forward
-							self._act(irc,channel,mode,best,duration,comment)
+							r = self.getIrcdMode(irc,mode,best)
+							self._act(irc,channel,r[0],r[1],duration,comment)
 							self.forceTickle = True
 			if removeNick:
 				i = self.getIrc(irc)
@@ -2556,7 +2556,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							mode = mode[0]
 						duration = self.registryValue('%sDuration' % kind,channel=channel)
 						comment = self.registryValue('%sComment' % kind,channel=channel)
-						self._act(irc,channel,mode,best,duration,comment)
+						r = self.getIrcdMode(irc,mode,best)
+						self._act(irc,channel,r[0],r[1],duration,comment)
 						self.forceTickle = True
 		self._tickle(irc)
 	
@@ -2629,7 +2630,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							duration = -1
 							if found.expire and found.expire != found.when:
 								duration = int(found.expire-time.time())
-							self._act (irc,channel,found.mode,getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
+							r = self.getIrcdMode(irc,found.mode,getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0])
+							self._act (irc,channel,r[0],r[1],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
 							f = None
 							if self.registryValue('announceBotMark',channel=found.channel):
 								f = self._logChan
@@ -2681,7 +2683,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							mode = self.registryValue('%sMode' % kind,channel=channel)
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
-							self._act(irc,channel,mode,best,duration,comment)
+							r = self.getIrcdMode(irc,mode,best)
+							self._act(irc,channel,r[0],r[1],duration,comment)
 							self._isBad(irc,channel,best)
 							self.forceTickle = True
 						if isNotice:
@@ -2696,7 +2699,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								mode = self.registryValue('%sMode' % kind,channel=channel)
 								duration = self.registryValue('%sDuration' % kind,channel=channel)
 								comment = self.registryValue('%sComment' % kind,channel=channel)
-								self._act(irc,channel,mode,best,duration,comment)
+								r = self.getIrcdMode(irc,mode,best)
+								self._act(irc,channel,r[0],r[1],duration,comment)
 								self.forceTickle = True
 					if self.registryValue('announceNotice',channel=channel):
 						if not chan.isWrong(best):
@@ -2778,7 +2782,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						mode = self.registryValue('%sMode' % kind,channel=channel)
 						duration = self.registryValue('%sDuration' % kind,channel=channel)
 						comment = self.registryValue('%sComment' % kind,channel=channel)
-						self._act(irc,channel,mode,best,duration,comment)
+						r = self.getIrcdMode(irc,mode,best)
+						self._act(irc,channel,r[0],r[1],duration,comment)
 						self._isBad(irc,channel,best)
 						self.forceTickle = True
 					if not isMass:
@@ -2825,7 +2830,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								mode = mode[0]
 							duration = self.registryValue('%sDuration' % kind,channel=channel)
 							comment = self.registryValue('%sComment' % kind,channel=channel)
-							self._act(irc,channel,mode,best,duration,comment)
+							r = self.getIrcdMode(irc,mode,best)
+							self._act(irc,channel,r[0],r[1],duration,comment)
 							self.forceTickle = True
 				if not chan.isWrong(best):
 					# prevent the bot to flood logChannel with bad user craps
