@@ -782,6 +782,9 @@ class Ircd (object):
 			(uid,channel,kind,mask,begin_at,end_at) = L[0]
 			chan = self.getChan(irc,channel)
 			current = float(time.time())
+			if begin_at == end_at and seconds < 0:
+				c.close()
+				return False
 			if begin_at == end_at:
 				text = 'was forever'
 			else:
@@ -2020,7 +2023,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if L[index][0].find ('+') != -1 and mm in self.registryValue('modesToAsk',channel=channel):
 									if mm in self.registryValue('kickMode',channel=channel) or self.registryValue('doActionAgainstAffected',channel=channel):
 										adding = True
-								if L[index][0].find ('+') != -1 and mm in self.registryValue('modesToAskWhenOpped',channel=channel):
+								if mm in self.registryValue('modesToAskWhenOpped',channel=channel):
 									adding = True
 								index = index + 1
 							# remove duplicates ( should not happens but .. )
