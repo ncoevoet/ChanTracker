@@ -3405,6 +3405,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		# jaccard algo
 		sa, sb = set(a.lower()), set(b.lower())
 		n = len(sa.intersection(sb))
+		if float(len(sa) + len(sb) - n) == 0:
+			return 0
 		jacc = n / float(len(sa) + len(sb) - n)
 		return jacc
 		
