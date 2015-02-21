@@ -2241,10 +2241,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
 				i = self.getIrc(irc)
-				if self.registryValue ('announceWithNotice',channel=channel):
-					i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
+				if logChannel == channel:
+					if self.registryValue ('announceWithNotice',channel=channel):
+						i.lowQueue.enqueue(ircmsgs.notice('@%s' % logChannel,message))
+					else:
+						i.lowQueue.enqueue(ircmsgs.privmsg('@%s' % logChannel,message))
 				else:
-					i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
+					if self.registryValue ('announceWithNotice',channel=channel):
+						i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
+					else:
+						i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
 				self.forceTickle = True
 	
 	def doJoin (self,irc,msg):
