@@ -3320,7 +3320,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		for user in users:
 				if msg.find(user) != -1:
 					count = count + 1
-					break
 		return count > limit
 	
 	def _isRepeat(self,irc,channel,key,message):
