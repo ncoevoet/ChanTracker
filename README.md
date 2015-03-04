@@ -249,4 +249,4 @@ It works with any version of supybot, vanilla, limnoria, etc
 
 ## Bugs and Features ##
 
-Requests can be made via https://github.com/ncoevoet/ChanTracker or in private message to niko on chat.freenode.net.
+Requests can be made via https://github.com/ncoevoet/ChanTracker or in #chantracker on chat.freenode.net.
