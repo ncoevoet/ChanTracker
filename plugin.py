@@ -2243,9 +2243,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				i = self.getIrc(irc)
 				if logChannel == channel:
 					if self.registryValue ('announceWithNotice',channel=channel):
-						i.lowQueue.enqueue(ircmsgs.notice('@%s' % logChannel,message))
+						i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
 					else:
-						i.lowQueue.enqueue(ircmsgs.privmsg('@%s' % logChannel,message))
+						i.lowQueue.enqueue(ircmsgs.IrcMsg('PRIVMSG @%s :%s' % (logChannel,message)))
 				else:
 					if self.registryValue ('announceWithNotice',channel=channel):
 						i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
