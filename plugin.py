@@ -2241,7 +2241,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
 				i = self.getIrc(irc)
-				if logChannel == channel:
+				if logChannel == channel and irc.nick in irc.state.channels[channel].ops:
 					if self.registryValue ('announceWithNotice',channel=channel):
 						i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
 					else:
