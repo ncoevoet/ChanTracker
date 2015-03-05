@@ -2297,7 +2297,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 								if ircutils.isUserHostmask(item.value):
 									n = Nick(0)
 									n.setPrefix(item.value)
-									if match('*!*@%s' % msg.prefix.split('ip.')[1],n,irc):
+									pat = '*!*@%s' % msg.prefix.split('ip.')[1]
+									if pat != item.value and match(pat,n,irc):
 										f = None
 										if self.registryValue('announceBotMark',channel=channel):
 											f = self._logChan
