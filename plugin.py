@@ -1666,7 +1666,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		returns a list of hostmask's pattern, best first, mostly used for debug"""
 		i = self.getIrc(irc)
 		if prefix in i.nicks:
-			irc.reply(' '.join(getBestPattern(self.getNick(irc,prefix),irc,self.registryValue('useIpForGateway'))))
+			irc.reply(' '.join(getBestPattern(self.getNick(irc,prefix),irc,self.registryValue('useIpForGateway',channel=channel))))
 		else:
 			n = Nick(0)
 			#gecos ( $x )
@@ -1679,7 +1679,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			else:
 				n.setPrefix(prefix)
 			if ircutils.isUserHostmask(prefix):
-				irc.reply(' '.join(getBestPattern(n,irc,self.registryValue('useIpForGateway'))))
+				irc.reply(' '.join(getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))))
 				return
 			irc.reply('nick not found or wrong hostmask given')
 	getmask = wrap(getmask,['op','text'])
@@ -1702,7 +1702,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		i = self.getIrc(irc)
 		if nick in i.nicks:
 			chan = self.getChan(irc,channel)
-			irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick),irc,self.registryValue('useIpForGateway'))[0]))
+			irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick),irc,self.registryValue('useIpForGateway',channel=channel))[0]))
 		else:
 			irc.reply('nick not found')
 	isbad = wrap(isbad,['op','nick'])
@@ -1763,7 +1763,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for item in items:
 				if item in chan.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
-					patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway'))
+					patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))
 					# when resync patterns may be empty, until the bot computed WHO
 					if len(patterns):
 						targets.append(patterns[0])
@@ -2261,13 +2261,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if 'LIST' in i.caps and 'extended-join' in i.caps['LIST'] and len(msg.args) == 3:
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
-		best = getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0]
 		if msg.nick == irc.nick:
 			self.forceTickle = True
 			self._tickle(irc)
 			return
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
+				best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 				chan = self.getChan(irc,channel)
 				chan.nicks[msg.nick] = True
 				n.addLog(channel,'has joined')
@@ -2332,7 +2332,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,msg.nick)
 		n.setPrefix(msg.prefix)
 		reason = ''
-		best = getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0]
 		if len(msg.args) == 2:
 			reason = msg.args[1].lstrip().rstrip()
 		canRemove = True
@@ -2341,6 +2340,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				del i.channels[channel]
 				continue
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
+				best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 				if len(reason):
 					if reason.startswith('requested by') and self.registryValue('announceKick',channel=channel):
 						if self.registryValue('useColorForAnnounces',channel=channel):
@@ -2455,8 +2455,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not found:
 				if nick in i.nicks:
 					del i.nicks[nick]
-				best = patterns[0]
 				for channel in irc.state.channels:
+					best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 					if channel in i.channels:
 						chan = self.getChan(irc,channel)
 						if nick in chan.nicks:
@@ -2530,6 +2530,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan = self.getChan(irc,channel)
 				if msg.nick in chan.nicks:
 					if not self._isVip(irc,channel,n):
+						best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 						isCycle = self._isSomething(irc,channel,best,'cycle')
 						if isCycle:
 							isBad = self._isSomething(irc,channel,best,'bad')
@@ -2575,6 +2576,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if not best:
 				return
 			for channel in irc.state.channels:
+				best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 				if newNick in irc.state.channels[channel].users:
 					chan = self.getChan(irc,channel)
 					if oldNick in chan.nicks:
@@ -2669,12 +2671,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							duration = -1
 							if found.expire and found.expire != found.when:
 								duration = int(found.expire-time.time())
-							r = self.getIrcdMode(irc,found.mode,getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0])
+							r = self.getIrcdMode(irc,found.mode,getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0])
 							self._act (irc,channel,r[0],r[1],duration,'evade of [#%s +%s %s]' % (found.uid,found.mode,found.value))
 							f = None
 							if self.registryValue('announceBotMark',channel=found.channel):
 								f = self._logChan
-							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n,irc,self.registryValue('useIpForGateway'))[0]),irc.prefix,self.getDb(irc.network),f,self)
+							i.mark(irc,found.uid,'evade with %s --> %s' % (msg.prefix,getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]),irc.prefix,self.getDb(irc.network),f,self)
 							self.forceTickle = True
 						
 		self._tickle(irc)
@@ -2710,6 +2712,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				return
 			for channel in targets.split(','):
 				if irc.isChannel(channel) and channel in irc.state.channels:
+					best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 					chan = self.getChan(irc,channel)
 					n.addLog(channel,'NOTICE | %s' % text)
 					isVip = self._isVip(irc,channel,n)
@@ -2796,6 +2799,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			return
 		for channel in recipients.split(','):
 			if irc.isChannel(channel) and channel in irc.state.channels:
+				best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel))[0]
 				chan = self.getChan(irc,channel)
 				message = text
 				if isCtcpMsg and not isAction:
@@ -3328,6 +3332,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			chan = self.getChan(irc,channel)
 			if self._isSomething(irc,channel,channel,'attack') and not chan.attacked:
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
+				# todo retreive all wrong users and find the best pattern to use against them
+#				L = []
+#				for n in chan.nicks:
+#					n = self.getNick(irc,n)
+#					patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway'),channel=channel)
+#					if chan.isWrong(patterns[0]):
+#						L.append(n)
+#				self.log.debug('founds bads %s' % ' '.join(L))
 				chan.attacked = True
 				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():
