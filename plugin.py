@@ -2290,7 +2290,20 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										f = self._logChan
 									i.mark(irc,item.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f,self)
 									break
-					if c.bans and len(c.bans) and self.registryValue('useChannelBansForPermanentBan',channel=channel):
+						if not banned:
+							items = chan.getItemsFor('q')
+							for k in items:
+								item = items[k]
+								if ircutils.isUserHostmask(item.value):
+									n = Nick(0)
+									n.setPrefix(item.value)
+									if match('*!*@%s' % msg.prefix.split('ip.')[1],n,irc):
+										f = None
+										if self.registryValue('announceBotMark',channel=channel):
+											f = self._logChan
+										i.mark(irc,item.uid,'evade with %s --> %s' % (msg.prefix,best),irc.prefix,self.getDb(irc.network),f,self)
+										break
+					if not banned and c.bans and len(c.bans) and self.registryValue('useChannelBansForPermanentBan',channel=channel):
 						for ban in list(c.bans):
 							if match (ban,n,irc):
 								if i.add(irc,channel,'b',best,self.registryValue('autoExpire',channel=channel),irc.prefix,self.getDb(irc.network)):
