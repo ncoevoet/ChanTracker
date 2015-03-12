@@ -60,10 +60,12 @@ conf.registerGlobalValue(ChanTracker, 'unquietCommand',
 conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
     registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
 
-conf.registerChannelValue(ChanTracker, 'useIpForGateway',
-    registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
-
+conf.registerGlobalValue(ChanTracker, 'resolveIp',   
+    registry.Boolean(True, """trying to resolve host's ip with socket, could add latency"""))
 #now per channel
+
+conf.registerChannelValue(ChanTracker, 'useIpForGateway',   
+    registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
     registry.String("CS OP $channel $nick", """command used to obtain channel operator mode"""))
