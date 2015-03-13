@@ -2273,7 +2273,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n.addLog(channel,'has joined')
 				c = ircdb.channels.getChannel(channel)
 				banned = False
-				if not self._isVip(irc,channel,n):
+				if not self._isVip(irc,channel,n) and not chan.netsplit:
 					if self.registryValue('checkEvade',channel=channel) and msg.prefix.find('/ip.') != -1 and self.registryValue('resolveIp'):
 						items = chan.getItemsFor('b')
 						for k in items:
@@ -3226,10 +3226,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						f = self._logChan
 					i.edit(irc,item.channel,item.mode,item.value,0,irc.prefix,self.getDb(irc.network),self._schedule,f,self)
 				self.forceTickle = True
-			self.forceTickle = True
 		c.close()
-		self._tickle(irc)
-	
+		# as _tickle now may be a bit too earlier, delay it a bit
+		def ttickle():
+			self._tickle(irc)
+		schedule.addEvent(ttickle,time.time()+1)
+		
 	def do474(self,irc,msg):
 		# bot banned from a channel it's trying to join
 		# server 474 irc.nick #channel :Cannot join channel (+b) - you are banned
@@ -3333,40 +3335,43 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self._isSomething(irc,channel,channel,'attack') and not chan.attacked:
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
 				# todo retreive all wrong users and find the best pattern to use against them
-				if self.registryValue('skynet',channel=channel):
+				if self.registryValue('skynet',channel=channel) > 0:
 					L = []
 					for n in chan.nicks:
 						n = self.getNick(irc,n)
-						pattern = getBestPattern(n,irc,self.registryValue('useIpForGateway'),channel=channel)[0]
+						pattern = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
 						if chan.isWrong(pattern):
 							L.append(n)
 					self.log.debug('founds bads %s' % ' '.join(L))
-					idents = {}
-					users = {}
-					for n in L:
-						(nick,ident,host) = ircutils.splitHostmask(n.prefix)
-						if not ident in idents:
-							idents[ident] = []
-						idents[ident].append(n)
-						if n.realname and not n.realname in users:
-							users[n.realname]
-						if n.realname:
-							users[n.realname].append(n)
-					fident = None
-					for ident in idents:
-						if not fident:
-							fident = ident
-						if len(idents[fident]) < len(idents[ident]):
-							fident = ident
-					user = None
-					for u in users:
-						if not user:
-							user = u
-						if len(users[user]) < len(users[u]):
-							user = u
-					self.log.debug('computed $r:%s and *!%s@*' % (user,fident))
-					if fident and user:
-						self._act (irc,channel,'b','$x:*!%s@*#%s' % (fident,user.replace(' ','?')),self.registryValue('attackDuration',channel=channel),'skynet powered')
+					if self.registryValue('skynet',channel=channel) > len(L):
+						idents = {}
+						users = {}
+						for n in L:
+							(nick,ident,host) = ircutils.splitHostmask(n.prefix)
+							if not ident in idents:
+								idents[ident] = []
+							idents[ident].append(n)
+							if n.realname and not n.realname in users:
+								users[n.realname]
+							if n.realname:
+								users[n.realname].append(n)
+						fident = None
+						for ident in idents:
+							if not fident:
+								fident = ident
+							if len(idents[fident]) < len(idents[ident]):
+								fident = ident
+						user = None
+						for u in users:
+							if not user:
+								user = u
+							if len(users[user]) < len(users[u]):
+								user = u
+						self.log.debug('computed $r:%s and *!%s@*' % (user,fident))
+						r = []
+						if fident and user:
+							self._act (irc,channel,'b','*!%s@*' % fident,self.registryValue('attackDuration',channel=channel),'skynet powered')
+							self._act (irc,channel,'b','$r:%s' % user.replace(' ','?').replace('$','?'),self.registryValue('attackDuration',channel=channel),'skynet powered')
 				chan.attacked = True
 				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():

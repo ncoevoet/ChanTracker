@@ -185,7 +185,7 @@ conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
     registry.Boolean(False,"""if bot is not opped, use services for quiet / unquiets"""))
 
 conf.registerChannelValue(ChanTracker, 'skynet',
-    registry.Boolean(False,"""when True, bot could use some experimental features against spam / channel's attacks, ie : trying to find better patterns to use against"""))
+    registry.Integer(-1,"""when positive, bot could use some experimental features against user's marked as bad, the value represents number of bad users to trigger it"""))
 
 # related to channel's protection
 
