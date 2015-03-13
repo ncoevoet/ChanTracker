@@ -52,13 +52,13 @@ conf.registerGlobalValue(ChanTracker, 'logsSize',
     registry.PositiveInteger(60, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
 
 conf.registerGlobalValue(ChanTracker, 'quietCommand',
-    registry.String("CS QUIET $channel $hostmask","""command issued to quiet a user; $channel and $hostmask will be replaced at runtime"""))
+    registry.String("PRIVMSG ChanServ :QUIET $channel $hostmask","""command issued to quiet a user; $channel and $hostmask will be replaced at runtime"""))
 
 conf.registerGlobalValue(ChanTracker, 'unquietCommand',
-    registry.String("CS UNQUIET $channel $hostmask","""command issued to unquiet a user $channel and $hostmask will be replaced at runtime"""))
+    registry.String("PRIVMSG ChanServ :UNQUIET $channel $hostmask","""command issued to unquiet a user $channel and $hostmask will be replaced at runtime"""))
 
 conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
-    registry.Integer(300,"""interval between two check about announceNagMode, this setting is global."""))
+    registry.Integer(-1,"""interval between two check about announceNagMode, this setting is global."""))
 
 conf.registerChannelValue(ChanTracker, 'useIpForGateway',
     registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
@@ -66,7 +66,7 @@ conf.registerChannelValue(ChanTracker, 'useIpForGateway',
 #now per channel
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
-    registry.String("CS OP $channel $nick", """command used to obtain channel operator mode"""))
+    registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator mode"""))
 
 conf.registerChannelValue(ChanTracker, 'modesToAsk',
     registry.CommaSeparatedListOfStrings(['b','q'], """list of channel modes to sync into the bot's tracking database when it joins the channel"""))
@@ -181,6 +181,9 @@ conf.registerChannelValue(ChanTracker, 'checkEvade',
 
 conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
     registry.Boolean(False,"""if bot is not opped, use services for quiet / unquiets"""))
+
+conf.registerChannelValue(ChanTracker, 'skynet',
+    registry.Boolean(False,"""when True, bot could use some experimental features against spam / channel's attacks, ie : trying to find better patterns to use against"""))
 
 # related to channel's protection
 

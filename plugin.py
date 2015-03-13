@@ -3333,13 +3333,40 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self._isSomething(irc,channel,channel,'attack') and not chan.attacked:
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
 				# todo retreive all wrong users and find the best pattern to use against them
-#				L = []
-#				for n in chan.nicks:
-#					n = self.getNick(irc,n)
-#					patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway'),channel=channel)
-#					if chan.isWrong(patterns[0]):
-#						L.append(n)
-#				self.log.debug('founds bads %s' % ' '.join(L))
+				if self.registryValue('skynet',channel=channel):
+					L = []
+					for n in chan.nicks:
+						n = self.getNick(irc,n)
+						pattern = getBestPattern(n,irc,self.registryValue('useIpForGateway'),channel=channel)[0]
+						if chan.isWrong(pattern):
+							L.append(n)
+					self.log.debug('founds bads %s' % ' '.join(L))
+					idents = {}
+					users = {}
+					for n in L:
+						(nick,ident,host) = ircutils.splitHostmask(n.prefix)
+						if not ident in idents:
+							idents[ident] = []
+						idents[ident].append(n)
+						if n.realname and not n.realname in users:
+							users[n.realname]
+						if n.realname:
+							users[n.realname].append(n)
+					fident = None
+					for ident in idents:
+						if not fident:
+							fident = ident
+						if len(idents[fident]) < len(idents[ident]):
+							fident = ident
+					user = None
+					for u in users:
+						if not user:
+							user = u
+						if len(users[user]) < len(users[u]):
+							user = u
+					self.log.debug('computed $r:%s and *!%s@*' % (user,fident))
+					if fident and user:
+						self._act (irc,channel,'b','$x:*!%s@*#%s' % (fident,user.replace(' ','?')),self.registryValue('attackDuration',channel=channel),'skynet powered')
 				chan.attacked = True
 				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():
