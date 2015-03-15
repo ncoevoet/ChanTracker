@@ -3474,7 +3474,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		trigger = self.registryValue('capPercent',channel=channel)
 		matchs = self.recaps.findall(message)
 		if len(matchs) and len(message):
-			percent = len(matchs) / len(message)
+			percent = len(matchs) / (len(message) * 1.0)
 			if percent >= trigger:
 				return self._isSomething(irc,channel,key,'cap')
 		return False
