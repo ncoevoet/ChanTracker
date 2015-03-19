@@ -239,12 +239,18 @@ If your bot manage differents channels or community, remove all User.action from
 
 You should keep your bot quiet as possible, it should not replies to error, user without capabilities, etc :
 
-    supybot.reply.error.noCapability: True
-    supybot.reply.whenNotCommand: False
-    supybot.reply.error.detailed: False
-    
-You should also disable help, config, list until needed for registered users on the bot. 
-    
+    config supybot.reply.error.noCapability: True
+    config supybot.replies.genericNoCapability ""
+    config supybot.abuse.flood.command.invalid.notify False
+    config supybot.reply.whenNotCommand: False
+    config supybot.reply.error.detailed: False
+    config supybot.replies.error ""
+    config defaultcapability remove channel.nicks
+    config defaultcapability remove alias.add
+    config defaultcapability remove config
+    config defaultcapability remove help
+    config defaultcapability remove list
+
 It works with any version of supybot, vanilla, limnoria, etc
 
 ## Bugs and Features ##
