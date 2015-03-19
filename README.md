@@ -246,11 +246,13 @@ You should keep your bot quiet as possible, it should not replies to error, user
     config supybot.reply.error.detailed: False
     config supybot.replies.error ""
     config defaultcapability remove channel.nicks
+    config defaultcapability remove channel.alert
     config defaultcapability remove alias.add
     config defaultcapability remove config
     config defaultcapability remove help
     config defaultcapability remove list
 
+And there is a lot more abuseable command, this is why it's better to use 'supybot.capabilities.default' to False.
 It works with any version of supybot, vanilla, limnoria, etc
 
 ## Bugs and Features ##
