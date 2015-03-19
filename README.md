@@ -252,8 +252,11 @@ You should keep your bot quiet as possible, it should not replies to error, user
     config defaultcapability remove help
     config defaultcapability remove list
 
-And there is a lot more abuseable command, this is why it's better to use 'supybot.capabilities.default' to False.
-It works with any version of supybot, vanilla, limnoria, etc
+There are other commands that are prone to abuse as well. It's better to use the following command:
+
+    config supybot.capabilities.default False.
+
+This command works with any version of supybot, vanilla, limnoria, etc.
 
 ## Bugs and Features ##
 
