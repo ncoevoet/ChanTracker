@@ -237,24 +237,24 @@ If 'supybot.capabilities.default' is changed to False, then, when you want to gr
 
 If your bot manage differents channels or community, remove all User.action from defaultcapabilities, create one user per channel/community, and add ops's hostmasks into it, it's easier to manage that way. Until you have someone with rights in 2 community/channels who will need a separate account.
 
-You should keep your bot quiet as possible, it should not replies to error, user without capabilities, etc :
+You should keep your bot as quiet as possible. It should not reply to errors, users without capabilities, etc:
 
-    config supybot.reply.error.noCapability: True
-    config supybot.replies.genericNoCapability ""
-    config supybot.abuse.flood.command.invalid.notify False
-    config supybot.reply.whenNotCommand: False
-    config supybot.reply.error.detailed: False
-    config supybot.replies.error ""
-    config defaultcapability remove channel.nicks
-    config defaultcapability remove channel.alert
-    config defaultcapability remove alias.add
-    config defaultcapability remove config
-    config defaultcapability remove help
-    config defaultcapability remove list
+    !config supybot.reply.error.noCapability True
+    !config supybot.replies.genericNoCapability ""
+    !config supybot.abuse.flood.command.invalid.notify False
+    !config supybot.reply.whenNotCommand False
+    !config supybot.reply.error.detailed False
+    !config supybot.replies.error ""
+    !config defaultcapability remove channel.nicks
+    !config defaultcapability remove channel.alert
+    !config defaultcapability remove alias.add
+    !config defaultcapability remove config
+    !config defaultcapability remove help
+    !config defaultcapability remove list
 
 There are other commands that are prone to abuse as well. It's better to use the following command:
 
-    config supybot.capabilities.default False.
+    !config supybot.capabilities.default False
 
 This command works with any version of supybot, vanilla, limnoria, etc.
 
