@@ -155,7 +155,7 @@ conf.registerChannelValue(ChanTracker, 'kickMax',
 registry.Integer(-1,"""if > 0, disable kick if affected users > kickMax, avoid to cleanup entire channel with ban like *!*@*"""))
     
 conf.registerChannelValue(ChanTracker, 'kickMessage',
-    registry.String("You are banned from this channel", """bot kick reason"""))
+    registry.CommaSeparatedListOfStrings(["You are banned from this channel"], """bot kick reasons"""))
 
 conf.registerChannelValue(ChanTracker, 'quietMessage',
     registry.String("", """leave empty if you don't want the bot to tell something to the user when he has been quieted ( by/via the bot ), in any case, if channel is under attack: bot will not send message"""))

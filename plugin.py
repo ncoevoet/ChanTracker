@@ -48,6 +48,7 @@ import socket
 import re
 import sqlite3
 import collections
+import random
 from operator import itemgetter
 
 try:
@@ -3039,7 +3040,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		if len(kicks):
 			for kick in kicks:
 				chan = self.getChan(irc,kick[1])
-				chan.action.enqueue(ircmsgs.kick(kick[1],kick[0],self.registryValue('kickMessage',channel=kick[1])))
+				chan.action.enqueue(ircmsgs.kick(kick[1],kick[0],random.choice(self.registryValue('kickMessage',channel=kick[1]))))
 			self.forceTickle = True
 			
 	def doMode(self, irc, msg):
@@ -3100,7 +3101,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 									if msg.nick == irc.nick or msg.nick == 'ChanServ':
 										if self.registryValue('kickMax',channel=channel) < 0 or len(item.affects) < self.registryValue('kickMax',channel=channel):
 											if nick in irc.state.channels[channel].users and nick != irc.nick:
-												chan.action.enqueue(ircmsgs.kick(channel,nick,self.registryValue('kickMessage',channel=channel)))
+												chan.action.enqueue(ircmsgs.kick(channel,nick,random.choice(self.registryValue('kickMessage',channel=channel))))
 												self.forceTickle = True
 												kicked = True
 								if not kicked and m in self.registryValue('modesToAsk',channel=channel) and self.registryValue('doActionAgainstAffected',channel=channel):
@@ -3295,7 +3296,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if len(results) and mode in 'kr':
 				chan = self.getChan(irc,channel)
 				if not reason or not len(reason):
-					reason = self.registryValue('kickMessage',channel=channel)
+					reason = random.choice(self.registryValue('kickMessage',channel=channel))
 				for n in results:
 					if mode == 'k':
 						chan.action.enqueue(ircmsgs.IrcMsg('KICK %s %s :%s' % (channel,n,reason)))
