@@ -3024,7 +3024,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	
 	def hasExtendedSharedBan (self,irc,fromChannel,target,mode):
 		# todo add support for others ircd if supported, currently only freenode
-		b = '$j:%s' % fromChannel
+		b = '%sj:%s' % (self.getIrcdExtbansPrefix(irc),fromChannel)
 		kicks = []
 		for channel in irc.state.channels:
 			if b in irc.state.channels[channel].bans and mode in self.registryValue('kickMode',channel=channel) and not target.startswith('m:'):
