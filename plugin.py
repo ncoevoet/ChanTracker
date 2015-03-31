@@ -2491,13 +2491,25 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				chan.netsplit = False
 				unmodes = self.registryValue('netsplitUnmodes',channel=channel)
 				if len(unmodes):
-					chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,unmodes)))
+					if unmodes == 'd':
+						if self.registryValue('useColorForAnnounces',channel=channel):
+							self._logChan(irc,channel,'[%s] netsplitUnmodes applied' % ircutils.bold(channel))
+						else:
+							self._logChan(irc,channel,'[%s] netsplitUnmodes applied' % channel)
+					else:
+						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,unmodes)))
 					self.forceTickle = True
 					self._tickle(irc)
 			schedule.addEvent(d,time.time()+self.registryValue('netsplitDuration',channel=channel)+1)
 			modes = self.registryValue('netsplitModes',channel=channel)
 			if len(modes):
-				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
+				if modes == 'd':
+					if self.registryValue('useColorForAnnounces',channel=channel):
+						self._logChan(irc,channel,'[%s] netsplitModes applied' % ircutils.bold(channel))
+					else:
+						self._logChan(irc,channel,'[%s] netsplitModes applied' % channel)
+				else:
+					chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,modes)))
 				self.forceTickle = True
 				self._tickle(irc)
 				
