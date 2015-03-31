@@ -2315,10 +2315,22 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if not banned:
 						isMassJoin = self._isSomething(irc,channel,channel,'massJoin')
 						if isMassJoin:
-							chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
+							if self.registryValue('massJoinMode',channel=channel) == 'd':
+								if self.registryValue('useColorForAnnounces',channel=channel):
+									self._logChan(irc,channel,'[%s] massJoinMode applied' % ircutils.bold(channel))
+								else:
+									self._logChan(irc,channel,'[%s] massJoinMode applied' % channel)
+							else:
+								chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinMode',channel=channel))))
 							def unAttack():
 								if channel in list(irc.state.channels.keys()):
-									chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
+									if self.registryValue('massJoinUnMode',channel=channel) == 'd':
+										if self.registryValue('useColorForAnnounces',channel=channel):
+											self._logChan(irc,channel,'[%s] massJoinUnMode applied' % ircutils.bold(channel))
+										else:
+											self._logChan(irc,channel,'[%s] massJoinUnMode applied' % channel)
+									else:
+										chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 							schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 							self.forceTickle = True
 							
@@ -3374,10 +3386,22 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 							self._act (irc,channel,'b','*!%s@*' % fident,self.registryValue('attackDuration',channel=channel),'skynet powered')
 							self._act (irc,channel,'b','$r:%s' % user.replace(' ','?').replace('$','?'),self.registryValue('attackDuration',channel=channel),'skynet powered')
 				chan.attacked = True
-				chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
+				if self.registryValue('attackMode',channel=channel) == 'd':
+					if self.registryValue('useColorForAnnounces',channel=channel):
+						self._logChan(irc,channel,'[%s] attackMode applied' % ircutils.bold(channel))
+					else:
+						self._logChan(irc,channel,'[%s] attackMode applied' % channel)
+				else:
+					chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackMode',channel=channel))))
 				def unAttack():
 					if channel in list(irc.state.channels.keys()):
-						chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackUnMode',channel=channel))))
+						if self.registryValue('attackUnMode',channel=channel) == 'd':
+							if self.registryValue('useColorForAnnounces',channel=channel):
+								self._logChan(irc,channel,'[%s] attackUnMode applied' % ircutils.bold(channel))
+							else:
+								self._logChan(irc,channel,'[%s] attackUnMode applied' % channel)
+						else:
+							chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('attackUnMode',channel=channel))))
 						chan.attacked = False
 				schedule.addEvent(unAttack,float(time.time()+self.registryValue('attackDuration',channel=channel)))
 		return b
