@@ -11,6 +11,8 @@ from StringIO import StringIO
 
 host = 'http://domain.tld'
 port = 80
+standalone = False
+webpath = '/bantracker'
 username = 'username'
 password = 'password'
 filename = '/home/botaccount/data/networkname/ChanTracker.db'
@@ -65,11 +67,18 @@ def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 
 class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 	server_version= "Ircd-Seven/1.1"
+	if not standalone:
+		def log_request(self, *args):
+			pass    # disable logging
+
 	def do_GET( self ):
 		self.page( self.path )
 
 	def page (self,query):
-		h = '%s:%s/' % (host,port)
+		if standalone:
+			h = '%s:%s/' % (host,port)
+		else:
+			h = '%s/' % webpath
 		body = []
 		if not query:
 			return
@@ -116,7 +125,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 			print query
 		body.append('<html style="text-align:center;font-size:1.2em;">\n<head>\n<title>BanTracker - %s</title>\n' % query)
 		body.append('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n')
-		body.append('<link rel="stylesheet" href="http://getbootstrap.com/dist/css/bootstrap.min.css"></link>\n')
+		body.append('<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"></link>\n')
 #		body.append('<script src="http://www.kryogenix.org/code/browser/sorttable/sorttable.js"></script>\n')
 		body.append('</head>\n<body style="margin:0.5em;width:98%;margin-left:auto;margin-right:auto;text-align:left;" class="container">\n')
 		body.append('<div class="row"><div class="col-xs-6">\n')
