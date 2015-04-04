@@ -11,7 +11,7 @@ from StringIO import StringIO
 
 host = 'http://domain.tld'
 port = 80
-standalone = False
+standalone = True
 webpath = '/bantracker'
 username = 'username'
 password = 'password'
