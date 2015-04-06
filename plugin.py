@@ -936,7 +936,10 @@ class Chan (object):
 	def addItem (self,mode,value,by,when,db,checkUser=True,ct=None):
 		# eqIb(+*) (-ov) pattern prefix when 
 		# mode : eqIb -ov + ?
-		l = self.getItemsFor(mode)
+		if mode != 'm':
+			l = self.getItemsFor(mode)
+		else:
+			l = {}
 		if not self.syn:
 			checkUser = False
 		if not value in l:
@@ -1018,7 +1021,7 @@ class Chan (object):
 				i.mode = mode
 				i.value = value
 				i.channel = self.name
-				i.by = oper
+				i.by = by
 				i.when = float(when)
 				i.expire = float(expire)
 		if i:
@@ -1716,6 +1719,39 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		c.close()
 		irc.replySuccess()
 	vacuum = wrap(vacuum,['owner'])
+
+	def note (self,irc,msg,args,channel,items,reason):
+		"""[<channel>] <nick|hostmask>[,<nick|hostmask>] <reason>
+
+		store a new item in database under the mode 'm', markeable but not editable"""
+		i = self.getIrc(irc)
+		targets = []
+		chan = self.getChan(irc,channel)
+		for item in items:
+			if item in chan.nicks or item in irc.state.channels[channel].users:
+				n = self.getNick(irc,item)
+				patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+				if len(patterns):
+					targets.append(patterns[0])
+			elif ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
+				targets.append(item)
+		for target in targets:
+			item = chan.addItem ('m',target,msg.prefix,time.time(),self.getDb(irc.network),self.registryValue('doActionAgainstAffected',channel=channel),self)
+			f = None
+			if msg.prefix != irc.prefix and self.registryValue('announceMark',channel=channel):
+				f = self._logChan
+			db = self.getDb(irc.network)
+			c = db.cursor()
+			c.execute("""UPDATE bans SET removed_at=?, removed_by=? WHERE id=?""", (time.time()+1,msg.prefix,int(item.uid)))
+			db.commit()
+			c.close()
+			i.mark(irc,item.uid,reason,msg.prefix,self.getDb(irc.network),f,self)
+		if not msg.nick == irc.nick:
+			if len(targets):
+				irc.replySuccess()
+			else:
+				irc.reply('unknown patterns')
+	note = wrap(note,['op',commalist('something'),rest('text')])
 	
 	#def supported (self,irc,msg,args):
 		#"""
@@ -2242,7 +2278,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			logChannel = self.registryValue('logChannel',channel=channel)
 			if logChannel in irc.state.channels:
 				i = self.getIrc(irc)
-				if logChannel == channel and irc.nick in irc.state.channels[channel].ops:
+				if logChannel == channel and irc.nick in irc.state.channels[channel].ops and self.registryValue('keepOp',channel=channel):
 					if self.registryValue ('announceWithNotice',channel=channel):
 						i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
 					else:
