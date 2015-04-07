@@ -64,6 +64,9 @@ conf.registerGlobalValue(ChanTracker, 'resolveIp',
     registry.Boolean(True, """trying to resolve host's ip with socket, could add latency"""))
 #now per channel
 
+conf.registerChannelValue(ChanTracker, 'avoidOverlap',   
+    registry.Boolean(False, """avoid overlap between items, bot will try to use existing items against users, some limitations with extended bans"""))
+
 conf.registerChannelValue(ChanTracker, 'useIpForGateway',   
     registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
 

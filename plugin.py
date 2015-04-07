@@ -1612,7 +1612,36 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self.forceTickle = True
 		self._tickle(irc)
 	k = wrap(k,['op','nickInChannel',additional('text')])
-	
+
+	def overlap (self,irc,msg,args,channel,mode):
+		"""[<channel>] <mode>
+
+		returns overlapping modes, there is limitation with extended bans"""
+		results = []
+		if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
+			chan = self.getChan(irc,channel)
+			modes = chan.getItemsFor(self.getIrcdMode(irc,mode,'*!*@*')[0])
+			if len(modes):
+				L = []
+				for m in modes:
+					L.append(modes[m])
+				if len(L) > 1:
+					item = L.pop()
+					while len(L):
+						for i in L:
+							if ircutils.isUserHostmask(i.value):
+								n = Nick(0)
+								n.setPrefix(i.value)
+								if match(item.value,n,irc,self.registryValue('resolveIp')):
+									results.append('[#%s %s] matches [#%s %s]' % (item.uid,item.value,i.uid,i.value))
+						item = L.pop()
+		if len(results):
+			irc.reply(' '.join(results), private=True)
+		else:
+			irc.reply('no results, or unknown mode')
+		self._tickle(irc)
+	overlap = wrap(overlap,['op','text'])
+
 	def match (self,irc,msg,args,channel,prefix):
 		"""[<channel>] <nick|hostmask#username>
 
@@ -1642,7 +1671,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			irc.reply('no results')
 		self._tickle(irc)
 	match = wrap(match,['op','text'])
-	
+
 	def check (self,irc,msg,args,channel,pattern):
 		"""[<channel>] <pattern> 
 
@@ -1800,12 +1829,34 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			for item in items:
 				if item in chan.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
-					patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
-					# when resync patterns may be empty, until the bot computed WHO
-					if len(patterns):
-						targets.append(patterns[0])
+					found = False
+					if self.registryValue('avoidOverlap',channel=channel):
+						modes = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
+						if len(modes):
+							for m in modes:
+								md = modes[m]
+								if match(md.value,n,irc,self.registryValue('resolveIp')):
+									targets.append(md.value)
+									found = True
+					if not found:
+						patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+						if len(patterns):
+							targets.append(patterns[0])
 				elif ircutils.isUserHostmask(item) or item.find(self.getIrcdExtbansPrefix(irc)) != -1:
-					targets.append(item)
+					found = False
+					if self.registryValue('avoidOverlap',channel=channel):
+						modes = chan.getItemsFor(self.getIrcdMode(irc,mode,item)[0])
+						if len(modes):
+							for m in modes:
+								md = modes[m]
+								if ircutils.isUserHostmask(item):
+									n = Nick(0)
+									n.setPrefix(item)
+									if match(md.value,n,irc,self.registryValue('resolveIp')):
+										targets.append(md.value)
+										found = True
+					if not found:
+						targets.append(item)
 		n = 0
 		for item in targets:
 			r = self.getIrcdMode(irc,mode,item)
@@ -1825,7 +1876,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				n = n+1
 		self.forceTickle = True
 		self._tickle(irc)
-		return len(items) == n
+		return len(items) <= n
 	
 	def _removes (self,irc,msg,args,channel,mode,items,perm=False):
 		i = self.getIrc(irc)
@@ -1838,7 +1889,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				if item in i.nicks or item in irc.state.channels[channel].users:
 					n = self.getNick(irc,item)
 					L = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
-					self.log.debug('L is %s' % L)
 					# here we check active items against Nick and add each pattern which matchs him
 					for pattern in L:
 						m = match(L[pattern].value,n,irc,self.registryValue('resolveIp'))
@@ -1876,7 +1926,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					count = count + 1
 		self.forceTickle = True
 		self._tickle(irc)
-		return len(items) == count or massremove
+		return len(items) <= count or massremove
 	
 	def getIrc (self,irc):
 		# init irc db
