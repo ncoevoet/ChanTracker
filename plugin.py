@@ -111,7 +111,7 @@ def matchHostmask (pattern,n,resolve):
 		if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
 			if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
 				return '%s!%s@%s' % (nick,ident,n.ip)
-		if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%' % pattern.split('@')[1]):
+		if n.ip != None and pattern.find('@') != -1 and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
 			if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
 				return '%s!%s@%s' % (nick,ident,n.ip)
 	except:
