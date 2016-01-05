@@ -154,6 +154,10 @@ conf.registerChannelValue(ChanTracker, 'kickMode',
     registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, 
     use if with caution, if an op bans *!*@*, bot will kick everyone on the channel"""))
 
+conf.registerChannelValue(ChanTracker, 'kickOnMode',
+    registry.Boolean(False, """bot will kick affected users when kickMode is triggered by someone, 
+    use if with caution"""))
+
 conf.registerChannelValue(ChanTracker, 'kickMax',
 registry.Integer(-1,"""if > 0, disable kick if affected users > kickMax, avoid to cleanup entire channel with ban like *!*@*"""))
     
@@ -191,6 +195,16 @@ conf.registerChannelValue(ChanTracker, 'skynet',
     registry.Integer(-1,"""when positive, bot could use some experimental features against user's marked as bad, the value represents number of bad users to trigger it"""))
 
 # related to channel's protection
+
+#clone
+conf.registerChannelValue(ChanTracker, 'clonePermit',
+registry.Integer(-1,"""Number of messages allowed , -1 to disable"""))
+conf.registerChannelValue(ChanTracker, 'cloneMode',
+registry.String('d',"""mode used by the bot when clone detection is triggered"""))
+conf.registerChannelValue(ChanTracker, 'cloneDuration',
+registry.PositiveInteger(60,"""punishment duration in seconds"""))
+conf.registerChannelValue(ChanTracker, 'cloneComment',
+registry.String('clone detected',"""comment added on mode changes database, empty for no comment"""))
 
 # flood detection settings
 conf.registerChannelValue(ChanTracker, 'floodPermit',

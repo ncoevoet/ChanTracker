@@ -76,37 +76,32 @@ mcidr = re.compile(r'^(\d{1,3}\.){0,3}\d{1,3}/\d{1,2}$')
 m6cidr = re.compile(r'^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}/\d{1,3}$')
 
 def matchHostmask (pattern,n,resolve):
-	# return the machted pattern for Nick
+	# return the matched pattern for Nick
 	if n.prefix == None or not ircutils.isUserHostmask(n.prefix):
 		return None
 	(nick,ident,host) = ircutils.splitHostmask(n.prefix)
 	if host.find('/') != -1:
-		# cloaks
 		if host.startswith('gateway/web/freenode/ip.'):
 			n.ip = cache[n.prefix] = host.split('ip.')[1]
-	else:
-		# trying to get ip
-		if host in cache:
-			n.ip = cache[n.prefix]
-		else:
-			if n.ip != None:
-				cache[n.prefix] = n.ip
-			elif resolve:
-				try:
-					r = socket.getaddrinfo(host,None)
-					if r != None:
-						u = {}
-						L = []
-						for item in r:
-							if not item[4][0] in u:
-								u[item[4][0]] = item[4][0]
-								L.append(item[4][0])
-						if len(L) == 1:
-							cache[n.prefix] = L[0]
-							n.setIp(L[0])
-					cache[n.prefix] = n.ip
-				except:
-					cache[n.prefix] = n.prefix
+	#elif resolve:
+		#if not n.prefix in cache:
+			#try:
+				#r = socket.getaddrinfo(host,None)
+				#if r != None:
+					#u = {}
+					#L = []
+					#for item in r:
+						#if not item[4][0] in u:
+							#u[item[4][0]] = item[4][0]
+							#L.append(item[4][0])
+					#if len(L) == 1:
+						#n.setIp(L[0])
+			#except:
+				#t = ''
+			#if n.ip != None:
+				#cache[n.prefix] = n.ip
+			#else:
+				#cache[n.prefix] = host
 	try:
 		if n.ip != None and pattern.find('@') != -1 and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
 			if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
@@ -1201,7 +1196,35 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self.recaps = re.compile("[A-Z]")
 		if self.registryValue('announceNagInterval') > 0:
 			schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
-
+	
+	def resolve (self,irc,msg,args,nick):
+		"""internaly used by the bot if resolveIp is True and usefull with supybot.debug.threadAllCommands to True"""
+		irc.noReply();
+		if msg.prefix == irc.prefix:
+			i = self.getIrc(irc)
+                        n = self.getNick(irc,nick)
+			if n:
+                                (nick,ident,host) = ircutils.splitHostmask(n.prefix)
+				if not n.prefix in cache and host.find('/') == -1:
+					try:
+						r = socket.getaddrinfo(host,None)
+						if r != None:
+							u = {}
+							L = []
+							for item in r:
+								if not item[4][0] in u:
+									u[item[4][0]] = item[4][0]
+									L.append(item[4][0])
+							if len(L) == 1:
+								n.setIp(L[0])
+					except:
+						t = ''
+					if n.ip != None:
+						cache[n.prefix] = n.ip
+					else:
+						cache[n.prefix] = host
+	resolve = wrap(resolve,['text'])
+	
 	def checkNag (self):
 		if world:
 			if world.ircs:
@@ -1934,7 +1957,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			i = self._ircs[irc.network] = Ircd (irc,self.registryValue('logsSize'))
 			# restore CAP, if needed, needed to track account (account-notify) ang gecos (extended-join)
 			# see config of this plugin
-			irc.queueMsg(ircmsgs.IrcMsg('CAP LS'))
+			if not hasattr(irc.state, 'capabilities_ack'):
+				irc.queueMsg(ircmsgs.IrcMsg('CAP LS'))
 		return self._ircs[irc.network]
 
 	def getChan (self,irc,channel):
@@ -2352,6 +2376,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			self.forceTickle = True
 			self._tickle(irc)
 			return
+		if self.registryValue('resolveIp') and msg.prefix.split('@')[1].find('/') == -1:
+			mp = ircmsgs.IrcMsg('',command='PRIVMSG')
+			mp.prefix = irc.prefix
+                        mp.args = [irc.nick]
+			command = 'resolve %s' % msg.nick
+			tokens = callbacks.tokenize(command)
+			self.Proxy(irc.irc, mp, tokens)
 		for channel in channels:
 			if ircutils.isChannel(channel) and channel in irc.state.channels:
 				best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
@@ -2419,7 +2450,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 										chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
 							schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
 							self.forceTickle = True
-							
+					if not banned:
+						permit = self.registryValue('clonePermit',channel=channel)
+						if permit > -1:
+							clones = []
+							for nick in list(irc.state.channels[channel].users):
+								n = self.getNick(irc,nick)
+								m = match(best,n,irc,self.registryValue('resolveIp'))
+								if m:
+									clones.append(nick)
+							if len(clones) > permit:
+								if self.registryValue('cloneMode',channel=channel) == 'd':
+									self._logChan(irc,channel,'[%s] clones (%s) detected (%s)' % (ircutils.bold(channel),best,', '.join(clones)))
+								else:
+									r = self.getIrcdMode(irc,self.registryValue('cloneMode',channel=channel),best)
+									self._act(irc,channel,r[0],r[1],self.registryValue('cloneDuration',channel=channel),self.registryValue('cloneComment',channel))
+									self.forceTickle = True	
+																
 		if msg.nick == irc.nick:
 			self.forceTickle = True
 		self._tickle(irc)
@@ -2736,8 +2783,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 					if len(cap) != 1 and cap in i.caps['LS'] and not cap in i.caps['LIST']:
 						r.append(cap)
 				if len(r):
-					# apply missed caps
-					irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :%s' % ' '.join(r)))
+					if not hasattr(irc.state, 'capabilities_ack'):
+						# apply missed caps
+						irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :%s' % ' '.join(r)))
+					else:
+						r = []
+						self.log.debug('CAP :: %s :: %s :: %s' % (irc.state.capabilities_ack,irc.state.capabilities_ls,irc.state.capabilities_nak))
+						for cap in CAPS:
+							if len(cap) and cap in i.caps['LS'] and not cap in irc.state.capabilities_ack:
+								r.append(cap)
 		elif command == 'ACK' or command == 'NAK':
 			# retrieve current caps
 			irc.queueMsg(ircmsgs.IrcMsg('CAP LIST'))
@@ -3208,7 +3262,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 														tolift.append(active)
 								kicked = False
 								if m in self.registryValue('kickMode',channel=channel) and not value.startswith('m:'): #  and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
-									if msg.nick == irc.nick or msg.nick == 'ChanServ':
+									if msg.nick == irc.nick or msg.nick == 'ChanServ' or self.registryValue('kickOnMode',channel=channel):
 										if self.registryValue('kickMax',channel=channel) < 0 or len(item.affects) < self.registryValue('kickMax',channel=channel):
 											if nick in irc.state.channels[channel].users and nick != irc.nick:
 												chan.action.enqueue(ircmsgs.kick(channel,nick,random.choice(self.registryValue('kickMessage',channel=channel))))
