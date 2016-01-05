@@ -2792,6 +2792,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 						for cap in CAPS:
 							if len(cap) and cap in i.caps['LS'] and not cap in irc.state.capabilities_ack:
 								r.append(cap)
+						if len(r):
+							irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :%s' % ' '.join(r)))
 		elif command == 'ACK' or command == 'NAK':
 			# retrieve current caps
 			irc.queueMsg(ircmsgs.IrcMsg('CAP LIST'))
