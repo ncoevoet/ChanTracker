@@ -152,11 +152,11 @@ conf.registerChannelValue(ChanTracker, 'keepOp',
 
 conf.registerChannelValue(ChanTracker, 'kickMode',
     registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered, 
-    use if with caution, if an op bans *!*@*, bot will kick everyone on the channel"""))
+    use with caution, if an op bans *!*@*, bot will kick everyone on the channel"""))
 
 conf.registerChannelValue(ChanTracker, 'kickOnMode',
     registry.Boolean(False, """bot will kick affected users when kickMode is triggered by someone, 
-    use if with caution"""))
+    use with caution"""))
 
 conf.registerChannelValue(ChanTracker, 'kickMax',
 registry.Integer(-1,"""if > 0, disable kick if affected users > kickMax, avoid to cleanup entire channel with ban like *!*@*"""))
@@ -198,7 +198,7 @@ conf.registerChannelValue(ChanTracker, 'skynet',
 
 #clone
 conf.registerChannelValue(ChanTracker, 'clonePermit',
-registry.Integer(-1,"""Number of messages allowed , -1 to disable"""))
+registry.Integer(-1,"""Number of clones allowed , -1 to disable"""))
 conf.registerChannelValue(ChanTracker, 'cloneMode',
 registry.String('d',"""mode used by the bot when clone detection is triggered"""))
 conf.registerChannelValue(ChanTracker, 'cloneDuration',
