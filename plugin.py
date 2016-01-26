@@ -57,7 +57,7 @@ except ImportError:
 	try:
 		from netaddr import IPAddress, IPNetwork
 	except:
-		print ('CIDR computation is not available: netaddress or ipaddress must be installed')
+		print('CIDR computation is not available: netaddress or ipaddress must be installed')
 
 #due to more kind of pattern checked, increase size
 
