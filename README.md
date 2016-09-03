@@ -165,14 +165,6 @@ By default, if the bot is asked to set a ban (+b), it will also kick affected us
     
 The bot will remove exception modes (that is exempt e, or invite exempt I) for people banned if 'doActionAgainstAffected' for given channel is True.
 
-ChanTracker is trying to resolve ip behind host, but that can affect performance or freeze the bot due to socket's calls, if you use 'supybot.plugins.ChanTracker.resolveIp' to True, you should set 'supybot.debug.threadAllCommands' to True to avoid that. 
-
-**Due to changes on January 5 2016**, if your bot has 'supybot.capabilities.default' to False, Bot must have an account on itself with his cloak/host inside and ChanTracker capability ( because it calls ChanTracker.resolve ).
-
-    !user register botaccount randompassword
-    !hostmask add botaccount *!ident@bot.host
-    !admin capability add botaccount ChanTracker
-
 ## Channel Protection ##
 
 The plugin has a lot of built-in channel protection features that can be enabled either individually and per channel, or globally:
