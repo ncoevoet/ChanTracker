@@ -57,7 +57,7 @@ except ImportError:
 	try:
 		from netaddr import IPAddress, IPNetwork
 	except:
-		print 'CIDR computation is not available: netaddress or ipaddress must be installed'
+		print('CIDR computation is not available: netaddress or ipaddress must be installed')
 
 #due to more kind of pattern checked, increase size
 
@@ -1146,7 +1146,7 @@ def getWrapper(name):
 			group = group.get(parts.pop(0))
 		except (registry.NonExistentRegistryEntry,
 				registry.InvalidRegistryName):
-			raise registry.InvalidRegistryName, name
+			raise registry.InvalidRegistryName(name)
 	return group
 
 def listGroup(group):
