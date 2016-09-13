@@ -276,6 +276,7 @@ def floatToGMT (t):
 	return time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(f))
 
 class Ircd (object):
+	__slots__ = ('irc', 'name', 'channels', 'nicks', 'caps', 'queue', 'lowQueue', 'logsSize', 'askedItems')
 	# define an ircd, keeps Chan and Nick items
 	def __init__(self,irc,logsSize):
 		object.__init__(self)
@@ -831,6 +832,7 @@ class Ircd (object):
 		c.close()
 
 class Chan (object):
+	__slots__ = ('ircd', 'name', '_lists', 'queue', 'update', 'mark', 'action', 'dones', 'syn', 'opAsked', 'deopAsked', 'deopPending', 'spam', 'repeatLogs', 'nicks', 'netsplit', 'attacked')
 	# in memory and in database stores +eIqb list -ov
 	# no user action from here, only ircd messages
 	def __init__(self,ircd,name):
@@ -1010,6 +1012,7 @@ class Chan (object):
 		return i
 	
 class Item (object):
+	__slots__ = ('channel', 'mode', 'value', 'by', 'when', 'uid', 'expire', 'removed_at', 'removed_by', 'asked', 'affects', 'isNew')
 	def __init__(self):
 		object.__init__(self)
 		self.channel = None
@@ -1032,6 +1035,7 @@ class Item (object):
 		return 'Item(%s [%s][%s] by %s on %s, expire on %s, removed on %s by %s)' % (self.uid,self.mode,self.value,self.by,floatToGMT(self.when),floatToGMT(end),floatToGMT(self.removed_at),self.removed_by)
 	
 class Nick (object):
+	__slots__ = ('prefix', 'ip', 'realname', 'account', 'logSize', 'logs')
 	def __init__(self,logSize):
 		object.__init__(self)
 		self.prefix = None
