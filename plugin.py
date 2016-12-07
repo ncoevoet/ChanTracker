@@ -764,7 +764,7 @@ class Ircd (object):
 			current = float(time.time())
 			if begin_at == end_at and seconds < 0:
 				c.close()
-				return False
+				return True
 			if begin_at == end_at:
 				text = 'was forever'
 			else:
@@ -1129,6 +1129,9 @@ def getTs (irc, msg, args, state):
 			if i == 0:
 				i = 1
 			seconds += i
+                elif kind == '-':
+                       state.args.append(float(seconds))
+                       raise callbacks.ArgumentError
 		args.pop(0)
 	state.args.append(float(seconds))
 
@@ -1245,7 +1248,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	extract = wrap(extract,['owner','private','channel',optional('channel')])
 
 	def editandmark (self,irc,msg,args,user,ids,seconds,reason):
-		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever, <0s> means remove] [<reason>]
+		"""<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> means forever, <0s> means remove] [<reason>]
 
 		change expiration and mark of an active mode change, if you got this message while the bot prompted you, your changes were not saved"""
 		i = self.getIrc(irc)
@@ -1280,7 +1283,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	editandmark = wrap(editandmark,['user',commalist('int'),any('getTs',True),optional('text')])
 	
 	def edit (self,irc,msg,args,user,ids,seconds):
-		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever
+		"""<id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s>] means forever
 
 		change expiration of some active modes"""
 		i = self.getIrc(irc)
