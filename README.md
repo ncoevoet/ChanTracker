@@ -20,7 +20,7 @@ For cidr supports, you must install ipaddress ( pip for python 2.7 https://pypi.
     !query [--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>) -- search inside ban database, --deep to search on log, --never returns items set forever and active, --active returns only active modes, --channel reduces results to a specific channel
     !match [<channel>] <nick|hostmask> returns list of modes that affects the nick,hostmask given
     !detail <id> returns log from a mode change
-    !remove [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
+    !r [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
     !modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
     !summary [<channel>] returns some stats about <channel>
 
@@ -264,7 +264,7 @@ There are other commands that are prone to abuse as well. It's better to use the
 
     !config supybot.capabilities.default False
 
-This command works with any version of supybot, vanilla, limnoria, etc.
+This command works with the limnoria testing version containing this pull request https://github.com/ProgVal/Limnoria/commit/2b030ac17824c23d919afb7f10411cadd39ede56.
 
 ## Bugs and Features ##
 
