@@ -276,7 +276,7 @@ def floatToGMT (t):
 	return time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(f))
 
 class Ircd (object):
-	__slots__ = ('irc', 'name', 'channels', 'nicks', 'caps', 'queue', 'lowQueue', 'logsSize', 'askedItems')
+	__slots__ = ('irc', 'name', 'channels', 'nicks', 'queue', 'lowQueue', 'logsSize', 'askedItems')
 	# define an ircd, keeps Chan and Nick items
 	def __init__(self,irc,logsSize):
 		object.__init__(self)
@@ -284,7 +284,6 @@ class Ircd (object):
 		self.name = irc.network
 		self.channels = ircutils.IrcDict()
 		self.nicks = ircutils.IrcDict()
-		self.caps = ircutils.IrcDict()
 		# contains IrcMsg, kicks, modes, etc
 		self.queue = utils.structures.smallqueue()
 		# contains less important IrcMsgs ( sync, logChannel )
@@ -1939,14 +1938,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 				elif len(modesToAsk):
 					for m in modesToAsk:
 						i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
-				# schedule that for later
 				# prevent the bot to disconnect itself is server takes too much time to answer
 				i.lowQueue.enqueue(ircmsgs.ping(channel))
 				# loads extended who
-				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
-				# fallback, TODO maybe uneeded as supybot do it by itself on join, but necessary on plugin reload ...
-				# i.lowQueue.enqueue(ircmsgs.ping(channel))
-				# i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO %s' % channel))
+#				i.lowQueue.enqueue(ircmsgs.IrcMsg('WHO ' + channel +' %tnuhiar,42')) # some ircd may not like this
 				self.forceTickle = True
 		return i.getChan (irc,channel)
 	
@@ -2281,8 +2276,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 	def do354 (self,irc,msg):
 		# WHO $channel %tnuhiar,42
 		# irc.nick 42 ident ip host nick account realname
-		if len(msg.args) == 8 and msg.args[1] == '42':
-			(garbage,digit,ident,ip,host,nick,account,realname) = msg.args
+		if len(msg.args) == 9 and msg.args[1] == '1':
+			(garbage,digit,ident,ip,host,nick,status,account,realname) = msg.args
 			if account == '0':
 				account = None
 			n = self.getNick(irc,nick)
@@ -2394,7 +2389,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		n = self.getNick(irc,msg.nick)
 		n.setPrefix(msg.prefix)
 		i = self.getIrc(irc)
-		if 'LIST' in i.caps and 'extended-join' in i.caps['LIST'] and len(msg.args) == 3:
+		if len(msg.args) == 3:
 			n.setRealname(msg.args[2])
 			n.setAccount(msg.args[1])
 		if msg.nick == irc.nick:
@@ -2750,42 +2745,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 		self._tickle(irc)
 	
 	def doCap (self,irc,msg):
-		# handles CAP messages
-		i = self.getIrc(irc)
-		command = msg.args[1]
-		l = msg.args[2].split(' ')
-		if command == 'LS':
-			# retreived supported CAP
-			i.caps['LS'] = l
-			# checking actives CAP, reload, etc
-			irc.queueMsg(ircmsgs.IrcMsg('CAP LIST'))
-		elif command == 'LIST':
-			i.caps['LIST'] = l
-			if 'LS' in i.caps:
-				r = []
-				# 'identify-msg' removed due to unability for default supybot's drivers to handles it correctly
-				# ['account-notify','extended-join']
-				# targeted caps
-				CAPS = self.registryValue('caps')
-				for cap in CAPS:
-					# len(cap) == 1 prevents weired behaviour with CommaSeparatedListOfStrings
-					if len(cap) != 1 and cap in i.caps['LS'] and not cap in i.caps['LIST']:
-						r.append(cap)
-				if len(r):
-					if not hasattr(irc.state, 'capabilities_ack'):
-						# apply missed caps
-						irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :%s' % ' '.join(r)))
-					else:
-						r = []
-						self.log.debug('CAP :: %s :: %s :: %s' % (irc.state.capabilities_ack,irc.state.capabilities_ls,irc.state.capabilities_nak))
-						for cap in CAPS:
-							if len(cap) and cap in i.caps['LS'] and not cap in irc.state.capabilities_ack:
-								r.append(cap)
-						if len(r):
-							irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :%s' % ' '.join(r)))
-		elif command == 'ACK' or command == 'NAK':
-			# retrieve current caps
-			irc.queueMsg(ircmsgs.IrcMsg('CAP LIST'))
 		self._tickle(irc)
 	
 	def doAccount (self,irc,msg):
@@ -3493,43 +3452,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 			if self._isSomething(irc,channel,channel,'attack') and not chan.attacked:
 				# if number of bad users raise the allowed limit, bot has to set channel attackmode
 				# todo retreive all wrong users and find the best pattern to use against them
-				if self.registryValue('skynet',channel=channel) > 0:
-					L = []
-					for n in chan.nicks:
-						n = self.getNick(irc,n)
-						pattern = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
-						if chan.isWrong(pattern):
-							L.append(n)
-					self.log.debug('founds bads %s' % ' '.join(L))
-					if self.registryValue('skynet',channel=channel) > len(L):
-						idents = {}
-						users = {}
-						for n in L:
-							(nick,ident,host) = ircutils.splitHostmask(n.prefix)
-							if not ident in idents:
-								idents[ident] = []
-							idents[ident].append(n)
-							if n.realname and not n.realname in users:
-								users[n.realname] = []
-							if n.realname:
-								users[n.realname].append(n)
-						fident = None
-						for ident in idents:
-							if not fident:
-								fident = ident
-							if len(idents[fident]) < len(idents[ident]):
-								fident = ident
-						user = None
-						for u in users:
-							if not user:
-								user = u
-							if len(users[user]) < len(users[u]):
-								user = u
-						self.log.debug('computed $r:%s and *!%s@*' % (user,fident))
-						r = []
-						if fident and user:
-							self._act (irc,channel,'b','*!%s@*' % fident,self.registryValue('attackDuration',channel=channel),'skynet powered')
-							self._act (irc,channel,'b','$r:%s' % user.replace(' ','?').replace('$','?'),self.registryValue('attackDuration',channel=channel),'skynet powered')
 				chan.attacked = True
 				if self.registryValue('attackMode',channel=channel) == 'd':
 					if self.registryValue('useColorForAnnounces',channel=channel):

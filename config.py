@@ -45,9 +45,6 @@ ChanTracker = conf.registerPlugin('ChanTracker')
 conf.registerGlobalValue(ChanTracker, 'pool',
     registry.Integer(-1, """delay between two checks about mode removal, in seconds. Note, check is also based on irc activity, so removal may be delayed a bit, -1 to disable delay"""))
 
-conf.registerGlobalValue(ChanTracker, 'CAPS',
-    registry.CommaSeparatedListOfStrings(['account-notify','extended-join'], """CAP asked to the IRCd, that way bot can track username and account changes, without any additional request"""))
-
 conf.registerGlobalValue(ChanTracker, 'logsSize',
     registry.PositiveInteger(60, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
 
@@ -190,9 +187,6 @@ conf.registerChannelValue(ChanTracker, 'checkEvade',
 
 conf.registerChannelValue(ChanTracker, 'useChanServForQuiets',
     registry.Boolean(False,"""if bot is not opped, use services for quiet / unquiets"""))
-
-conf.registerChannelValue(ChanTracker, 'skynet',
-    registry.Integer(-1,"""when positive, bot could use some experimental features against user's marked as bad, the value represents number of bad users to trigger it"""))
 
 # related to channel's protection
 
