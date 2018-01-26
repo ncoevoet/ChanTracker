@@ -24,7 +24,7 @@ For cidr supports, you must install ipaddress ( pip for python 2.7 https://pypi.
     !modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
     !summary [<channel>] returns some stats about <channel>
     !addpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
-    !addregexppattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
+    !addregexpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
     !rmpattern [<channel>] <id> [<id>] remove patterns
     !lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
     
