@@ -23,7 +23,11 @@ For cidr supports, you must install ipaddress ( pip for python 2.7 https://pypi.
     !r [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
     !modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
     !summary [<channel>] returns some stats about <channel>
-
+    !addpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
+    !addregexppattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
+    !rmpattern [<channel>] <id> [<id>] remove patterns
+    !lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
+    
 ## General Usage ##
 
 The bot can be used to place and remove bans (rather than the the op setting channel modes directly). For example, to quiet the argumentative user 'ian' for 10 minutes and ban the spammer 'ham' for a month:
