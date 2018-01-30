@@ -1064,11 +1064,9 @@ class Chan (object):
         c = db.cursor()
         c.execute("""SELECT id, count FROM patterns WHERE id=? and channel=? LIMIT 1""",(uid,self.name))
         items = c.fetchall()
-        if len(items):
-            (id, count) = items[0]
-            count = count + 1
-            c.execute("""UPDATE patterns SET count=? WHERE id=?""", (int(id),count))
-            db.commit()
+        (id, count) = items[0]
+        c.execute("""UPDATE patterns SET count=? WHERE id=?""", (int(count)+1,int(uid)))
+        db.commit()
         c.close()
 
     def lspattern (self,prefix,pattern,db):
@@ -3137,7 +3135,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         if pattern.match(text):
                             if pattern.limit == 0:
                                 isPattern = pattern
-                                chan.countpattern(pattern.uid,self.getDb(irc.network))
                                 break
                             else:
                                 prop = 'Pattern%s' % pattern.uid
@@ -3150,13 +3147,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                                 if len(chan.spam[prop][key]) > pattern.limit:
                                     chan.spam[prop][key].reset()
                                     isPattern = pattern
-                                    chan.countpattern(pattern.uid,self.getDb(irc.network))
                                     break
                     if isPattern:
                          r = self.getIrcdMode(irc,isPattern.mode,best)
                          self._act(irc,channel,r[0],r[1],isPattern.duration,'matches #%s' % isPattern.uid)
                          isBad = self._isBad(irc,channel,best)
                          self.forceTickle = True
+                         chan.countpattern(isPattern.uid,self.getDb(irc.network))
                     elif not isPattern and isMass:
                         kind = 'massRepeat'
                         mode = self.registryValue('%sMode' % kind,channel=channel)
