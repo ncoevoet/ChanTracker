@@ -1203,6 +1203,33 @@ class Pattern (object):
             return self._match.search (text) != None
         return self.pattern in text
 
+def _getRe(f):
+    def get(irc, msg, args, state):
+        original = args[:]
+        s = args.pop(0)
+        def isRe(s):
+            try:
+                foo = f(s)
+                return True
+            except ValueError:
+                return False
+        try:
+            while len(s) < 512 and not isRe(s):
+                s += ' ' + args.pop(0)
+            if len(s) < 512:
+                state.args.append([s,f(s)])
+            else:
+                state.errorInvalid('regular expression', s)
+        except IndexError:
+            args[:] = original
+            state.errorInvalid('regular expression', s)
+    return get
+
+getPatternAndMatcher = _getRe(utils.str.perlReToPythonRe)
+
+addConverter('getPatternAndMatcher', getPatternAndMatcher)
+
+
 # Taken from plugins.Time.seconds
 def getTs (irc, msg, args, state):
     """[<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]
@@ -1334,7 +1361,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         irc.replySuccess()
     summary = wrap(summary,['op','channel'])
 
-    def extract (self,irc,msg,args,channel,newChannel=None):
+    def extract (self,irc,msg,args,channel,newChannel):
         """[<channel>] [<newChannel>]
 
         returns a snapshot of ChanTracker's settings for the given <channel>, if <newChannel> provided, settings are copied"""
@@ -1362,7 +1389,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             irc.replySuccess()
         else:
             irc.reply("%s uses global's settings" % channel)
-    extract = wrap(extract,['owner','private','channel',optional('channel')])
+    extract = wrap(extract,['owner','private','channel',optional('validChannel')])
 
     def editandmark (self,irc,msg,args,user,ids,seconds,reason):
         """<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1s> means forever, <0s> means remove] [<reason>]
@@ -1902,12 +1929,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
         add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds"""
         chan = self.getChan(irc,channel)
-        result = chan.addpattern(msg.prefix,limit,life,mode,getDuration(duration),pattern,1,self.getDb(irc.network))
+        result = chan.addpattern(msg.prefix,limit,life,mode,getDuration(duration),pattern[0],1,self.getDb(irc.network))
         if result:
             irc.reply(result)
         else:
             irc.reply('not enough rights to add a pattern on %s' % channel)
-    addregexpattern = wrap (addregexpattern,['op','nonNegativeInt','positiveInt', 'letter', any('getTs',True), rest('text')])
+    addregexpattern = wrap (addregexpattern,['op','nonNegativeInt','positiveInt', 'letter', any('getTs',True), rest('getPatternAndMatcher')])
 
     def rmpattern (self, irc, msg, args, channel, ids):
         """[<channel>] <id> [<id>]
