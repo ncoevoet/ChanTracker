@@ -1328,6 +1328,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         self._ircs = ircutils.IrcDict()
         self.getIrc(irc)
         self.recaps = re.compile("[A-Z]")
+        self.starting = world.starting
         if self.registryValue('announceNagInterval') > 0:
             schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
 
@@ -2123,7 +2124,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 elif len(modesToAsk):
                     for m in modesToAsk:
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
-#                i.lowQueue.enqueue(ircmsgs.ping(channel))
+                if not self.starting:
+                    i.lowQueue.enqueue(ircmsgs.ping(channel))
+                    i.lowQueue.enqueue(ircmsgs.who(channel, args=('%tuhnairf,1',)))
                 self.forceTickle = True
         return i.getChan (irc,channel)
 
