@@ -59,7 +59,8 @@ conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
 
 conf.registerGlobalValue(ChanTracker, 'resolveIp',   
     registry.Boolean(True, """trying to resolve host's ip with socket, could add latency"""))
-#now per channel
+
+# per channel settings
 
 conf.registerChannelValue(ChanTracker, 'avoidOverlap',   
     registry.Boolean(False, """avoid overlap between items, bot will try to use existing items against users, some limitations with extended bans"""))
@@ -68,7 +69,7 @@ conf.registerChannelValue(ChanTracker, 'useIpForGateway',
     registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
 
 conf.registerChannelValue(ChanTracker, 'opCommand',
-    registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator mode"""))
+    registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator mode"""), opSettable=False)
 
 conf.registerChannelValue(ChanTracker, 'modesToAsk',
     registry.CommaSeparatedListOfStrings(['b','q'], """list of channel modes to sync into the bot's tracking database when it joins the channel"""))
@@ -76,16 +77,15 @@ conf.registerChannelValue(ChanTracker, 'modesToAsk',
 conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
     registry.CommaSeparatedListOfStrings(['e','I'], """list of channel modes to sync into the bot's tracking database when it is opped"""))
 
-# per channel settings
 # related to ban tracking
 
 conf.registerChannelValue(ChanTracker, 'autoExpire',
     registry.Integer(-1, """default expiration time for newly placed bans; -1 disables auto-expiration, otherwise it's in seconds"""))
 
-# related to logChannel
+# announces related to logChannel
     
 conf.registerChannelValue(ChanTracker, 'logChannel',
-    registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages"""))
+    registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages"""),opSettable=False)
 
 conf.registerChannelValue(ChanTracker, 'useColorForAnnounces',
     registry.Boolean(False, """use colors for announce messages"""))
@@ -256,10 +256,10 @@ registry.String('mass repeat detected',"""comment added on mode changes database
 conf.registerChannelValue(ChanTracker, 'massRepeatPatternLife',
 registry.PositiveInteger(300,"""duration of pattern life"""))
 conf.registerChannelValue(ChanTracker, 'massRepeatPatternLength',
-registry.Integer(-1,"""if -1, it uses the default system to compare strings, otherwise, it try to find the longest common message, and use it as a regexp pattern, 
-if found string < length setted, it uses the default string compare"""))
+registry.Integer(-1,"""if -1, it uses the default system to compare strings, otherwise, it try to find the longest common message, and use it as a regexp pattern, if found string < length setted, it uses the default string compare"""))
 
 # YES IT'S ANNOYING
+
 conf.registerChannelValue(ChanTracker, 'capPermit',
 registry.Integer(-1,"""Number of UPPERCASE messages allowed, -1 to disable. see capPercent for definition of an UPPERCASE message"""))
 conf.registerChannelValue(ChanTracker, 'capLife',
@@ -368,6 +368,8 @@ conf.registerChannelValue(ChanTracker, 'attackMode',
 registry.String('+rq-z $~a',"""mode used by the bot when attack is triggered"""))
 conf.registerChannelValue(ChanTracker, 'attackUnMode',
 registry.String('-rq+z $~a',"""mode used by the bot when attackDuration is finished"""))
+
+# netsplit
 
 conf.registerChannelValue(ChanTracker, 'netsplitModes',
 registry.String('',"""leave empty for no modes changes"""))
