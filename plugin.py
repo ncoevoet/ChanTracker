@@ -1048,7 +1048,7 @@ class Chan (object):
             c.execute("""DELETE FROM patterns WHERE id=? and channel=? LIMIT 1""",(uid,self.name))
             if uid in self.patterns:
                 del self.patterns[uid]
-            prop = 'Pattern%s' % pattern.uid
+            prop = 'Pattern%s' % id
             if prop in self.spam:
                 del self.spam[prop]
             db.commit()
@@ -3680,6 +3680,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 return False
         limit = self.registryValue('%sPermit' % prop,channel=channel)
         if limit < 0:
+            return False
+        flag = ircdb.makeChannelCapability(channel, prop)
+        if not ircdb.checkCapability(key, flag):
             return False
         chan = self.getChan(irc,channel)
         life = self.registryValue('%sLife' % prop,channel=channel)
