@@ -1891,7 +1891,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 n = self.getNick(irc,item)
                 patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
                 if len(patterns):
-                    targets.append(patterns[0])
+                    pattern = patterns[0]
+                    if self.registryValue('useAccountBanIfPossible',channel=channel):
+                        for p in patterns:
+                            if p.startswith('$a:'):
+                                pattern = p
+                                break
+                    targets.append(pattern)
             elif ircutils.isUserHostmask(item) or self.getIrcdExtbansPrefix(irc) in item:
                 targets.append(item)
         for target in targets:
@@ -2015,7 +2021,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     if not found:
                         patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
                         if len(patterns):
-                            targets.append(patterns[0])
+                            pattern = patterns[0]
+                            if self.registryValue('useAccountBanIfPossible',channel=channel):
+                                for p in patterns:
+                                    if p.startswith('$a:'):
+                                        pattern = p
+                                        break
+                            targets.append(pattern)
                 elif ircutils.isUserHostmask(item) or self.getIrcdExtbansPrefix(irc) in item:
                     found = False
                     if self.registryValue('avoidOverlap',channel=channel):
