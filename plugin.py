@@ -1865,7 +1865,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         if nick in i.nicks:
             chan = self.getChan(irc,channel)
-            irc.reply(chan.isWrong(getBestPattern(self.getNick(irc,nick),irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]))
+            bests = getBestPattern(self.getNick(irc,nick),irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+            best = bests[0]
+            if self.registryValue('useAccountBanIfPossible',channel=channel):
+                for p in bests:
+                    if p.startswith('$a:'):
+                        best = p
+                        break
+            irc.reply(chan.isWrong(best))
         else:
             irc.reply('nick not found')
     isbad = wrap(isbad,['op','nick'])
@@ -2638,7 +2645,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             t.start()
         for channel in channels:
             if ircutils.isChannel(channel) and channel in irc.state.channels:
-                best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                best = bests[0]
+                if self.registryValue('useAccountBanIfPossible',channel=channel):
+                    for p in bests:
+                        if p.startswith('$a:'):
+                            best = p
+                            break
                 chan = self.getChan(irc,channel)
                 chan.nicks[msg.nick] = True
                 n.addLog(channel,'has joined')
@@ -2706,7 +2719,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 del i.channels[channel]
                 continue
             if ircutils.isChannel(channel) and channel in irc.state.channels:
-                best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                best = bests[0]
+                if self.registryValue('useAccountBanIfPossible',channel=channel):
+                    for p in bests:
+                        if p.startswith('$a:'):
+                            best = p
+                            break
                 if len(reason):
                     if reason.startswith('requested by') and self.registryValue('announceKick',channel=channel):
                         if self.registryValue('useColorForAnnounces',channel=channel):
@@ -2822,7 +2841,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 if nick in i.nicks:
                     del i.nicks[nick]
                 for channel in irc.state.channels:
-                    best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                    bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                    best = bests[0]
+                    if self.registryValue('useAccountBanIfPossible',channel=channel):
+                        for p in bests:
+                            if p.startswith('$a:'):
+                                best = p
+                                break
                     if channel in i.channels:
                         chan = self.getChan(irc,channel)
                         if nick in chan.nicks:
@@ -2885,7 +2910,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway'),self.registryValue('resolveIp'))
             best = None
             if len(patterns):
-                best = patterns[0]
+                best = bests[0]
             if reason:
                 n.addLog('ALL','has quit [%s]' % reason)
             else:
@@ -2908,7 +2933,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 chan = self.getChan(irc,channel)
                 if msg.nick in chan.nicks:
                     if not self._isVip(irc,channel,n):
-                        best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                        bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                        best = bests[0]
+                        if self.registryValue('useAccountBanIfPossible',channel=channel):
+                            for p in bests:
+                                if p.startswith('$a:'):
+                                    best = p
+                                    break
                         isCycle = self._isSomething(irc,channel,best,'cycle')
                         if isCycle:
                             isBad = self._isSomething(irc,channel,best,'bad')
@@ -2954,7 +2985,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             if not best:
                 return
             for channel in irc.state.channels:
-                best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                best = bests[0]
+                if self.registryValue('useAccountBanIfPossible',channel=channel):
+                    for p in bests:
+                        if p.startswith('$a:'):
+                            best = p
+                            break
                 if newNick in irc.state.channels[channel].users:
                     chan = self.getChan(irc,channel)
                     if oldNick in chan.nicks:
@@ -3063,7 +3100,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 return
             for channel in targets.split(','):
                 if irc.isChannel(channel) and channel in irc.state.channels:
-                    best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                    bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                    best = bests[0]
+                    if self.registryValue('useAccountBanIfPossible',channel=channel):
+                        for p in bests:
+                            if p.startswith('$a:'):
+                                best = p
+                                break
                     chan = self.getChan(irc,channel)
                     n.addLog(channel,'NOTICE | %s' % text)
                     isVip = self._isVip(irc,channel,n)
@@ -3150,7 +3193,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             return
         for channel in recipients.split(','):
             if irc.isChannel(channel) and channel in irc.state.channels:
-                best = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))[0]
+                bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
+                best = best[0]
+                if self.registryValue('useAccountBanIfPossible',channel=channel):
+                    for p in bests:
+                        if p.startswith('$a:'):
+                            best = p
+                            break
                 chan = self.getChan(irc,channel)
                 message = text
                 if isCtcpMsg and not isAction:
