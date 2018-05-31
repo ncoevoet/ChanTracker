@@ -51,13 +51,8 @@ import collections
 import random
 from operator import itemgetter
 
-try:
-	from ipaddress import ip_address as IPAddress, ip_network as IPNetwork
-except ImportError:
-	try:
-		from netaddr import IPAddress, IPNetwork
-	except:
-		print('CIDR computation is not available: netaddress or ipaddress must be installed')
+from ipaddress import ip_address as IPAddress
+from ipaddress import ip_network as IPNetwork
 
 #due to more kind of pattern checked, increase size
 
@@ -83,15 +78,16 @@ def matchHostmask (pattern,n,resolve):
     if '/' in host:
         if host.startswith('gateway/web/freenode/ip.'):
             n.ip = cache[n.prefix] = host.split('ip.')[1]
-    try:
-        if n.ip != None and '@' in pattern and mcidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
-            if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
-                return '%s!%s@%s' % (nick,ident,n.ip)
-        if n.ip != None and '@' in pattern and m6cidr.match(pattern.split('@')[1]) and IPAddress(u'%s' % n.ip) in IPNetwork(u'%s' % pattern.split('@')[1]):
-            if ircutils.hostmaskPatternEqual('%s@*' % pattern.split('@')[0],'%s!%s@%s' % (nick,ident,n.ip)):
-                return '%s!%s@%s' % (nick,ident,n.ip)
-    except:
-        t = ''
+    elif n.ip != None and '@' in pattern and mcidr.match(pattern.split('@')[1]):
+        address = IPAddress('%s' % n.ip)
+        network = IPNetwork('%s' % pattern.split('@')[1], strict=False)
+        if address in network:
+            return '%s!%s@%s' % (nick,ident,n.ip)
+    elif n.ip != None and '@' in pattern and m6cidr.match(pattern.split('@')[1]):
+        address = IPAddress('%s' % n.ip)
+        network = IPNetwork('%s' % pattern.split('@')[1], strict=False)
+        if address in network:
+            return '%s!%s@%s' % (nick,ident,n.ip)
     if ircutils.isUserHostmask(pattern):
         if n.ip != None and ircutils.hostmaskPatternEqual(pattern,'%s!%s@%s' % (nick,ident,n.ip)):
             return '%s!%s@%s' % (nick,ident,n.ip)
