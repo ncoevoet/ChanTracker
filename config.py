@@ -88,7 +88,7 @@ conf.registerChannelValue(ChanTracker, 'autoExpire',
 # announces related to logChannel
     
 conf.registerChannelValue(ChanTracker, 'logChannel',
-    registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages"""),opSettable=False)
+    registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages, nick can be used"""),opSettable=False)
 
 conf.registerChannelValue(ChanTracker, 'useColorForAnnounces',
     registry.Boolean(False, """use colors for announce messages"""))

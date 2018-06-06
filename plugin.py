@@ -78,7 +78,7 @@ def matchHostmask (pattern,n,resolve):
     if '/' in host:
         if host.startswith('gateway/web/freenode/ip.'):
             n.ip = cache[n.prefix] = host.split('ip.')[1]
-    elif n.ip != None and '@' in pattern and mcidr.match(pattern.split('@')[1]):
+    if n.ip != None and '@' in pattern and mcidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
         network = IPNetwork('%s' % pattern.split('@')[1], strict=False)
         if address in network:
@@ -2556,12 +2556,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
                     else:
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('PRIVMSG @%s :%s' % (logChannel,message)))
+            elif len(logChannel) > 0:
+                if self.registryValue ('announceWithNotice',channel=channel):
+                    i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
                 else:
-                    if self.registryValue ('announceWithNotice',channel=channel):
-                        i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
-                    else:
-                        i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
-                self.forceTickle = True
+                    i.lowQueue.enqueue(ircmsgs.privmsg(logChannel,message))
+            self.forceTickle = True
 
     def resolve (self,irc,channels,prefix):
         i = self.getIrc(irc)
