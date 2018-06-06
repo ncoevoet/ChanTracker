@@ -3,8 +3,7 @@
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc.
 
 The plugin is used in various and large channels on freenode and others networks
-
-For cidr supports, you must install ipaddress ( pip for python 2.7 https://pypi.python.org/pypi/py2-ipaddress ) or netaddr ( python 2.7 https://pypi.python.org/pypi/netaddr )
+This version works with python 3
 
 ## Commands ##
 
