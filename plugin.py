@@ -1297,7 +1297,7 @@ def getWrapper(name):
 
 def listGroup(group):
     L = []
-    for (vname, v) in group._children.iteritems():
+    for (vname, v) in group._children.items():
         if hasattr(group, 'channelValue') and group.channelValue and \
             ircutils.isChannel(vname) and not v._children:
             continue
@@ -2556,6 +2556,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
                     else:
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('PRIVMSG @%s :%s' % (logChannel,message)))
+                else:
+                    if self.registryValue ('announceWithNotice',channel=channel):
+                        i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
+                    else:
+                        i.lowQueue.enqueue(ircmsgs.IrcMsg('PRIVMSG @%s :%s' % (logChannel,message)))
             elif len(logChannel) > 0:
                 if self.registryValue ('announceWithNotice',channel=channel):
                     i.lowQueue.enqueue(ircmsgs.notice(logChannel,message))
@@ -2905,7 +2910,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         if not isBot:
             n = self.getNick(irc,msg.nick)
             bests = getBestPattern(n,irc,self.registryValue('useIpForGateway'),self.registryValue('resolveIp'))
-            best = bests[0]
+            best = None
+            if len(bests):
+                best = bests[0]
+            if not best:
+                return
             if reason:
                 n.addLog('ALL','has quit [%s]' % reason)
             else:
@@ -3889,10 +3898,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     def _largestpattern (self,s1,s2):
         s1 = s1.lower()
         s2 = s2.lower()
-        m = [[0] * (1 + len(s2)) for i in xrange(1 + len(s1))]
+        m = [[0] * (1 + len(s2)) for i in range(1 + len(s1))]
         longest, x_longest = 0, 0
-        for x in xrange(1, 1 + len(s1)):
-            for y in xrange(1, 1 + len(s2)):
+        for x in range(1, 1 + len(s1)):
+            for y in range(1, 1 + len(s2)):
                 if s1[x - 1] == s2[y - 1]:
                     m[x][y] = m[x - 1][y - 1] + 1
                     if m[x][y] > longest:
