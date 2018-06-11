@@ -2796,10 +2796,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 del i.channels[channel]
                 self._tickle(irc)
                 return
-        else:
-            chan = self.getChan(irc,channel)
-            if msg.nick in chan.nicks:
-                del chan.nicks[msg.nick]
         n = self.getNick(irc,target)
         n.addLog(channel,'kicked by %s (%s)' % (msg.prefix,reason))
         if self.registryValue('announceKick',channel=channel):
@@ -2826,6 +2822,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     f = self._logChan
                 i = self.getIrc(irc)
                 i.mark(irc,found.uid,'kicked by %s (%s)' % (msg.nick,reason),irc.prefix,self.getDb(irc.network),f,self)
+        if not isBot:
+            chan = self.getChan(irc,channel)
+            if target in chan.nicks:
+                del chan.nicks[target]
         self._tickle(irc)
 
     def _rmNick (self,irc,n):
