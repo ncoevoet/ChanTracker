@@ -5,6 +5,8 @@ This supybot plugin keeps records of channel mode changes in a sqlite database a
 The plugin is used in various and large channels on freenode and others networks
 This version works with python 3
 
+Note that you may need a newer version of Limnoria than your distribution provides, and you may need to install from the Limnoria source code or from PyPI / `pip` to make it function.
+
 ## Commands ##
 
     !b,e,i,q [<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>) -- +mode targets for duration <reason> is mandatory
