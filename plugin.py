@@ -438,6 +438,7 @@ class Ircd (object):
         results = []
         r = []
         c = db.cursor()
+        channels = []
         for k in list(chan.getItems()):
             items = chan.getItemsFor(k)
             if len(items):
@@ -445,6 +446,20 @@ class Ircd (object):
                     item = items[item]
                     if match(item.value,n,irc,ct.registryValue('resolveIp')):
                         r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
+                    elif item.value.find('$j:') == 0:
+                       channels.append(item.value.replace('$j:',''))
+        ct.log.info('channels %s' % ','.join(channels))
+        if len(channels):
+            for ch in channels:
+                cha = self.getChan(irc,ch)
+                for k in list(cha.getItems()):
+                    items = cha.getItemsFor(k)
+                    ct.log.info('for %s (%s): %s' % (ch,k,','.join(items)))
+                    if len(items):
+                        for item in items:
+                            item = items[item]
+                            if match(item.value,n,irc,ct.registryValue('resolveIp')):
+                                r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
         r.sort(reverse=True)
         if len(r):
             for item in r:
@@ -741,6 +756,21 @@ class Ircd (object):
                 chan.queue.enqueue(('+%s' % mode,value))
                 return True
         return False
+
+    def remove (self,id,db):
+        c = db.cursor()
+        c.execute("""SELECT id,channel,kind,mask FROM bans WHERE id=? LIMIT 1""",(id,))
+        L = c.fetchall()
+        b = False
+        if len(L):
+            (uid,channel,kind,mask) = L[0]
+            c.execute("""DELETE FROM bans WHERE id=? LIMIT 1""",(uid,))
+            c.execute("""DELETE FROM comments WHERE ban_id=?""",(uid,))            
+            c.execute("""DELETE FROM nicks WHERE ban_id=?""",(uid,))
+            c.close()
+            db.commit()
+            b = True
+        return b
 
     def edit (self,irc,channel,mode,value,seconds,prefix,db,scheduleFunction,logFunction,ct):
         # edit eIqb duration
@@ -1784,9 +1814,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     username = a[1]
                     prefix = a[0]
                     n.setPrefix(prefix)
+                    if utils.net.isIP(prefix.split('@')[1].split('#')[0]):
+                        n.setIp(prefix.split('@')[1].split('#')[0])
                     n.setRealname(username)
                 else:
                     n.setPrefix(prefix)
+                    if utils.net.isIP(prefix.split('@')[1]):
+                        n.setIp(prefix.split('@')[1])
             else:
                 irc.reply('unknow nick')
                 return
@@ -1975,6 +2009,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         else:
             irc.reply('nothing found')
     lspattern = wrap(lspattern,['op',optional('text')])
+
+    def rmmode (self,irc,msg,args,ids):
+        """<id>,[,<id>]
+
+        remove entries from database, bot's owner command only"""  
+        i = self.getIrc(irc)
+        results = []
+        for id in ids:
+            b = i.remove(id,self.getDb(irc.network))
+            if b:
+                results.append(id)
+        irc.reply('%s' % ', '.join(results))
+    rmmode = wrap(rmmode,['owner',commalist('int')])
 
     def getIrcdMode (self,irc,mode,pattern):
         # here we try to know which kind of mode and pattern should be computed :
@@ -3103,6 +3150,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             if not best:
                 return
             for channel in targets.split(','):
+                if channel.startswith('@'):
+                    channel = channel.replace('@','',1)
+                if channel.startswith('+'):
+                    channel = channel.replace('+','',1)
                 if irc.isChannel(channel) and channel in irc.state.channels:
                     bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
                     best = bests[0]
@@ -3196,6 +3247,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             self._tickle(irc)
             return
         for channel in recipients.split(','):
+            if channel.startswith('@'):
+                channel = channel.replace('@','',1)
+            if channel.startswith('+'):
+                channel = channel.replace('+','',1)
             if irc.isChannel(channel) and channel in irc.state.channels:
                 bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
                 best = bests[0]
