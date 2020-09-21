@@ -214,7 +214,7 @@ def getBestPattern (n,irc,useIp=False,resolve=True):
         if host.startswith('gateway/'):
             if useIp and 'ip.' in host:
                 ident = '*'
-                host = '*%s' % host.split('ip.')[1]
+                host = '*ip.%s' % host.split('ip.')[1]
             else:
                 h = host.split('/')
                 if 'x-' in host and not 'vpn/' in host:
@@ -224,13 +224,10 @@ def getBestPattern (n,irc,useIp=False,resolve=True):
                         p = '/*'
                         h = h[:3]
                         host = '%s%s' % ('/'.join(h),p)
-                        (nick,i,h) = ircutils.splitHostmask(n.prefix)
         elif host.startswith('nat/'):
             h = host.replace('nat/','')
             if '/' in h:
                 host = 'nat/%s/*' % h.split('/')[0]
-        if 'gateway/' in host and '/x-' in host and not 'vpn/' in host:
-            host = '%s/*' % host.split('/x-')[0]
     k = '*!%s@%s' % (ident,host)
     if not k in results:
         results.append(k)
@@ -2711,6 +2708,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         for ban in list(c.bans):
                             if match (ban,n,irc,self.registryValue('resolveIp')):
                                 if i.add(irc,channel,'b',best,self.registryValue('autoExpire',channel=channel),irc.prefix,self.getDb(irc.network)):
+                                    f = None
+                                    if self.registryValue('announceInTimeEditAndMark',channel=channel):
+                                        if self.registryValue('announceBotMark',channel=channel):
+                                            f = self._logChan
+                                    i.submark(irc,channel,'b',best,"permanent ban %s" % ban,irc.prefix,self.getDb(irc.network),f,self)
                                     banned = True
                                     self.forceTickle = True
                                     break
@@ -3214,6 +3216,10 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
     def _isVip (self,irc,channel,n):
         if n.prefix == irc.prefix:
+            return True
+        if ircdb.checkCapability(n.prefix, 'trusted'):
+            return True
+        if ircdb.checkCapability(n.prefix, 'protected'):
             return True
         protected = ircdb.makeChannelCapability(channel, 'protected')
         if ircdb.checkCapability(n.prefix, protected):
