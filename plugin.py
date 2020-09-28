@@ -1811,12 +1811,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     username = a[1]
                     prefix = a[0]
                     n.setPrefix(prefix)
-                    if utils.net.isIP(prefix.split('@')[1].split('#')[0]):
+                    if self.registryValue('resolveIp') and utils.net.isIP(prefix.split('@')[1].split('#')[0]):
                         n.setIp(prefix.split('@')[1].split('#')[0])
                     n.setRealname(username)
                 else:
                     n.setPrefix(prefix)
-                    if utils.net.isIP(prefix.split('@')[1]):
+                    if self.registryValue('resolveIp') and utils.net.isIP(prefix.split('@')[1]):
                         n.setIp(prefix.split('@')[1])
             else:
                 irc.reply('unknow nick')
@@ -2175,7 +2175,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             modesToAsk = ''.join(self.registryValue('modesToAsk',channel=channel))
             modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped',channel=channel))
             if channel in irc.state.channels:
-                if irc.nick in irc.state.channels[channel].ops:
+                if irc.state.channels[channel].isHalfopPlus(irc.nick):
                     if len(modesToAsk) or len(modesWhenOpped):
                         for m in modesWhenOpped:
                             i.queue.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,m)))
@@ -2318,7 +2318,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 for value in list(chan._lists[mode].keys()):
                     item = chan._lists[mode][value]
                     if item.expire != None and item.expire != item.when and not item.asked and item.expire <= t:
-                        if mode == 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 0:
+                        if mode == 'q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.state.channels[channel].isHalfopPlus(irc.nick) and len(chan.queue) == 0:
                             s = self.registryValue('unquietCommand')
                             s = s.replace('$channel',channel)
                             s = s.replace('$hostmask',item.value)
@@ -2329,23 +2329,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         item.asked = True
                         retickle = True
             # dequeue pending actions
-            # log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.nick in irc.state.channels[channel].ops,chan.opAsked,chan.deopAsked,chan.deopPending))
+            # log.debug('[%s] isOpped : %s, opAsked : %s, deopAsked %s, deopPending %s' % (channel,irc.state.channels[channel].isHalfopPlus(irc.nick),chan.opAsked,chan.deopAsked,chan.deopPending))
             # if chan.syn: # remove syn mandatory for support to unreal which doesn't like q list
             if len(chan.queue):
                 index = 0
                 for item in list(chan.queue):
                     (mode,value) = item
-                    if mode == '+q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.nick in irc.state.channels[channel].ops and len(chan.queue) == 1:
+                    if mode == '+q' and self.registryValue('useChanServForQuiets',channel=channel) and not irc.state.channels[channel].isHalfopPlus(irc.nick) and len(chan.queue) == 1:
                         s = self.registryValue('quietCommand')
                         s = s.replace('$channel',channel)
                         s = s.replace('$hostmask',value)
                         i.queue.enqueue(ircmsgs.IrcMsg(s))
                         chan.queue.pop(index)
                     index = index + 1
-            if not irc.nick in irc.state.channels[channel].ops:
+            if not irc.state.channels[channel].isHalfopPlus(irc.nick):
                 chan.deopAsked = False
                 chan.deopPending = False
-            if chan.syn and not irc.nick in irc.state.channels[channel].ops and not chan.opAsked and self.registryValue('keepOp',channel=channel):
+            if chan.syn and not irc.state.channels[channel].isHalfopPlus(irc.nick) and not chan.opAsked and self.registryValue('keepOp',channel=channel):
                 # chan.syn is necessary, otherwise, bot can't call owner if rights missed ( see doNotice )
                 if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
                     chan.opAsked = True
@@ -2355,7 +2355,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
                     retickle = True
             if len(chan.queue) or len(chan.action):
-                if not irc.nick in irc.state.channels[channel].ops and not chan.opAsked:
+                if not irc.state.channels[channel].isHalfopPlus(irc.nick) and not chan.opAsked:
                     # pending actions, but not opped
                     if not chan.deopAsked:
                         if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
@@ -2365,7 +2365,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                             schedule.addEvent(f,time.time() + 300)
                             irc.queueMsg(ircmsgs.IrcMsg(self.registryValue('opCommand',channel=channel).replace('$channel',channel).replace('$nick',irc.nick)))
                             retickle = True
-                elif irc.nick in irc.state.channels[channel].ops:
+                elif irc.state.channels[channel].isHalfopPlus(irc.nick):
                     if not chan.deopAsked:
                         if len(chan.queue):
                             L = []
@@ -2458,9 +2458,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                             elif prefix == irc.prefix and self.registryValue('announceBotMark',channel=item.channel):
                                 f = self._logChan
                         i.mark(irc,item.uid,reason,prefix,self.getDb(irc.network),f,self)
-                        key = '%s%s' % (item.mode,value)
+                        key = '%s%s' % (m,value)
                         del chan.mark[key]
-            if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopPending and not chan.deopAsked:
+            if irc.state.channels[channel].isHalfopPlus(irc.nick) and not self.registryValue('keepOp',channel=channel) and not chan.deopPending and not chan.deopAsked:
                 # ask for deop, delay it a bit
                 if not self.registryValue('doNothingAboutOwnOpStatus',channel=channel):
                     self.unOp(irc,channel)
@@ -2567,7 +2567,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             n = self.getNick(irc,nick)
             prefix = '%s!%s@%s' % (nick,ident,host)
             n.setPrefix(prefix)
-            if n.ip == None and ip != '255.255.255.255':
+            if self.registryValue('resolveIp') and n.ip == None and ip != '255.255.255.255':
                 # validate ip
                 n.setIp(ip)
             n.setAccount(account)
@@ -2595,7 +2595,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             logChannel = self.registryValue('logChannel',channel=channel)
             if logChannel in irc.state.channels:
                 i = self.getIrc(irc)
-                if logChannel == channel and irc.nick in irc.state.channels[channel].ops and self.registryValue('keepOp',channel=channel):
+                if logChannel == channel and irc.state.channels[channel].isHalfopPlus(irc.nick) and self.registryValue('keepOp',channel=channel):
                     if self.registryValue ('announceWithNotice',channel=channel):
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
                     else:
@@ -3375,16 +3375,16 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                             self._logChan(irc,channel,'[%s] %s ctcps "%s"' % (channel,msg.prefix,text))
                         self.forceTickle = True
                     else:
-                        if self.registryValue('announceOthers',channel=channel) and irc.nick in irc.state.channels[channel].ops and 'z' in irc.state.channels[channel].modes:
+                        if self.registryValue('announceOthers',channel=channel) and irc.state.channels[channel].isHalfopPlus(irc.nick) and 'z' in irc.state.channels[channel].modes:
                             message = None
                             if 'm' in irc.state.channels[channel].modes:
-                                if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
+                                if not msg.nick in irc.state.channels[channel].voices and not irc.state.channels[channel].isHalfopPlus(msg.nick):
                                     if self.registryValue('useColorForAnnounces',channel=channel):
                                         message = '[%s] [+m] <%s> %s' % (ircutils.bold(channel),ircutils.mircColor(msg.prefix,'light blue'),text)
                                     else:
                                         message = '[%s] [+m] <%s> %s' % (channel,msg.prefix,text)
                             if not message:
-                                if not msg.nick in irc.state.channels[channel].voices and not msg.nick in irc.state.channels[channel].ops:
+                                if not msg.nick in irc.state.channels[channel].voices and not irc.state.channels[channel].isHalfopPlus(msg.nick):
                                     modes = self.registryValue('modesToAsk',channel=channel)
                                     found = False
                                     for mode in modes:
@@ -3495,7 +3495,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             def unOpBot():
                 if channel in irc.state.channels:
                     if not len(i.queue) and not len(chan.queue):
-                        if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
+                        if irc.state.channels[channel].isHalfopPlus(irc.nick) and not self.registryValue('keepOp',channel=channel):
                             if not chan.deopAsked:
                                 chan.deopPending = False
                                 chan.deopAsked = True
@@ -3505,7 +3505,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                                 self._tickle(irc)
                     else:
                         # reask for deop
-                        if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
+                        if irc.state.channels[channel].isHalfopPlus(irc.nick) and not self.registryValue('keepOp',channel=channel) and not chan.deopAsked:
                             self.deopPending = False
                             self.unOp(irc,channel)
             chan.deopPending = True
@@ -3695,7 +3695,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             if toCommit:
                 db.commit()
 
-            if irc.nick in irc.state.channels[channel].ops and not self.registryValue('keepOp',channel=channel):
+            if irc.state.channels[channel].isHalfopPlus(irc.nick) and not self.registryValue('keepOp',channel=channel):
                 self.forceTickle = True
             if len(self.registryValue('announceModes',channel=channel)) and len(msgs):
                 if self.registryValue('announceModeMadeByIgnored',channel=channel) or not ircdb.checkIgnored(msg.prefix,channel):
