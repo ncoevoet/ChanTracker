@@ -380,3 +380,41 @@ conf.registerChannelValue(ChanTracker, 'netsplitUnmodes',
 registry.String('',"""leave empty for no modes changes"""))
 conf.registerChannelValue(ChanTracker, 'netsplitDuration',
 registry.PositiveInteger(600,"""duration of netsplit state when detected, it disables massJoin and cycle detection, and could set specific modes"""))
+
+# workarounds inspIRCd, orcus
+# Added two Boolean options to the end of config.py - which both default to False with a standard setup == the workaraounds are NOT in effect out of the box
+# and need to be explicitly turned on; the code modifcations at plugin.py are guarded accordingly.
+# ------------------------------------------------------------------------------------------------
+# 1) blockHostResolve - the workaround is used to circumvent the following (current) situation:
+# a) There seem to be code execution paths, which bypass the existing blockHostResolve option, resulting in:
+#  For a certain test-user ChanTracker generally tried to resolved the user's nickname to an IP address to build a netmask. As the result gets
+#  inserted first at the list of available netmasks before existing (valid) netmasks, it gets the prefered netmask, which will be used (for example) for
+#  subsequent !b commands.
+#
+#  As the output of the !b gets displayed to other users on the channel this potentially violates EU privacy regularities.
+#
+# The behavior does only show up, if the user connects to a channel after the bot has already been started. If the users has already been connected to the channel
+# before the bot was started, the effect does NOT show up initially until it leaves and rejoins the channel again. I didn't further debug into related join/connect
+# events, but prefered to block the resolve at the central location instead, to avoid missing further situations where the effect might show up, as leaking an IP
+# address to the public is a no go for us.
+#
+# b) Besides the leaking of an IP address, I noticed during tests, that the IP address being used/shown, reflects an IP of the hoster, where the test-users
+#  remote centOS installation resides (== a wrong IP) and NOT the test-user's actual static IP address (verified by an IRCOP to be the effective IP of the client).
+# Thus an according ban has no effect for the related user and he is able to rejoin indepentently of the ban (the kick command does seemingly not use
+# the IP based mask but uses the correct netmask of the user).
+#
+# Note: after turning on: !config supybot.plugins.ChanTracker.blockHostResolve True
+# one has at least to reload the ChanTracker plugin, using: !owner reload chantracker
+# to flush user related connection data to get rid of existing IP base mask entries.
+conf.registerGlobalValue(ChanTracker, 'blockHostResolve',
+    registry.Boolean(False, """block host resolve in any case"""))
+
+# 2) allowBotBeingHOPorOP - we prefer to be able to run the bot being HOP only (which is sufficient at isprIRCd to run ban and kick commands);
+# The workaround does address the following situation:
+# There are several locations accross ChanTracker plugin.py checking hardcoded for the bot to be OP (queuing request only if being run as HOP atm).
+# If the bot does get opped at a later time (with related entries in the queue) the bot starts processing related entries.
+# With the option being turned on, the related tests for OP does allow processing of related commands if being OP or HOP. The related tests
+# have been moved to a helper-function, which does accordingly evaluate the option and allow (if being set to True) the bot to perform related
+# tasks if being OP or HOP.
+conf.registerGlobalValue(ChanTracker, 'allowBotBeingHOPorOP',
+    registry.Boolean(False, """allow to run commands if the bot is run as HOP or OP instead of the default requiring to be OP"""))
