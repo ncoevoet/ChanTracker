@@ -1951,7 +1951,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 irc.replySuccess()
             else:
                 irc.reply('unknown patterns')
-    note = wrap(note,['op',commalist('something'),rest('text')])
+    m = wrap(m,['op',commalist('something'),rest('text')])
 
     def addpattern (self, irc, msg, args, channel, limit, life, mode, duration, pattern):
         """[<channel>] <limit> <life> <mode>(bqeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>
