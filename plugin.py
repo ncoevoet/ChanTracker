@@ -1641,7 +1641,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
             b = self._adds(irc,msg,args,channel,mode,items,getDuration(seconds),reason,False)
             if not msg.nick == irc.nick and not b:
-                irc.reply('unknown pattern or pattern already active')
+                irc.reply('nicks not found or hostmasks invalids or targets are already +%s' % mode)
         else:
             irc.reply('selected mode is not supported by config, see modesToAsk and modesToAskWhenOpped')
 
@@ -1653,7 +1653,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         +q targets for duration <reason> is mandatory"""
         b = self._adds(irc,msg,args,channel,'q',items,getDuration(seconds),reason,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown pattern, or pattern already active')
+            irc.reply('nicks not found or hostmasks invalids or targets are already +q')
     q = wrap(q,['op',commalist('something'),any('getTs',True),rest('text')])
 
     def b (self, irc, msg, args, channel, optlist, items, seconds, reason):
@@ -1666,7 +1666,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 perm = True
         b = self._adds(irc,msg,args,channel,'b',items,getDuration(seconds),reason,perm)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown pattern, or pattern already active')
+            irc.reply('nicks not found or hostmasks invalids or targets are already +b')
     b = wrap(b,['op',getopts({'perm':''}),commalist('something'),any('getTs',True),rest('text')])
 
     def i (self, irc, msg, args, channel, items, seconds, reason):
@@ -1675,7 +1675,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         +I targets for duration <reason> is mandatory"""
         b = self._adds(irc,msg,args,channel,'I',items,getDuration(seconds),reason,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown pattern, or pattern already active')
+            irc.reply('nicks not found or hostmasks invalids or targets are already +I')
     i = wrap(i,['op',commalist('something'),any('getTs',True),rest('text')])
 
     def e (self, irc, msg, args, channel, items, seconds, reason):
@@ -1684,7 +1684,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         +e targets for duration <reason> is mandatory"""
         b = self._adds(irc,msg,args,channel,'e',items,getDuration(seconds),reason,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown pattern, or pattern already active')
+            irc.reply('nicks not found or hostmasks invalids or targets are already +e')
     e = wrap(e,['op',commalist('something'),any('getTs',True),rest('text')])
 
     def undo (self, irc, msg, args, channel, mode, items):
@@ -1693,7 +1693,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         sets -<mode> on them, if * found, remove them all"""
         b = self._removes(irc,msg,args,channel,mode,items,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown patterns, already removed or unsupported mode')
+            irc.reply('nicks not found or hostmasks invalids or targets are not +%s' % mode)
     undo = wrap(undo,['op','letter',many('something')])
 
     def uq (self, irc, msg, args, channel, items):
@@ -1702,7 +1702,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         sets -q on them, if * found, remove them all"""
         b = self._removes(irc,msg,args,channel,'q',items,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown patterns, already removed or unsupported mode')
+            irc.reply('nicks not found or hostmasks invalids or targets are not +q')
     uq = wrap(uq,['op',many('something')])
 
     def ub (self, irc, msg, args, channel, optlist, items):
@@ -1717,11 +1717,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         if not msg.nick == irc.nick and not b:
             if perm:
                 if len(items) == 1:
-                    irc.reply('unknown patterns or already removed, you may try "channel ban remove %s %s"' % (channel,items[0]))
+                    irc.reply('nicks not found or hostmasks invalids or targets are not +b, you may try "channel ban remove %s %s"' % (channel,items[0]))
                 else:
-                    irc.reply('unknown patterns or already removed, you may try "channel ban remove %s %s"' % (channel,''))
+                    irc.reply('nicks not found or hostmasks invalids or targets are not +b, you may try "channel ban remove %s %s"' % (channel,''))
             else:
-                irc.reply('unknown patterns, already removed or unsupported mode')
+                irc.reply('nicks not found or hostmasks invalids or targets are not +b')
     ub = wrap(ub,['op',getopts({'perm':''}),many('something')])
 
     def ui (self, irc, msg, args, channel, items):
@@ -1730,7 +1730,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         sets -I on them, if * found, remove them all"""
         b = self._removes(irc,msg,args,channel,'I',items,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown patterns, already removed or unsupported mode')
+            irc.reply('nicks not found or hostmasks invalids or targets are not +I')
     ui = wrap(ui,['op',many('something')])
 
     def ue (self, irc, msg, args, channel, items):
@@ -1739,7 +1739,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         sets -e on them, if * found, remove them all"""
         b = self._removes(irc,msg,args,channel,'e',items,False)
         if not msg.nick == irc.nick and not b:
-            irc.reply('unknown patterns, already removed or unsupported mode')
+            irc.reply('nicks not found or hostmasks invalids or targets are not +e')
     ue = wrap(ue,['op',many('something')])
 
     def r (self,irc,msg,args,channel,nick,reason):
@@ -1914,7 +1914,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         irc.replySuccess()
     vacuum = wrap(vacuum,['owner'])
 
-    def note (self,irc,msg,args,channel,items,reason):
+    def m (self,irc,msg,args,channel,items,reason):
         """[<channel>] <nick|hostmask>[,<nick|hostmask>] <reason>
 
         store a new item in database under the mode 'm', markeable but not editable"""
@@ -2010,7 +2010,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     def rmmode (self,irc,msg,args,ids):
         """<id>,[,<id>]
 
-        remove entries from database, bot's owner command only"""  
+        remove entries from database, bot's owner command only"""
         i = self.getIrc(irc)
         results = []
         for id in ids:
