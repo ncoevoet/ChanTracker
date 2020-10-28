@@ -196,8 +196,8 @@ def getBestPattern (n,irc,useIp=False,resolve=True):
     if not n.prefix or not ircutils.isUserHostmask(n.prefix):
         return []
     (nick,ident,host) = ircutils.splitHostmask(n.prefix)
-    if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('gateway/vpn/') or host.startswith('unaffiliated/') or ident.startswith('~'):
-        ident = '*'
+    if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') or host.startswith('gateway/vpn/') or host.startswith('unaffiliated/') or ident.startswith('~') or n.realname == 'https://webchat.freenode.net':
+         ident = '*'
     if n.ip != None:
         if len(n.ip.split(':')) > 4:
             # large ipv6
@@ -1954,7 +1954,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     m = wrap(m,['op',commalist('something'),rest('text')])
 
     def addpattern (self, irc, msg, args, channel, limit, life, mode, duration, pattern):
-        """[<channel>] <limit> <life> <mode>(bqeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>
+        """[<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>
 
         add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds"""
         chan = self.getChan(irc,channel)
@@ -1967,7 +1967,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
 
 
     def addregexpattern (self, irc, msg, args, channel, limit, life, mode, duration, pattern):
-        """[<channel>] <limit> <life> <mode>(bqeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/
+        """[<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/
 
         add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds"""
         chan = self.getChan(irc,channel)
@@ -3279,31 +3279,51 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                     isCtcp = False
                     if isCtcpMsg and not isAction:
                         isCtcp = self._isSomething(irc,channel,best,'ctcp')
-                    isFlood = self._isFlood(irc,channel,best)
-                    isLowFlood = self._isLowFlood(irc,channel,best)
-                    isRepeat = self._isRepeat(irc,channel,best,text)
-                    isHilight = self._isHilight(irc,channel,best,text)
-                    isCap = self._isCap(irc,channel,best,text)
-                    isMass = self._isMassRepeat(irc,channel,text)
+                    flag = ircdb.makeChannelCapability(channel,'flood')
+                    isFlood = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isFlood = self._isFlood(irc,channel,best)
+                    flag = ircdb.makeChannelCapability(channel,'lowFlood')
+                    isLowFlood = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isLowFlood = self._isLowFlood(irc,channel,best)
+                    flag = ircdb.makeChannelCapability(channel,'repeat')
+                    isRepeat = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isRepeat = self._isRepeat(irc,channel,best,text)
+                    flag = ircdb.makeChannelCapability(channel,'hilight')
+                    isHilight = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isHilight = self._isHilight(irc,channel,best,text)
+                    flag = ircdb.makeChannelCapability(channel,'cap')
+                    isCap = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isCap = self._isCap(irc,channel,best,text)
+                    flag = ircdb.makeChannelCapability(channel,'massrepeat')
+                    isMass = False
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        isMass = self._isMassRepeat(irc,channel,text)
+                    flag = ircdb.makeChannelCapability(channel,'pattern')
                     isPattern = False
-                    for p in chan.patterns:
-                        pattern = chan.patterns[p]
-                        if pattern.match(text):
-                            if pattern.limit == 0:
-                                isPattern = pattern
-                                break
-                            else:
-                                prop = 'Pattern%s' % pattern.uid
-                                key = best
-                                if not prop in chan.spam:
-                                    chan.spam[prop] = {}
-                                if not key in chan.spam[prop] or chan.spam[prop][key].timeout != pattern.life:
-                                    chan.spam[prop][key] = utils.structures.TimeoutQueue(pattern.life)
-                                chan.spam[prop][key].enqueue(key)
-                                if len(chan.spam[prop][key]) > pattern.limit:
-                                    chan.spam[prop][key].reset()
+                    if ircdb.checkCapability(msg.prefix,flag):
+                        for p in chan.patterns:
+                            pattern = chan.patterns[p]
+                            if pattern.match(text):
+                                if pattern.limit == 0:
                                     isPattern = pattern
                                     break
+                                else:
+                                    prop = 'Pattern%s' % pattern.uid
+                                    key = best
+                                    if not prop in chan.spam:
+                                        chan.spam[prop] = {}
+                                    if not key in chan.spam[prop] or chan.spam[prop][key].timeout != pattern.life:
+                                        chan.spam[prop][key] = utils.structures.TimeoutQueue(pattern.life)
+                                    chan.spam[prop][key].enqueue(key)
+                                    if len(chan.spam[prop][key]) > pattern.limit:
+                                        chan.spam[prop][key].reset()
+                                        isPattern = pattern
+                                        break
                     if isPattern:
                          r = self.getIrcdMode(irc,isPattern.mode,best)
                          self._act(irc,channel,r[0],r[1],isPattern.duration,'matches #%s' % isPattern.uid)
