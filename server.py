@@ -1,4 +1,4 @@
-import BaseHTTPServer
+import http.server
 import os
 import time
 import base64
@@ -6,8 +6,8 @@ import re
 import supybot.utils as utils
 import sqlite3
 import collections
-import urllib
-from StringIO import StringIO
+import urllib.parse
+from io import StringIO
 
 host = 'http://domain.tld'
 port = 80
@@ -19,8 +19,8 @@ filename = '/home/botaccount/data/networkname/ChanTracker.db'
 channels = [] # empty to allows view of all channels recorded, otherwise restrict the views to channels
 
 # usage python server.py
-
-base64string = base64.encodestring('%s:%s' % (username,password))[:-1]
+auth = '%s:%s' % (username,password)
+base64string = base64.b64encode(auth.encode('UTF-8'))
 
 def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 				weeks=True, days=True, hours=True, minutes=True, seconds=True):
@@ -59,13 +59,13 @@ def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 			leadingZeroes = True
 			Format('second', secs)
 	if not ret:
-		raise ValueError, 'Time difference not great enough to be noted.'
+		raise ValueError('Time difference not great enough to be noted.')
 	if short:
 		return ' '.join(ret)
 	else:
 		return format('%L', ret)
 
-class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
+class MyHandler( http.server.BaseHTTPRequestHandler ):
 	server_version= "Ircd-Seven/1.1"
 	if not standalone:
 		def log_request(self, *args):
@@ -93,17 +93,17 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 				if aa[0] == 'password':
 					p = aa[1]
 			if u and p:
-				raw = base64.encodestring('%s:%s' % (u,p))[:-1]
+				raw = base64.encodebytes(bytes('%s:%s' % (u,p), 'UTF-8'))[:-1]
 				if not raw == base64string:
 					query = ''
 				else:
-					query = '/?hash=%s' % base64string
+					query = '/?hash=%s' % base64string.decode('UTF-8')
 		if not query.startswith('/?hash='):
 			body.append('<html>\n<head>\n<title>ChanTracker</title>\n')
 			body.append('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n')
 			body.append("</head>\n<body>\n")
 			body.append('<form action="%s">\n' % h)
-			body.append('<p>Username:<input name="username" /></p>\n') 
+			body.append('<p>Username:<input name="username" /></p>\n')
 			body.append('<p>Password:<input name="password" type="password"/></p>\n')
 			body.append('<input type="submit" value="Login" />\n')
 			body.append("</form>\n")
@@ -113,16 +113,16 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 			full = ''.join(body)
 			self.send_header("Content-length",str(len(full)))
 			self.end_headers()
-			self.wfile.write(full)
+			self.wfile.write(full.encode('UTF-8'))
 			return
 		if query.startswith('/?hash='):
 			a = query.split('&')[0]
 			a = a.replace('/?hash=','')
 			query = query.replace('%3D','=')
-			query = query.replace('/?hash=%s' % base64string,'/')
-			q = '?hash=%s' % base64string
-			query = urllib.unquote( query )
-			print query
+			query = query.replace('/?hash=%s' % base64string.decode('UTF-8'),'/')
+			q = '?hash=%s' % base64string.decode('UTF-8')
+			query = urllib.parse.unquote( query )
+			print(query)
 		body.append('<html style="text-align:center;font-size:1.2em;">\n<head>\n<title>BanTracker - %s</title>\n' % query)
 		body.append('<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n')
 		body.append('<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"></link>\n')
@@ -131,7 +131,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 		body.append('<div class="row"><div class="col-xs-6">\n')
 		body.append('<form action="%s" class="form">\n' % q)
 		body.append('<div class="input-group">')
-		body.append('<input type="hidden" name="hash" value="%s">' % base64string)
+		body.append('<input type="hidden" name="hash" value="%s">' % base64string.decode('UTF-8'))
 		body.append('<input name="search" class="form-control" />\n')
 		body.append('<span class="input-group-btn"><button type="submit" class="btn btn-default">Search</button></span>\n')
 		body.append('</div></form></div></div>\n')
@@ -256,7 +256,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 			elif query.startswith('/&search='):
 				search = query.split('/&search=')[1]
 				search = search.replace('+','*')
-				print search
+				print(search)
 				if search:
 					s = '*%s*' % search
 					qu = '%'+search+'%'
@@ -315,7 +315,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 				else:
 					body.append('<p>nothing found</p>\n')
 			if len(ar):
-				print 'found %s results' % len(ar)
+				print('found %s results' % len(ar))
 				i = 0
 				body.append('<h3>results <small>%s</small></h3>' % search)
 				body.append('<div class="row"><div class="col-xs-12"><table class="table table-bordered sortable">\n')
@@ -327,9 +327,9 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 						body.append('<tr>\n')
 						body.append('<td><a href="%s%s&id=%s">%s</a></td>\n' % (h,q,id,id))
 						body.append('<td><a href="%s%s&channel=%s">%s</a></td>\n' % (h,q,channel.split('#')[1],channel))
-						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'oper':oper}),oper))
+						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.parse.urlencode({'oper':oper}),oper))
 						body.append('<td>+%s</td>\n' % kind)
-						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'mask':mask}),mask))
+						body.append('<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.parse.urlencode({'mask':mask}),mask))
 						s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
 						body.append('<td>%s</td>\n' % s)
 						if end_at and end_at != begin_at:
@@ -343,7 +343,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 						else:
 							body.append( '<td></td>\n' )
 						if removed_by:
-							body.append( '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.urlencode({'removed_by':removed_by}),removed_by))
+							body.append( '<td><a href="%s%s&%s">%s</a></td>\n' % (h,q,urllib.parse.urlencode({'removed_by':removed_by}),removed_by))
 						else:
 							body.append( '<td></td>\n')
 #						affected = ''
@@ -361,10 +361,10 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 		self.send_response(200)
 		self.send_header("Content-type","text/html")
 		full = ''.join(body)
-		print 'html lines %s' % len(full)
+		print('html lines %s' % len(full))
 		self.send_header("Content-length",len(full))
 		self.end_headers()
-		self.wfile.write(full)
+		self.wfile.write(full.encode('UTF-8'))
 		c.close()
 
 	def _getbandb (self):
@@ -402,7 +402,7 @@ class MyHandler( BaseHTTPServer.BaseHTTPRequestHandler ):
 		return db
 
 def httpd(handler_class=MyHandler, server_address = ('', port), ):
-	srvr = BaseHTTPServer.HTTPServer(server_address, handler_class)
+	srvr = http.server.HTTPServer(server_address, handler_class)
 	srvr.serve_forever()
 
 if __name__ == "__main__":
