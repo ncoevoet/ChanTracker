@@ -2,7 +2,7 @@
 
 This supybot plugin keeps records of channel mode changes in a sqlite database and permits management of them over time. It stores affected users, enabling deep searching through them, reviewing actives, editing duration, showing logs, marking/annotating them, etc.
 
-The plugin is used in various and large channels on freenode and others networks
+The plugin is used in various and large channels on Libera.Chat and others networks
 This version works with python 3
 
 Note that you may need a newer version of Limnoria than your distribution provides, and you may need to install from the Limnoria source code or from PyPI / `pip` to make it function.  (Currently requires Limnoria version `2018.04.14` or newer)
@@ -273,4 +273,4 @@ This command works with the limnoria testing version containing this pull reques
 
 ## Bugs and Features ##
 
-Requests can be made via https://github.com/ncoevoet/ChanTracker or in #chantracker on chat.freenode.net.
+Requests can be made via https://github.com/ncoevoet/ChanTracker or in #chantracker on chat.libera.chat.
