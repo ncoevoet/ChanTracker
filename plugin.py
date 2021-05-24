@@ -2973,7 +2973,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 # keeping this nick, may trigger cycle check
                 removeNick = False
             elif reason and reason.startswith('Killed (') or reason.startswith('K-Lined'):
-                if not 'Nickname regained by services' in reason:
+                if not 'Nickname regained by services' in reason and not 'NickServ (GHOST command used by ' in reason:
                     for channel in irc.state.channels:
                         chan = self.getChan(irc,channel)
                         if msg.nick in chan.nicks:
