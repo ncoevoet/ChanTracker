@@ -1583,11 +1583,12 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     def pending (self, irc, msg, args, channel, optlist):
         """[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
 
-        returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids), --duration (item longer than)"""
+        returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids), --duration (item longer than), --count"""
         mode = None
         oper = None
         never = False
         ids = False
+        count = False
         duration = -1
         for (option, arg) in optlist:
             if option == 'mode':
@@ -1600,6 +1601,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 ids = True
             elif option == 'duration':
                 duration = int(arg)
+            elif option == 'count':
+                count = True
         if never and duration > 0:
             irc.reply("you can't use --never and --duration at same time")
             return
@@ -1611,10 +1614,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             mode = self.registryValue('modesToAskWhenOpped',channel=channel) + self.registryValue('modesToAsk',channel=channel)
         results = i.pending(irc,channel,mode,msg.prefix,oper,self.getDb(irc.network),never,ids,duration)
         if len(results):
-            irc.reply(', '.join(results), private=True)
+            if count:
+                irc.reply('%s items' % len(results), private=True)
+            else:
+                irc.reply(', '.join(results), private=True)
         else:
             irc.reply('no result')
-    pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'duration' : 'getTs'})])
+    pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'count': '', 'duration' : 'getTs'})])
 
     def _modes (self,numModes,chan,modes,f):
         for i in range(0, len(modes), numModes):
@@ -2593,8 +2599,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         # send messages to logChannel if configured for
         if channel in irc.state.channels:
             logChannel = self.registryValue('logChannel',channel=channel)
+            i = self.getIrc(irc)
             if logChannel in irc.state.channels:
-                i = self.getIrc(irc)
                 if logChannel == channel and irc.state.channels[channel].isHalfopPlus(irc.nick) and self.registryValue('keepOp',channel=channel):
                     if self.registryValue ('announceWithNotice',channel=channel):
                         i.lowQueue.enqueue(ircmsgs.IrcMsg('NOTICE @%s :%s' % (logChannel,message)))
