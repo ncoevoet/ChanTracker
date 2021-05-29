@@ -71,6 +71,9 @@ conf.registerChannelValue(ChanTracker, 'avoidOverlap',
 conf.registerChannelValue(ChanTracker, 'useIpForGateway',   
     registry.Boolean(False, """use *!*@*ip bans instead of *!ident@gateway/* when gateways cloak is found and ends with ip.*"""))
 
+conf.registerChannelValue(ChanTracker, 'triggerOps',   
+    registry.Boolean(False, """!ops triggers a message in logChannel"""))
+
 conf.registerChannelValue(ChanTracker, 'opCommand',
     registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator mode"""), opSettable=False)
 

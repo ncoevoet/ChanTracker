@@ -1801,6 +1801,21 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         self._tickle(irc)
     overlap = wrap(overlap,['op','text'])
 
+    def ops (self,irc,msg,args,channel,text):
+        """[<reason>]
+
+        triggers ops in the operators channels"""
+        if not self.registryValue('triggerOps',channel=channel):
+            return
+        if not text:
+            text = ''
+        schannel = channel
+        if self.registryValue('useColorForAnnounces',channel=channel):
+            schannel = ircutils.bold(channel)
+        self._logChan(irc,channel,"[%s] %s wants attention from ops (%s)" % (channel,msg.prefix,text))
+    ops = wrap(ops,['channel',optional('text')])
+
+
     def match (self,irc,msg,args,channel,prefix):
         """[<channel>] <nick|hostmask#username>
 
@@ -2743,7 +2758,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                                         chan.action.enqueue(ircmsgs.IrcMsg('MODE %s %s' % (channel,self.registryValue('massJoinUnMode',channel=channel))))
                             schedule.addEvent(unAttack,float(time.time()+self.registryValue('massJoinDuration',channel=channel)))
                             self.forceTickle = True
-                    if not banned:
+                    flag = ircdb.makeChannelCapability(channel,'clone')
+                    if not banned and ircdb.checkCapability(msg.prefix,flag):
                         permit = self.registryValue('clonePermit',channel=channel)
                         if permit > -1:
                             clones = []
