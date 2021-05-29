@@ -3492,7 +3492,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 i.askedItems[prefix][found[0]][6] = True
                 i.lowQueue.enqueue(ircmsgs.privmsg(nick,found[5]))
                 self.forceTickle
-        schedule.addEvent(unAsk,time.time() + 180 * len(list(i.askedItems[prefix])))
+        schedule.addEvent(unAsk,time.time() + 300 * len(list(i.askedItems[prefix])))
 
     def doTopic(self, irc, msg):
         if len(msg.args) == 1:
@@ -3591,7 +3591,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
                             item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network),self.registryValue('trackAffected',channel=channel),self)
                             if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
+                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 5 minutes' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
                                 if self.registryValue('useColorForAnnounces',channel=channel):
                                     data[5] = 'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
                                 self.addToAsked (irc,msg.prefix,data,msg.nick)
