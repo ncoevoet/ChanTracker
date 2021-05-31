@@ -171,13 +171,16 @@ def match (pattern,n,irc,resolve):
             p = p[1:]
         if extprefix in p and not p.endswith(extprefix):
             # forward
-            p = p[(p.rfind(extprefix)+1):]
+            p = p.split(extprefix)[0]
+            #p = p[(p.rfind(extprefix)+1):]
         if t == 'a':
             cache[key] = matchAccount (pattern,p,negate,n,extprefix)
         elif t == 'r':
             cache[key] = matchRealname (pattern,p,negate,n,extprefix)
         elif t == 'x':
             cache[key] = matchGecos (pattern,p,negate,n,extprefix)
+        elif t == 'z':
+            return None
         else:
             # bug if ipv6 used ..
             k = pattern[(pattern.rfind(':')+1):]
@@ -200,10 +203,10 @@ def getBestPattern (n,irc,useIp=False,resolve=True):
          ident = '*'
     if n.ip != None:
         if len(n.ip.split(':')) > 4:
-            # large ipv6
-            a = n.ip.split(':')
-            m = a[0]+':'+a[1]+':'+a[2]+':'+a[3]+':*'
-            results.append('*!%s@%s' % (ident,m))
+            # large ipv6, for now, use the full ipv6
+            #a = n.ip.split(':')
+            #m = a[0]+':'+a[1]+':'+a[2]+':'+a[3]+':*'
+            results.append('*!%s@%s' % (ident,n.ip))
         else:
             if useIp:
                 results.append('*!%s@*%s' % (ident,n.ip))
@@ -1812,7 +1815,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         schannel = channel
         if self.registryValue('useColorForAnnounces',channel=channel):
             schannel = ircutils.bold(channel)
-        self._logChan(irc,channel,"[%s] %s wants attention from ops (%s)" % (channel,msg.prefix,text))
+        self._logChan(irc,channel,"[%s] %s wants attention from ops (%s)" % (schannel,msg.prefix,text))
     ops = wrap(ops,['channel',optional('text')])
 
 
