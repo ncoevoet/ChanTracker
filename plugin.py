@@ -3610,7 +3610,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
                             item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network),self.registryValue('trackAffected',channel=channel),self)
                             if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 5 minutes' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
+                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 5 minutes (example: 10m offtopic)' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
                                 if self.registryValue('useColorForAnnounces',channel=channel):
                                     data[5] = 'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
                                 self.addToAsked (irc,msg.prefix,data,msg.nick)
@@ -3654,7 +3654,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                                                 irc.queueMsg(ircmsgs.notice(nick,qm))
                                             else:
                                                 irc.queueMsg(ircmsgs.privmsg(nick,qm))
-                        if m in self.registryValue('kickMode',channel=channel) and not value.startswith('m:'):
+                        if m in self.registryValue('kickMode',channel=channel) and not value.startswith('m:') and self.registryValue('kickOnMode',channel=channel):
                             self.hasExtendedSharedBan(irc,channel,value,m)
                         # bot just got op
                         if m == 'o' and value == irc.nick:
