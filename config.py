@@ -79,7 +79,7 @@ conf.registerChannelValue(ChanTracker, 'opCommand',
 
 conf.registerChannelValue(ChanTracker, 'modesToAsk',
     registry.CommaSeparatedListOfStrings(['b','q'], """list of channel modes to sync into the bot's tracking database when it joins the channel"""))
-    
+
 conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
     registry.CommaSeparatedListOfStrings(['e','I'], """list of channel modes to sync into the bot's tracking database when it is opped"""))
 
@@ -88,8 +88,17 @@ conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
 conf.registerChannelValue(ChanTracker, 'autoExpire',
     registry.Integer(-1, """default expiration time for newly placed bans; -1 disables auto-expiration, otherwise it's in seconds"""))
 
+conf.registerChannelValue(ChanTracker, 'removeAllBans', 
+    registry.Boolean(False, """prevent accidental removal of all bans"""))
+conf.registerChannelValue(ChanTracker, 'removeAllQuiets', 
+    registry.Boolean(False, """prevent accidental removal of all quiets"""))
+conf.registerChannelValue(ChanTracker, 'removeAllExempts', 
+    registry.Boolean(False, """prevent accidental removal of all exempts"""))
+conf.registerChannelValue(ChanTracker, 'removeAllInvites',
+    registry.Boolean(False, """prevent accidental removal of all invites"""))
+
 # announces related to logChannel
-    
+
 conf.registerChannelValue(ChanTracker, 'logChannel',
     registry.String("", """where bot announces op's actions; it is highly recommended to set an appropriate operator's channel to receive the various useful messages, nick can be used"""),opSettable=False)
 

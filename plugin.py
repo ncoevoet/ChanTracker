@@ -1709,6 +1709,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         """[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
         sets -q on them, if * found, remove them all"""
+        isMass = False
+        for item in items:
+            if item == '*':
+                isMass = True
+        if isMass and not self.registryValue('removeAllQuiets',channel=channel):
+            irc.reply('removal of all quiets has been disabled for %s' % channel)
+            return
         b = self._removes(irc,msg,args,channel,'q',items,False)
         if not msg.nick == irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalids or targets are not +q')
@@ -1722,6 +1729,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         for (option, arg) in optlist:
             if option == 'perm':
                 perm = True
+        isMass = False
+        for item in items:
+            if item == '*':
+                isMass = True
+        if isMass and not self.registryValue('removeAllBans',channel=channel):
+            irc.reply('removal of all bans has been disabled for %s' % channel)
+            return
         b = self._removes(irc,msg,args,channel,'b',items,perm)
         if not msg.nick == irc.nick and not b:
             if perm:
@@ -1737,6 +1751,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         """[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
         sets -I on them, if * found, remove them all"""
+        isMass = False
+        for item in items:
+            if item == '*':
+                isMass = True
+        if isMass and not self.registryValue('removeAllInvites',channel=channel):
+            irc.reply('removal of all invites has been disabled for %s' % channel)
+            return
         b = self._removes(irc,msg,args,channel,'I',items,False)
         if not msg.nick == irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalids or targets are not +I')
@@ -1746,6 +1767,13 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         """[<channel>] <nick|hostmask|*> [<nick|hostmask|*>]
 
         sets -e on them, if * found, remove them all"""
+        isMass = False
+        for item in items:
+            if item == '*':
+                isMass = True
+        if isMass and not self.registryValue('removeAllExempts',channel=channel):
+            irc.reply('removal of all exempts has been disabled for %s' % channel)
+            return
         b = self._removes(irc,msg,args,channel,'e',items,False)
         if not msg.nick == irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalids or targets are not +e')
