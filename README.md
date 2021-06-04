@@ -190,6 +190,8 @@ The plugin has a lot of built-in channel protection features that can be enabled
 
 You should tweak settings to fits your needs, do not use default values. It really depends channel's population and usage ...
 
+But first, you must remove protected capability given by default to everyone: `defaultcapability remove protected` because the bot will do nothing against users with protected capabilities (`#channel,protected`).
+
 Each of those detections has the same kind of settings: there is *Permit (-1 to disable), *Life (which is the time interval over which the bot will track previous messages/behaviour), *Mode (which allows you to select which action you want to use against the user). The action modes that can be set are:
 
 - q : quiet the user
@@ -233,8 +235,6 @@ Example: a user repeating the same thing: (use repeat detection rather than mass
     !config channel #channel supybot.plugins.ChanTracker.repeatPercent 0.88 <-- 1.00 for identical message, don't go too lower, you will get false positive
     !config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
     !config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
-
-Even with all these channel protection features, the bot will do nothing against users with protected capabilities (#channel,protected).
 
 ## Other tips ##
 
