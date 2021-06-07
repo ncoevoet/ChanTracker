@@ -1372,7 +1372,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                             if len(toNag):
                                 message = '[%s] has %s mode' % (channel,toNag)
                                 if self.registryValue('useColorForAnnounces',channel=channel):
-                                    message = '[%s] has %s mode' % (ircutils.bold(channel),toNag)
+                                    message = '[%s] has %s mode' % (ircutils.bold(channel),ircutils.mircColor(toNag,'red'))
                                 self._logChan(irc,channel,message)
         if self.registryValue('announceNagInterval') > 0:
             schedule.addEvent(self.checkNag,time.time()+self.registryValue('announceNagInterval'))
@@ -1629,19 +1629,26 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         for i in range(0, len(modes), numModes):
             chan.action.enqueue(f(modes[i:i + numModes]))
 
-    def modes (self, irc, msg, args, channel, modes):
-        """[<channel>] <mode> [<arg> ...]
+    def modes (self, irc, msg, args, channel, delay, modes):
+        """[<channel>] [<delay>] <mode> [<arg> ...]
 
         Sets the mode in <channel> to <mode>, sending the arguments given.
         <channel> is only necessary if the message isn't sent in the channel
-        itself. it bypass autoexpire and everything, bot will ask for OP, if needed.
+        itself. <delay in seconds> is optional
         """
         def f(L):
             return applymodes(channel,L)
-        self._modes(irc.state.supported.get('modes', 1),self.getChan(irc,channel),ircutils.separateModes(modes),f)
-        self.forceTickle = True
-        self._tickle(irc)
-    modes = wrap(modes, ['op', many('something')])
+        def la():
+            self._modes(irc.state.supported.get('modes', 1),self.getChan(irc,channel),ircutils.separateModes(modes),f)
+            self.forceTickle = True
+            self._tickle(irc)
+        duration = getDuration(delay)
+        if duration > 0:
+            schedule.addEvent(la,time.time()+duration)
+        else:
+            la()
+        irc.replySuccess()
+    modes = wrap(modes, ['op', any('getTs',True), many('something')])
 
     def do (self,irc,msg,args,channel,mode,items,seconds,reason):
         """[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
@@ -3638,9 +3645,9 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         if m in self.registryValue('modesToAskWhenOpped',channel=channel) or m in self.registryValue('modesToAsk',channel=channel):
                             item = chan.addItem(m,value,msg.prefix,now,self.getDb(irc.network),self.registryValue('trackAffected',channel=channel),self)
                             if msg.nick != irc.nick and self.registryValue('askOpAboutMode',channel=channel) and ircdb.checkCapability(msg.prefix, '%s,op' % channel):
-                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 5 minutes (example: 10m offtopic)' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
+                                data = [item.uid,m,value,channel,msg.prefix,'For [#%s %s %s in %s - %s user(s)] <duration> <reason>, you have 5 minutes (example: 10m offtopic)' % (item.uid,'+%s' % m,value,channel,len(item.affects)),False]
                                 if self.registryValue('useColorForAnnounces',channel=channel):
-                                    data[5] = 'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 3 minutes' % (ircutils.mircColor(item.uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
+                                    data[5] = 'For [#%s %s %s in %s - %s user(s)] type <duration> <reason>, you have 5 minutes (example: 10m offtopic)' % (ircutils.mircColor(item.uid,'yellow','black'),ircutils.bold(ircutils.mircColor('+%s' % m,'green')),ircutils.mircColor(value,'light blue'),channel,len(item.affects))
                                 self.addToAsked (irc,msg.prefix,data,msg.nick)
                             if overexpire > 0:
                                 if msg.nick != irc.nick:
