@@ -239,39 +239,30 @@ registry.PositiveInteger(180,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'lowFloodComment',
 registry.String('low flood detected',"""comment added on mode changes database, empty for no comment"""))
 
-# repeat detection
+# repeat abuse
 conf.registerChannelValue(ChanTracker, 'repeatPermit',
-registry.Integer(-1,"""Number of repeated text allowed, -1 to disable"""))
+registry.Integer(-1,"""number of triggers allowed, -1 to disable"""))
 conf.registerChannelValue(ChanTracker, 'repeatLife',
-registry.PositiveInteger(12,"""Duration of messages's life in repeatPermit counter in seconds"""))
-conf.registerChannelValue(ChanTracker, 'repeatPercent',
-registry.Probability(0.85,"""percent of similarity needed between previous and current message to trigger a repeat count"""))
+registry.PositiveInteger(12,"""life duration of triggers in seconds"""))
 conf.registerChannelValue(ChanTracker, 'repeatMode',
-registry.String('q',"""mode used by the bot when repeat detection is triggered"""))
+registry.String('q',"""action when repeatPermit is triggered"""))
 conf.registerChannelValue(ChanTracker, 'repeatDuration',
-registry.PositiveInteger(180,"""punishment duration  in seconds"""))
+registry.PositiveInteger(180,"""punishment duration in seconds"""))
 conf.registerChannelValue(ChanTracker, 'repeatComment',
 registry.String('repeat detected',"""comment added on mode changes database, empty for no comment"""))
 
-# mass repeat detection
-conf.registerChannelValue(ChanTracker, 'massRepeatChars',
-registry.PositiveInteger(40,"""number of chars needed to enter massRepeat detection"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatPermit',
-registry.Integer(-1,"""Number of repeated text allowed, -1 to disable, tracks message repetition from various sources on the given channel"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatLife',
-registry.PositiveInteger(12,"""Duration of messages's life in massRepeat counter, in seconds"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatPercent',
-registry.Probability(0.85,"""percentage similarity between previous and current message to trigger a repeat count"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatMode',
-registry.String('b',"""mode used by the bot when repeat detection is triggered"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatDuration',
-registry.PositiveInteger(1800,"""punition in seconds"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatComment',
-registry.String('mass repeat detected',"""comment added on mode changes database, empty for no comment"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatPatternLife',
+# repeat detection
+conf.registerChannelValue(ChanTracker, 'repeatMinimum',
+registry.PositiveInteger(8,"""minimal candidates patterns length to detect repetitions"""))
+conf.registerChannelValue(ChanTracker, 'repeatPercent',
+registry.Probability(0.85,"""percent of similarity between messages or pattern candidates"""))
+conf.registerChannelValue(ChanTracker, 'repeatCount',
+registry.PositiveInteger(5,"""numbers of occurences of candidates patterns"""))
+conf.registerChannelValue(ChanTracker, 'repeatPatternMinimum',
+registry.Integer(-1,"""minimal length to create automated pattern, if found, triggers same punishment than repeatMode/repeatDuration, -1 to disable"""))
+conf.registerChannelValue(ChanTracker, 'repeatPatternLife',
 registry.PositiveInteger(300,"""duration of pattern life"""))
-conf.registerChannelValue(ChanTracker, 'massRepeatPatternLength',
-registry.Integer(-1,"""if -1, it uses the default system to compare strings, otherwise, it try to find the longest common message, and use it as a regexp pattern, if found string < length setted, it uses the default string compare"""))
+
 
 # YES IT'S ANNOYING
 
