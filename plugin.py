@@ -1630,7 +1630,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         irc.queueMsg(ircmsgs.privmsg(msg.nick, result))
         else:
             irc.reply('no result')
-    pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'count': '', 'duration' : 'getTs'})])
+    pending = wrap(pending,['op',getopts({'flood':'','mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'count': '', 'duration' : 'getTs'})])
 
     def _modes (self,numModes,chan,modes,f):
         for i in range(0, len(modes), numModes):
