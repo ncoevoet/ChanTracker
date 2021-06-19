@@ -2174,28 +2174,33 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     def _removes (self,irc,msg,args,channel,mode,items,perm=False):
         i = self.getIrc(irc)
         chan = self.getChan(irc,channel)
-        targets = []
+        targets = set([])
         massremove = False
         count = 0
+        LL = chan.getItemsFor(self.getIrcdMode(irc,mode,'*!*@*')[0])
         if mode in self.registryValue('modesToAsk',channel=channel) or mode in self.registryValue('modesToAskWhenOpped',channel=channel):
             for item in items:
                 if item in i.nicks or item in irc.state.channels[channel].users:
                     n = self.getNick(irc,item)
-                    L = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
                     # here we check active items against Nick and add each pattern which matchs him
+                    L = chan.getItemsFor(self.getIrcdMode(irc,mode,n.prefix)[0])
                     for pattern in L:
                         m = match(L[pattern].value,n,irc,self.registryValue('resolveIp'))
                         if m:
-                            targets.append(L[pattern].value)
+                            targets.add(L[pattern].value)
                 elif ircutils.isUserHostmask(item) or self.getIrcdExtbansPrefix(irc) in item:
-                    targets.append(item)
+                    # previously we were adding directly the item to remove, now we check it agaisnt the active list
+                    # that allows to uq $a:* and delete all the quiets on $a:something
+                    for pattern in LL:
+                        if ircutils.hostmaskPatternEqual(item,LL[pattern].value):
+                            targets.add(LL[pattern].value)
                 elif item == '*':
                     massremove = True
                     targets = []
                     if channel in list(irc.state.channels.keys()):
                         L = chan.getItemsFor(self.getIrcdMode(irc,mode,'*!*@*')[0])
                         for pattern in L:
-                            targets.append(L[pattern].value)
+                            targets.add(L[pattern].value)
                     break
             f = None
             if massremove:
