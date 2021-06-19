@@ -56,9 +56,9 @@ from ipaddress import ip_network as IPNetwork
 
 #due to more kind of pattern checked, increase size
 
-ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(4000)
+ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(10000)
 
-cache = utils.structures.CacheDict(4000)
+cache = utils.structures.CacheDict(10000)
 
 def applymodes(channel, args=(), prefix='', msg=None):
     """Returns a MODE that applies changes on channel."""
@@ -399,7 +399,7 @@ class Ircd (object):
                             r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
                     else:
                         if duration > 0:
-                            log.debug('%s -> %s : %s' % (duration,item.when,(t-item.when)))
+                            #log.debug('%s -> %s : %s' % (duration,item.when,(t-item.when)))
                             if (t - item.when) > duration:
                                 r.append([item.uid,item.mode,item.value,item.by,item.when,item.expire])
                         else:
@@ -1584,14 +1584,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
     query = wrap(query,['user',getopts({'deep': '', 'never': '', 'ids':'', 'active' : '','channel':'channel'}),'text'])
 
     def pending (self, irc, msg, args, channel, optlist):
-        """[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
+        """[<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--count] [--flood] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
 
-        returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids), --duration (item longer than), --count"""
+        returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids), --duration (item longer than), --count returns the total, --flood one message per mode"""
         mode = None
         oper = None
         never = False
         ids = False
         count = False
+        flood = False
         duration = -1
         for (option, arg) in optlist:
             if option == 'mode':
@@ -1606,6 +1607,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                 duration = int(arg)
             elif option == 'count':
                 count = True
+            elif option == 'flood':
+                flood = True
         if never and duration > 0:
             irc.reply("you can't use --never and --duration at same time")
             return
@@ -1620,7 +1623,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             if count:
                 irc.reply('%s items' % len(results), private=True)
             else:
-                irc.reply(', '.join(results), private=True)
+                if not flood:
+                    irc.reply(', '.join(results), private=True)
+                else:
+                    for result in results:
+                        irc.queueMsg(ircmsgs.privmsg(msg.nick, result))
         else:
             irc.reply('no result')
     pending = wrap(pending,['op',getopts({'mode': 'letter', 'never': '', 'oper' : 'somethingWithoutSpaces', 'ids' : '', 'count': '', 'duration' : 'getTs'})])
@@ -1630,11 +1637,11 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             chan.action.enqueue(f(modes[i:i + numModes]))
 
     def modes (self, irc, msg, args, channel, delay, modes):
-        """[<channel>] [<delay>] <mode> [<arg> ...]
+        """[<channel>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <mode> [<arg> ...]
 
         Sets the mode in <channel> to <mode>, sending the arguments given.
         <channel> is only necessary if the message isn't sent in the channel
-        itself. <delay in seconds> is optional
+        itself. <delay> is optional
         """
         def f(L):
             return applymodes(channel,L)
