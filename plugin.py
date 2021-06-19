@@ -1916,6 +1916,23 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             irc.reply('invalid pattern given')
     check = wrap (check,['op','text'])
 
+    def cpmode (self,irc,msg,args,channel,sourceMode,target,targetMode,seconds,reason):
+        """[<channelSource>] <channelMode> <channelTarget> <targetMode> [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>
+
+        copy <channelSource> <channelMode> elments in <channelTarget> on <targetMode>"""
+        op = ircdb.makeChannelCapability(target, 'protected')
+        if not ircdb.checkCapability(msg.prefix, op):
+            irc.replyError('you are missing %s,op capability' % target)
+            return
+        chan = self.getChan(irc,channel)
+        targets = set([])
+        L = chan.getItemsFor(self.getIrcdMode(irc,sourceMode,'*!*@*')[0])
+        for element in L:
+            targets.add(L[element].value)
+        self._adds(irc,msg,args,target,targetMode,targets,getDuration(seconds),reason,False)
+        irc.replySuccess()
+    cpmode = wrap (cpmode,['op','letter','validChannel','letter',any('getTs',True),rest('text')])
+
     def getmask (self,irc,msg,args,channel,prefix):
         """[<channel>] <nick|hostmask>
 
