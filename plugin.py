@@ -990,6 +990,11 @@ class Chan (object):
                         L.append(nick)
                     for nick in L:
                         n = self.ircd.getNick(self.ircd.irc,nick)
+                        if not n.prefix:
+                            try:
+                                n.setPrefix(self.ircd.irc.state.nickToHostmask(nick))
+                            except:
+                                pass
                         m = match(value,n,self.ircd.irc,ct.registryValue('resolveIp'))
                         if m:
                             i.affects.append(n.prefix)
@@ -1903,11 +1908,15 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             results = []
             i = self.getIrc(irc)
             for nick in list(irc.state.channels[channel].users):
-                if nick in i.nicks:
-                    n = self.getNick(irc,nick)
-                    m = match(pattern,n,irc,self.registryValue('resolveIp'))
-                    if m:
-                        results.append('[%s - %s]' % (nick,m))
+                n = self.getNick(irc,nick)
+                if not n.prefix:
+                    try:
+                        n.setPrefix(self.ircd.irc.state.nickToHostmask(nick))
+                    except:
+                        pass
+                m = match(pattern,n,irc,self.registryValue('resolveIp'))
+                if m:
+                    results.append('[%s - %s]' % (nick,m))
             if len(results):
                 irc.reply('%s user(s): %s' % (len(results),' '.join(results)))
             else:
@@ -2254,6 +2263,7 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         # init irc db
         if not irc.network in self._ircs:
             i = self._ircs[irc.network] = Ircd (irc,self.registryValue('logsSize'))
+            irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :account-tag'))
         return self._ircs[irc.network]
 
     def getChan (self,irc,channel):
@@ -2675,6 +2685,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                         self._logChan(irc,channel,"[%s] is ready" % ircutils.bold(channel))
                     else:
                         self._logChan(irc,channel,"[%s] is ready" % channel)
+                for nick in list(irc.state.channels[channel].users):
+                    chan.nicks[nick] = True
         self._tickle(irc)
 
     def _logChan (self,irc,channel,message):
@@ -2761,6 +2773,14 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
                                     break
         self._tickle(irc)
 
+    def doChghost (self,irc,msg):
+        n = self.getNick(irc,msg.nick)
+        (user, host) = msg.args
+        hostmask = '%s!%s@%s' % (msg.nick, user, host)
+        n.setPrefix(hostmask)
+        if 'account' in msg.server_tags:
+            n.setAccount(msg.server_tags['account'])
+
     def doJoin (self,irc,msg):
         channels = msg.args[0].split(',')
         n = self.getNick(irc,msg.nick)
@@ -2769,14 +2789,19 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         if len(msg.args) == 3:
             n.setRealname(msg.args[2])
             n.setAccount(msg.args[1])
+        if 'account' in msg.server_tags:
+            n.setAccount(msg.server_tags['account'])
         if msg.nick == irc.nick:
             self.forceTickle = True
             self._tickle(irc)
             return
-        if self.registryValue('resolveIp') and not '/' in msg.prefix.split('@')[1] and n.ip == None:
-            t = world.SupyThread(target=self.resolve,name=format('Resolving %s for %s', msg.prefix, channels),args=(irc,channels,msg.prefix))
-            t.setDaemon(True)
-            t.start()
+        if not '/' in msg.prefix.split('@')[1] and n.ip == None:
+            if self.registryValue('resolveIp'):
+                t = world.SupyThread(target=self.resolve,name=format('Resolving %s for %s', msg.prefix, channels),args=(irc,channels,msg.prefix))
+                t.setDaemon(True)
+                t.start()
+            elif utils.net.isIP(msg.prefix.split('@')[1]):
+                n.setIp(msg.prefix.split('@')[1])
         for channel in channels:
             if ircutils.isChannel(channel) and channel in irc.state.channels:
                 bests = getBestPattern(n,irc,self.registryValue('useIpForGateway',channel=channel),self.registryValue('resolveIp'))
@@ -3234,6 +3259,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             if msg.nick == irc.nick:
                 return
             n = self.getNick(irc,msg.nick)
+            if 'account' in msg.server_tags:
+                n.setAccount(msg.server_tags['account'])
             patterns = getBestPattern(n,irc,self.registryValue('useIpForGateway'),self.registryValue('resolveIp'))
             best = False
             if len(patterns):
@@ -3341,6 +3368,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             # server msgs or plugin reload, or state not ready
             self._tickle(irc)
             return
+        if 'account' in msg.server_tags:
+            n.setAccount(msg.server_tags['account'])
         for channel in recipients.split(','):
             if channel.startswith('@'):
                 channel = channel.replace('@','',1)
@@ -3583,6 +3612,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         if ircutils.isUserHostmask(msg.prefix):
             n = self.getNick(irc,msg.nick)
         channel = msg.args[0]
+        if 'account' in msg.server_tags:
+            n.setAccount(msg.server_tags['account'])
         if channel in irc.state.channels:
             if n:
                 n.addLog(channel,'sets topic "%s"' % msg.args[1])
@@ -3652,6 +3683,8 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
             # prevent server.netsplit to create a Nick
             n = self.getNick(irc,msg.nick)
             n.setPrefix(msg.prefix)
+            if 'account' in msg.server_tags:
+                n.setAccount(msg.server_tags['account'])
         # umode otherwise
         db = self.getDb(irc.network)
         c = db.cursor()
