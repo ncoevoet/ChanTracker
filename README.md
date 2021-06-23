@@ -163,6 +163,7 @@ If supported by the ircd, the bot can track account changes and get GECOS and us
 The plugin also supports extended bans/quiets including $r, $x, $a, $j (real name, full match and account name, respectively). If you want the plugin to support your IRCd extended bans, please, report a bug or contact me directly.
 
 By default, if the bot is asked to set a ban (+b), it will also kick affected users (Note: bot will only kick people if the ban was set by the bot -- if an op places the ban, the bot will not kick affected users). See:
+But first, **you must remove protected capability** given by default to everyone: `defaultcapability remove protected` because the bot will do nothing against users with protected capabilities (#channel,protected).
 
     !config supybot.plugins.ChanTracker.kickMode
     !config supybot.plugins.ChanTracker.kickMessage
