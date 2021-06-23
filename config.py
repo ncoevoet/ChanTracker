@@ -74,6 +74,9 @@ conf.registerChannelValue(ChanTracker, 'useIpForGateway',
 conf.registerChannelValue(ChanTracker, 'triggerOps',   
     registry.Boolean(False, """!ops triggers a message in logChannel"""))
 
+conf.registerChannelValue(ChanTracker, 'allowOpToConfig',
+    registry.Boolean(False, """grant channel operators the ability to configure some chantracker protections for their channel"""))
+
 conf.registerChannelValue(ChanTracker, 'opCommand',
     registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator mode"""), opSettable=False)
 
