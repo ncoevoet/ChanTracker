@@ -2525,7 +2525,6 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         # init irc db
         if not irc.network in self._ircs:
             i = self._ircs[irc.network] = Ircd (irc,self.registryValue('logsSize'))
-            irc.queueMsg(ircmsgs.IrcMsg('CAP REQ :account-tag'))
         return self._ircs[irc.network]
 
     def getChan (self,irc,channel):
