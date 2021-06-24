@@ -62,6 +62,7 @@ ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(10000)
 cache = utils.structures.CacheDict(10000)
 
 
+
 def applymodes(channel, args=(), prefix='', msg=None):
     """Returns a MODE that applies changes on channel."""
     modes = args
@@ -1360,6 +1361,18 @@ def getTs (irc, msg, args, state):
 
 addConverter('getTs', getTs)
 
+def getProba(irc, msg, args, state):
+    try:
+        v = float(args[0])
+        if v < 0 or v > 1:
+            raise callbacks.ArgumentError
+        state.args.append(v)
+        del args[0]
+    except ValueError:
+        raise callbacks.ArgumentError
+
+addConverter('proba', getProba)
+
 import threading
 import supybot.world as world
 
@@ -2164,32 +2177,202 @@ class ChanTracker(callbacks.Plugin,plugins.ChannelDBHandler):
         irc.reply('%s' % ', '.join(results))
     rmmode = wrap(rmmode,['owner',commalist('int')])
     
-    # def getprotection (self,irc,msg,args,channel,protection):
-        # """[<channel>] <clone|flood|lowFlood|>
-
-        # returns channel's protections settings"""
-        # s = ''
-        # if protection == 'clone':
-            # permit = self.registryValue('clonePermit',channel=channel)
-            # if permit < 0:
-                # irc.reply('%s is disabled in %s' % (protected, channel))
-                # return
-            # irc.reply('%s clients in %s triggers +%s during %ss' % (permit,channel,self.registryValue('cloneMode',channel=channel),self.registryValue('cloneDuration',channel=channel)))
-        # elif protection == 'flood' or protection == 'lowFlood':
-            # permit = self.registryValue('%sPermit' % protection,channel=channel)
-            # if permit < 0:
-                # irc.reply('%s is disabled in %s' % (protection, channel))
-                # return
-            # irc.reply('%s messages in %ss triggers +%s during %ss' % (permit,self.registryValue('%sLife' % protection,channel=channel),self.registryValue('%sMode' % protection,channel=channel),self.registryValue('%sDuration'  % protection,channel=channel)))
-        # elif protection == 'repeat':
-            # permit = self.registryValue('%sPermit' % protection,channel=channel)
-            # if permit < 0:
-                # irc.reply('%s is disabled in %s' % (protection, channel))
-                # return
-            # irc.reply('%s messages in %ss triggers +%s during %ss (%s similarity)' % (permit,self.registryValue('%sLife' % protection,channel=channel),self.registryValue('%sMode' % protection,channel=channel),self.registryValue('%sDuration'  % protection,channel=channel),self.registryValue('repeatPercent',channel=channel)))
-            
+    def cflood (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
         
-    #protect = wrap(protect,['op','text'])
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration:
+                self.setRegistryValue('floodPermit',permit,channel=channel)
+                self.setRegistryValue('floodLife',life,channel=channel)
+                self.setRegistryValue('floodMode',mode,channel=channel)
+                self.setRegistryValue('floodDuration',duration,channel=channel)
+            results.append('floodPermit: %s' % self.registryValue('floodPermit',channel=channel))
+            results.append('floodLife: %s' % self.registryValue('floodLife',channel=channel))
+            results.append('floodMode: %s' % self.registryValue('floodMode',channel=channel))
+            results.append('floodDuration: %s' % self.registryValue('floodDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    cflood = wrap(cflood,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt')])
+    
+    def crepeat (self, irc, msg, args, channel, permit, life, mode, duration, minimum, probability, count, patternLength, patternLife):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>]
+        
+        return channel protections configuration, <probablity> is a float between 0 and 1"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration and minimum and probability and count and patternLength and patternLife:
+                self.setRegistryValue('repeatPermit',permit,channel=channel)
+                self.setRegistryValue('repeatLife',life,channel=channel)
+                self.setRegistryValue('repeatMode',mode,channel=channel)
+                self.setRegistryValue('repeatDuration',duration,channel=channel)
+                self.setRegistryValue('repeatMinimum',minimum,channel=channel)
+                self.setRegistryValue('repeatPercent',probability,channel=channel)
+                self.setRegistryValue('repeatCount',count,channel=channel)
+                self.setRegistryValue('repeatPatternMinimum',patternLength,channel=channel)
+                self.setRegistryValue('repeatPatternLife',patternLife,channel=channel)
+            results.append('repeatPermit: %s' % self.registryValue('repeatPermit',channel=channel))
+            results.append('repeatLife: %s' % self.registryValue('repeatLife',channel=channel))
+            results.append('repeatMode: %s' % self.registryValue('repeatMode',channel=channel))
+            results.append('repeatDuration: %s' % self.registryValue('repeatDuration',channel=channel))
+            results.append('repeatMinimum: %s' % self.registryValue('repeatMinimum',channel=channel))
+            results.append('repeatPercent: %s' % self.registryValue('repeatPercent',channel=channel))
+            results.append('repeatCount: %s' % self.registryValue('repeatCount',channel=channel))
+            results.append('repeatPatternMinimum: %s' % self.registryValue('repeatPatternMinimum',channel=channel))
+            results.append('repeatPatternLife: %s' % self.registryValue('repeatPatternLife',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    crepeat = wrap(crepeat,['op', optional('int'), optional('positiveInt'), optional('letter'), optional('positiveInt'), optional('int'), optional('proba'), optional('positiveInt'), optional('int'), optional('positiveInt')])
+
+    def ccap (self, irc, msg, args, channel, permit, life, mode, duration, probability):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>]
+        
+        return channel protections configuration, <probablity> is a float between 0 and 1"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration and probability:
+                self.setRegistryValue('capPermit',permit,channel=channel)
+                self.setRegistryValue('capLife',life,channel=channel)
+                self.setRegistryValue('capMode',mode,channel=channel)
+                self.setRegistryValue('capDuration',duration,channel=channel)
+                self.setRegistryValue('capPercent',probability,channel=channel)
+            results.append('capPermit: %s' % self.registryValue('capPermit',channel=channel))
+            results.append('capLife: %s' % self.registryValue('capLife',channel=channel))
+            results.append('capMode: %s' % self.registryValue('capMode',channel=channel))
+            results.append('capDuration: %s' % self.registryValue('capDuration',channel=channel))
+            results.append('capPercent: %s' % self.registryValue('capPercent',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change flood configuration in %s" % channel)
+    ccap = wrap(ccap,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt'), optional('proba')])
+
+    def chl (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and mode and duration:
+                self.setRegistryValue('hilightPermit',permit,channel=channel)
+                self.setRegistryValue('hilightMode',mode,channel=channel)
+                self.setRegistryValue('hilightDuration',duration,channel=channel)
+            results.append('hilightPermit: %s' % self.registryValue('hilightPermit',channel=channel))
+            results.append('hilightMode: %s' % self.registryValue('hilightMode',channel=channel))
+            results.append('hilightDuration: %s' % self.registryValue('hilightDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change flood configuration in %s" % channel)
+    chl = wrap(chl,['op', optional('int'), optional('letter'),optional('positiveInt')])
+    
+    def cclone (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and mode and duration:
+                self.setRegistryValue('clonePermit',permit,channel=channel)
+                self.setRegistryValue('cloneMode',mode,channel=channel)
+                self.setRegistryValue('hilightDuration',duration,channel=channel)
+            results.append('clonePermit: %s' % self.registryValue('clonePermit',channel=channel))
+            results.append('cloneMode: %s' % self.registryValue('cloneMode',channel=channel))
+            results.append('cloneDuration: %s' % self.registryValue('cloneDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change flood configuration in %s" % channel)
+    cclone = wrap(cclone,['op', optional('int'), optional('letter'),optional('positiveInt')])
+    
+    def cnotice (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration:
+                self.setRegistryValue('noticePermit',permit,channel=channel)
+                self.setRegistryValue('noticeLife',life,channel=channel)
+                self.setRegistryValue('floodMode',mode,channel=channel)
+                self.setRegistryValue('floodDuration',duration,channel=channel)
+            results.append('noticePermit: %s' % self.registryValue('noticePermit',channel=channel))
+            results.append('noticeLife: %s' % self.registryValue('noticeLife',channel=channel))
+            results.append('noticeMode: %s' % self.registryValue('noticeMode',channel=channel))
+            results.append('noticeDuration: %s' % self.registryValue('noticeDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    cnotice = wrap(cnotice,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt')])
+
+    def ccycle (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration:
+                self.setRegistryValue('cyclePermit',permit,channel=channel)
+                self.setRegistryValue('cycleLife',life,channel=channel)
+                self.setRegistryValue('cycleMode',mode,channel=channel)
+                self.setRegistryValue('cycleDuration',duration,channel=channel)
+            results.append('cyclePermit: %s' % self.registryValue('cyclePermit',channel=channel))
+            results.append('cycleLife: %s' % self.registryValue('cycleLife',channel=channel))
+            results.append('cycleMode: %s' % self.registryValue('cycleMode',channel=channel))
+            results.append('cycleDuration: %s' % self.registryValue('cycleDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    ccycle = wrap(ccycle,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt')])
+    
+    def cnick (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration:
+                self.setRegistryValue('nickPermit',permit,channel=channel)
+                self.setRegistryValue('nickLife',life,channel=channel)
+                self.setRegistryValue('nickMode',mode,channel=channel)
+                self.setRegistryValue('cycleDuration',duration,channel=channel)
+            results.append('nickPermit: %s' % self.registryValue('nickPermit',channel=channel))
+            results.append('nickLife: %s' % self.registryValue('nickLife',channel=channel))
+            results.append('nickMode: %s' % self.registryValue('nickMode',channel=channel))
+            results.append('nickDuration: %s' % self.registryValue('nickDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    cnick = wrap(cnick,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt')])
+
+    def cbad (self, irc, msg, args, channel, permit, life, mode, duration):
+        """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        
+        return channel protections configuration"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig',channel=channel) or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if permit and life and mode and duration:
+                self.setRegistryValue('badPermit',permit,channel=channel)
+                self.setRegistryValue('badLife',life,channel=channel)
+                self.setRegistryValue('badMode',mode,channel=channel)
+                self.setRegistryValue('cycleDuration',duration,channel=channel)
+            results.append('badPermit: %s' % self.registryValue('badPermit',channel=channel))
+            results.append('badLife: %s' % self.registryValue('badLife',channel=channel))
+            results.append('badMode: %s' % self.registryValue('badMode',channel=channel))
+            results.append('badDuration: %s' % self.registryValue('badDuration',channel=channel))
+            irc.replies(results,None,None,False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    cbad = wrap(cbad,['op', optional('int'), optional('positiveInt'), optional('letter'),optional('positiveInt')])
 
     def getIrcdMode (self,irc,mode,pattern):
         # here we try to know which kind of mode and pattern should be computed :
