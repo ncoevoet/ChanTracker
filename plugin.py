@@ -138,12 +138,12 @@ def matchHostmask(pattern, n, resolve):
             n.ip = cache[n.prefix] = host.split('ip.')[1]
     if n.ip != None and '@' in pattern and n.ip.find('*') == -1 and mcidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
-        network = IPNetwork('%s' % pattern.split('@')[1], strict=False)
+        network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
         if address in network:
             return '%s!%s@%s' % (nick, ident, n.ip)
     elif n.ip != None and '@' in pattern and n.ip.find('*') == -1 and m6cidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
-        network = IPNetwork('%s' % pattern.split('@')[1], strict=False)
+        network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
         if address in network:
             return '%s!%s@%s' % (nick, ident, n.ip)
     if ircutils.isUserHostmask(pattern):
