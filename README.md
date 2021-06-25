@@ -29,6 +29,16 @@ Note that you may need a newer version of Limnoria than your distribution provid
     !rmpattern [<channel>] <id> [<id>] remove patterns
     !lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
     
+    !cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    !crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>] return channel protections configuration, <probablity> is a float between 0 and 1
+    !chl [<channel>] [<permit>] [<mode>] [<duration>] return channel protections configuration
+    !cnotice [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    !ccycle [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    !cclone [<channel>] [<permit>] [<mode>] [<duration>] return channel protections configuration
+    !cnick [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    !ccap [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>] return channel protections configuration, <probablity> is a float between 0 and 1
+    !cbad [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    
 ## General Usage ##
 
 The bot can be used to place and remove bans (rather than the the op setting channel modes directly). For example, to quiet the argumentative user 'ian' for 10 minutes and ban the spammer 'ham' for a month:
