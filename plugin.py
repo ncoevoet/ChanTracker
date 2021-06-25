@@ -138,14 +138,20 @@ def matchHostmask(pattern, n, resolve):
             n.ip = cache[n.prefix] = host.split('ip.')[1]
     if n.ip != None and '@' in pattern and n.ip.find('*') == -1 and mcidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
-        network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
-        if address in network:
-            return '%s!%s@%s' % (nick, ident, n.ip)
+        try:
+            network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
+            if address in network:
+                return '%s!%s@%s' % (nick, ident, n.ip)
+        except:
+            return None
     elif n.ip != None and '@' in pattern and n.ip.find('*') == -1 and m6cidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
-        network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
-        if address in network:
-            return '%s!%s@%s' % (nick, ident, n.ip)
+        try:
+            network = IPNetwork(u'%s' % pattern.split('@')[1], strict=False)
+            if address in network:
+                return '%s!%s@%s' % (nick, ident, n.ip)
+        except:
+            return None
     if ircutils.isUserHostmask(pattern):
         if n.ip != None and ircutils.hostmaskPatternEqual(pattern, '%s!%s@%s' % (nick, ident, n.ip)):
             return '%s!%s@%s' % (nick, ident, n.ip)
@@ -529,13 +535,11 @@ class Ircd (object):
                                  item.by, item.when, item.expire])
                     elif item.value.find('$j:') == 0:
                         channels.append(item.value.replace('$j:', ''))
-        ct.log.info('channels %s' % ','.join(channels))
         if len(channels):
             for ch in channels:
                 cha = self.getChan(irc, ch)
                 for k in list(cha.getItems()):
                     items = cha.getItemsFor(k)
-                    ct.log.info('for %s (%s): %s' % (ch, k, ','.join(items)))
                     if len(items):
                         for item in items:
                             item = items[item]
