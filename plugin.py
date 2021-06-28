@@ -3222,19 +3222,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         # send messages to logChannel if configured for
         if channel in irc.state.channels:
             logChannel = self.registryValue('logChannel', channel=channel)
-            i = self.getIrc(irc)
-            if logChannel in irc.state.channels:
-                if logChannel == channel and irc.state.channels[channel].isHalfopPlus(irc.nick) and self.registryValue('keepOp', channel=channel):
-                    if self.registryValue('announceWithNotice', channel=channel):
-                        i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
-                    else:
-                        i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
-                else:
-                    if self.registryValue('announceWithNotice', channel=channel):
-                        i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
-                    else:
-                        i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
-            elif len(logChannel) > 0:
+            if logChannel:
+                i = self.getIrc(irc)
+                if logChannel in irc.state.channels and logChannel == channel \
+                        and irc.state.channels[channel].isHalfopPlus(irc.nick) \
+                        and self.registryValue('keepOp', channel=channel):
+                    logChannel = '@%s' % logChannel
                 if self.registryValue('announceWithNotice', channel=channel):
                     i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
                 else:
