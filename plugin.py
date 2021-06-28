@@ -3226,18 +3226,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if logChannel in irc.state.channels:
                 if logChannel == channel and irc.state.channels[channel].isHalfopPlus(irc.nick) and self.registryValue('keepOp', channel=channel):
                     if self.registryValue('announceWithNotice', channel=channel):
-                        i.lowQueue.enqueue(ircmsgs.IrcMsg(
-                            'NOTICE @%s :%s' % (logChannel, message)))
+                        i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
                     else:
-                        i.lowQueue.enqueue(ircmsgs.IrcMsg(
-                            'PRIVMSG @%s :%s' % (logChannel, message)))
+                        i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
                 else:
                     if self.registryValue('announceWithNotice', channel=channel):
-                        i.lowQueue.enqueue(ircmsgs.IrcMsg(
-                            'NOTICE %s :%s' % (logChannel, message)))
+                        i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
                     else:
-                        i.lowQueue.enqueue(ircmsgs.IrcMsg(
-                            'PRIVMSG %s :%s' % (logChannel, message)))
+                        i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
             elif len(logChannel) > 0:
                 if self.registryValue('announceWithNotice', channel=channel):
                     i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
