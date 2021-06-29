@@ -28,6 +28,8 @@ Note that you may need a newer version of Limnoria than your distribution provid
     !addregexpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
     !rmpattern [<channel>] <id> [<id>] remove patterns
     !lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
+    !addtmp [<channel>] <pattern> add temporary pattern which follows repeat punishments
+    !rmtmp [<channel>] remove temporary patterns if any
     
     !cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
     !crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>] return channel protections configuration, <probablity> is a float between 0 and 1

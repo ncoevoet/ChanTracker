@@ -61,6 +61,9 @@ conf.registerGlobalValue(ChanTracker, 'announceNagInterval',
 conf.registerGlobalValue(ChanTracker, 'resolveIp',
                          registry.Boolean(True, """trying to resolve host's ip with socket, could add latency"""))
 
+conf.registerGlobalValue(ChanTracker, 'modeD',
+                         registry.String("", """special mode if you want to use some specific stuff $hostmask (*!*@*) $klinemask (*@*) $host $channel $reason and $duration are available"""))
+
 # per channel settings
 
 conf.registerChannelValue(ChanTracker, 'useAccountBanIfPossible',
@@ -157,6 +160,9 @@ conf.registerChannelValue(ChanTracker, 'announceCtcp',
 
 conf.registerChannelValue(ChanTracker, 'announceNagMode',
                           registry.CommaSeparatedListOfStrings([], """bot will announce that channel has such mode at announceNagInterval"""))
+
+conf.registerChannelValue(ChanTracker, 'announceRepeatPattern',
+                          registry.Boolean(True, """announce repeat pattern created to logChannel"""))
 
 # others settings
 
@@ -267,7 +273,8 @@ conf.registerChannelValue(ChanTracker, 'repeatPatternMinimum',
 conf.registerChannelValue(ChanTracker, 'repeatPatternLife',
                           registry.PositiveInteger(300, """duration of pattern life"""))
 
-
+conf.registerChannelValue(ChanTracker, 'shareComputedPatternID',
+                          registry.Integer(-1, """share computed patterns accross channels using the same ID, -1 to disable"""))
 # YES IT'S ANNOYING
 
 conf.registerChannelValue(ChanTracker, 'capPermit',

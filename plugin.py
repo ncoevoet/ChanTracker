@@ -2342,6 +2342,26 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         irc.reply('%s' % ', '.join(results))
     rmmode = wrap(rmmode, ['owner', commalist('int')])
 
+    def rmtmp(self, irc, msg, args, channel):
+        """[<channel>]
+
+        remove temporary patterns if any"""
+        chan = self.getChan(irc, channel)
+        key = 'pattern%s' % channel
+        if key in chan.repeatLogs:
+            life = self.registryValue('repeatPatternLife', channel=channel)
+            chan.repeatLogs[key] = utils.structures.TimeoutQueue(life)
+        irc.replySuccess()
+    rmtmp = wrap(rmtmp, ['op'])
+
+    def addtmp(self, irc, msg, args, channel, pattern):
+        """[<channel>] <pattern>
+
+        add temporary pattern, which follows repeat punishments"""
+        self._addTemporaryPattern(irc, channel, pattern, msg.nick, True, False)
+        irc.replySuccess()
+    addtmp = wrap(addtmp, ['op', 'text'])
+
     def cflood(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
@@ -4540,6 +4560,19 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
      # protection features
 
     def _act(self, irc, channel, mode, mask, duration, reason):
+        if mode == 'D':
+            action = self.registryValue('modeD')
+            if len(action):
+                s = s.replace('$channel', channel)
+                s = s.replace('$hostmask', mask)
+                (n, i, h) = ircutils.splitHostmask(mask)
+                klinemask = '%s@%s' % (i, h)
+                s = s.replace('$klinemask', klinemask)
+                s = s.replace('$host', h)
+                s = s.replace('$duration', duration)
+                s = s.replace('$reason', reason)
+                irc.sendQueue(ircmsgs.IrcMsg(action))
+            return
         if mode == 'd':
             if self.registryValue('logChannel', channel=channel) in irc.state.channels:
                 announce = '[%s] debug %s %s %s %s'
@@ -4687,21 +4720,38 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 count = count + 1
         return count > limit
 
-    def _addTemporaryPattern(self, irc, channel, pattern, level):
+    def _addTemporaryPattern(self, irc, channel, pattern, level, force, doNotLoop):
         patternLength = self.registryValue(
             'repeatPatternMinimum', channel=channel)
-        key = 'pattern%s' % channel
-        if patternLength < 0:
+        if patternLength < 0 and not force:
             return
-        if len(pattern) < patternLength:
+        if len(pattern) < patternLength and not force:
             return
+        self.log.info('%s adding pattern %s' % (level, pattern))
         life = self.registryValue('repeatPatternLife', channel=channel)
+        key = 'pattern%s' % channel
         chan = self.getChan(irc, channel)
         if not key in chan.repeatLogs or chan.repeatLogs[key].timeout != life:
             chan.repeatLogs[key] = utils.structures.TimeoutQueue(life)
-        self._logChan(irc, channel, '[%s] pattern created "%s" (%s)' % (
-            channel, pattern, level))
+        if self.registryValue('announceRepeatPattern', channel=channel):
+            if self.registryValue('useColorForAnnounces', channel=channel):
+                self._logChan(irc, channel, '[%s] pattern created "%s" (%s)' % (
+                    ircutils.bold(channel), ircutils.mircColor(pattern, 'red'), level))
+            else:
+                self._logChan(irc, channel, '[%s] pattern created "%s" (%s)' % (
+                    channel, pattern, level))
         chan.repeatLogs[key].enqueue(pattern)
+        if doNotLoop:
+            return
+        patternID = self.registryValue(
+            'shareComputedPatternID', channel=channel)
+        if patternID < 0:
+            return
+        for c in irc.state.channels:
+            if irc.isChannel(c) and not channel == c:
+                if patternID == self.registryValue('shareComputedPatternID', channel=c):
+                    self._addTemporaryPattern(
+                        irc, c, pattern, level, force, doNotLoop)
 
     def _computePattern(self, message, logs, probability, patternLength):
         candidate = None
@@ -4731,7 +4781,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         minimum = self.registryValue('repeatMinimum', channel=channel)
         pattern = findPattern(message, count, minimum, 100 * probability)
         if pattern:
-            self._addTemporaryPattern(irc, channel, pattern, 'single msg')
+            self._addTemporaryPattern(
+                irc, channel, pattern, 'single msg', False, False)
             if self._isSomething(irc, channel, key, 'repeat'):
                 return True
         patternLength = self.registryValue(
@@ -4745,7 +4796,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         chan.repeatLogs[key].enqueue(message)
         if result:
             if pattern:
-                self._addTemporaryPattern(irc, channel, pattern, 'single src')
+                self._addTemporaryPattern(
+                    irc, channel, pattern, 'single src', False, False)
         return result
         if not channel in chan.repeatLogs or chan.repeatLogs[channel].timeout != timeout:
             chan.repeatLogs[channel] = utils.structures.TimeoutQueue(timeout)
@@ -4758,7 +4810,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             result = self._isSomething(irc, channel, channel, 'repeat')
             if result:
                 if pattern:
-                    self._addTemporaryPattern(irc, channel, pattern, 'all src')
+                    self._addTemporaryPattern(
+                        irc, channel, pattern, 'all src', False, False)
         return result
 
     def _isCap(self, irc, channel, key, message):
@@ -4774,7 +4827,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         return False
 
     def die(self):
-        schedule.removeEvent('ChanTracker')
+        try:
+            schedule.removeEvent('ChanTracker')
+        except:
+            pass
 
 
 Class = ChanTracker
