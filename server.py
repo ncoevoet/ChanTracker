@@ -100,7 +100,8 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 				if aa[0] == 'password':
 					p = aa[1]
 			if u and p:
-				raw = base64.b64encode('%s:%s'.encode('utf-8') % (u,p)).decode('utf-8')
+				auth = '%s:%s' % (u,p)
+				raw = base64.b64encode(auth.encode('utf-8')).decode('utf-8')
 				if raw != base64string:
 					query = ''
 				else:
