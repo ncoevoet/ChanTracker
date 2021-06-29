@@ -1530,7 +1530,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self.starting = world.starting
         if self.registryValue('announceNagInterval') > 0:
             schedule.addEvent(self.checkNag, time.time() +
-                              self.registryValue('announceNagInterval'))
+                              self.registryValue('announceNagInterval'), 'ChanTracker')
 
     def checkNag(self):
         if world:
@@ -4772,6 +4772,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if percent >= trigger:
                 return self._isSomething(irc, channel, key, 'cap')
         return False
+
+    def die(self):
+        schedule.removeEvent('ChanTracker')
 
 
 Class = ChanTracker
