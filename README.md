@@ -188,7 +188,6 @@ The plugin has a lot of built-in channel protection features that can be enabled
 - flood detection
 - low-rate flood detection: flooding but with client rate-limiting
 - repeat detection
-- massRepeat detection: when same message comes from different users
 - capslock: detect people who are EXTREMELY ANGRY
 - ctcp: detect sending CTCP to the channel
 - notices: detect sending notices to the channel
@@ -227,19 +226,13 @@ Additionally, the bot can track how many bad actions occur over a period of time
 
 Example: not flooding: catch a wave of bots which sends the same message from different hosts:
 
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatChars 200 <-- enable check only if there is at least 200 chars
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatPermit 1 <-- if found 2 times
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatLife 60 <-- don't keep messages too long in memory, to avoid false positive
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatPercent 0.85 <-- set a low value for similarity, in order to catch them if there is some random chars in the messages
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatMode b
-    !config channel #channel supybot.plugins.ChanTracker.massRepeatDuration 1800 <- ban for 30 minutes
     !config channel #channel supybot.plugins.ChanTracker.attackPermit 2 <- if bot triggers 3 actions during 
     !config channel #channel supybot.plugins.ChanTracker.attackLife 300 <- 5 minutes
     !config channel #channel supybot.plugins.chantracker.attackMode +rq $~a <- then bot will set those modes
     !config channel #channel supybot.plugins.chantracker.attackDuration 1800 <- for 30 minutes
     !config channel #channel supybot.plugins.chantracker.attackUnMode -rq $~a <- and bot will set those modes after 30 minutes
     
-Example: a user repeating the same thing: (use repeat detection rather than massRepeat for this):
+Example: a user repeating the same thing:
 
     !config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
     !config channel #channel supybot.plugins.ChanTracker.repeatLife 40 <-- keep previous messages during 40 seconds
