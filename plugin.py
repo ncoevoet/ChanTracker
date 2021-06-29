@@ -4563,15 +4563,16 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if mode == 'D':
             action = self.registryValue('modeD')
             if len(action):
+                s = action
                 s = s.replace('$channel', channel)
                 s = s.replace('$hostmask', mask)
                 (n, i, h) = ircutils.splitHostmask(mask)
                 klinemask = '%s@%s' % (i, h)
                 s = s.replace('$klinemask', klinemask)
                 s = s.replace('$host', h)
-                s = s.replace('$duration', duration)
+                s = s.replace('$duration', str(duration))
                 s = s.replace('$reason', reason)
-                irc.sendQueue(ircmsgs.IrcMsg(action))
+                irc.queueMsg(ircmsgs.IrcMsg(s))
             return
         if mode == 'd':
             if self.registryValue('logChannel', channel=channel) in irc.state.channels:
