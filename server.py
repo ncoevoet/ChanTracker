@@ -181,7 +181,8 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 								body.append('<ul>')
 								for line in log.split('\n'):
 									if line != '':
-										body.append('<li>%s</li>' % line)
+										body.append('<li>%s</li>' % line.replace(
+											'&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;'))
 								body.append('</ul>')
 					c.execute("""SELECT oper,at,comment FROM comments WHERE ban_id=?""",(id,))
 					r = c.fetchall()
