@@ -15,6 +15,7 @@ channels = [] # empty to allow view of all channels recorded, otherwise restrict
 auth = '%s:%s' % (username,password)
 base64string = base64.b64encode(auth.encode('utf-8')).decode('utf-8')
 
+
 def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 				weeks=True, days=True, hours=True, minutes=True, seconds=True):
 	"""Given <elapsed> seconds, returns a string with an English description of
@@ -57,6 +58,10 @@ def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 		return ' '.join(ret)
 	else:
 		return format('%L', ret)
+
+def htmlEscape(text):
+	return text.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
+
 
 class MyHandler(http.server.BaseHTTPRequestHandler):
 	if not standalone:
@@ -148,11 +153,11 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 			r = c.fetchall()
 			if len(r):
 				ban = r[0]
-				(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
+				(bid,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 				if not channels or channel in channels:
 					body.extend([
-						'<h3>#%d</h3>' % id,
-						'<p>#%d by <a href="%s%s&%s">%s</a>' % (id,h,q,utils.web.urlencode({'oper':oper}),oper),
+						'<h3>#%d</h3>' % bid,
+						'<p>#%d by <a href="%s%s&%s">%s</a>' % (bid,h,q,utils.web.urlencode({'oper':oper}),oper),
 						'in <a href="%s%s&channel=%s">%s</a>:' % (h,q,channel.split('#')[1],channel),
 						'+%s <a href="%s%s&%s">%s</a></p>' % (kind,h,q,utils.web.urlencode({'mask':mask}),mask),
 						'<p>Begin at %s</p>' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
@@ -170,28 +175,25 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 						body.extend(['<p>Removed after %s' % timeElapsed(float(removed_at)-float(begin_at)),
 								'on %s' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at))),
 								'by <a href="%s%s&%s">%s</a></p>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by)])
-					c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(id,))
+					c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(bid,))
 					r = c.fetchall()
 					if len(r):
 						body.append('<h3>Logs</h3>')
-						for nick in r:
-							(full,log) = nick
+						for (full,log) in r:
 							body.append('<p>for %s</p>' % full)
 							if log != '':
 								body.append('<ul>')
 								for line in log.split('\n'):
 									if line != '':
-										body.append('<li>%s</li>' % line.replace(
-											'&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;'))
+										body.append('<li>%s</li>' % htmlEscape(line))
 								body.append('</ul>')
-					c.execute("""SELECT oper,at,comment FROM comments WHERE ban_id=?""",(id,))
+					c.execute("""SELECT oper,at,comment FROM comments WHERE ban_id=?""",(bid,))
 					r = c.fetchall()
 					if len(r):
 						body.extend(['<h3>Comments</h3>', '<ul>'])
-						for comment in r:
-							(oper,at,com) = comment
+						for (oper,at,com) in r:
 							s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(at)))
-							body.append('<li>%s by %s: %s</li>' % (s,oper,com))
+							body.append('<li>%s by %s: %s</li>' % (s,oper,htmlEscape(com)))
 						body.append('</ul>')
 			c.close()
 			write(subtitle, body)
@@ -223,13 +225,12 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 			L = []
 			a = {}
 			if len(r):
-				d = {}
-				for ban in r:
-					(id,full) = ban
-					if id not in d:
-						d[id] = id
-				for id in d:
-					c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(id,))
+				d = []
+				for (bid,full) in r:
+					if bid not in d:
+						d.append(bid)
+				for bid in d:
+					c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(bid,))
 					r = c.fetchall()
 					if len(r):
 						for ban in r:
@@ -261,13 +262,12 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 				L = []
 				a = {}
 				if len(r):
-					d = {}
-					for ban in r:
-						(id,full) = ban
-						if id not in d:
-							d[id] = id
-					for id in d:
-						c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(id,))
+					d = []
+					for (bid,full) in r:
+						if bid not in d:
+							d.append(bid)
+					for bid in d:
+						c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(bid,))
 						r = c.fetchall()
 						if len(r):
 							for ban in r:
@@ -285,14 +285,13 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 					r = c.fetchall()
 				else:
 					r = []
-				d = {}
 				if len(r):
-					for ban in r:
-						(id,full) = ban
-						d[id] = id
-					for id in d:
-						if id not in a:
-							c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(id,))
+					d = []
+					for (bid,full) in r:
+						d.append(bid)
+					for bid in d:
+						if bid not in a:
+							c.execute("""SELECT id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by FROM bans WHERE id=?""",(bid,))
 							r = c.fetchall()
 							if len(r):
 								for ban in r:
@@ -311,12 +310,12 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 				'<tbody>'
 			])
 			for ban in ar:
-				(id,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
+				(bid,channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by) = ban
 				if not channels or channel in channels:
 					s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
 					body.extend([
 						'<tr>',
-						'<td><a href="%s%s&id=%d">%d</a></td>' % (h,q,id,id),
+						'<td><a href="%s%s&id=%d">%d</a></td>' % (h,q,bid,bid),
 						'<td><a href="%s%s&channel=%s">%s</a></td>' % (h,q,channel.split('#')[1],channel),
 						'<td><a href="%s%s&%s">%s</a></td>' % (h,q,utils.web.urlencode({'oper':oper}),oper),
 						'<td>+%s</td>' % kind,
@@ -339,7 +338,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 						body.append('<td></td>')
 #					affected = ''
 #					try:
-#						c.execute("""SELECT full, log FROM nicks WHERE ban_id=?""",(id,))
+#						c.execute("""SELECT full, log FROM nicks WHERE ban_id=?""",(bid,))
 #						affected = len(c.fetchall())
 #					except:
 #						affected = ''
@@ -382,6 +381,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 				)""")
 		db.commit()
 		return db
+
 
 def httpd(handler_class=MyHandler, server_address=('', port)):
 	srvr = http.server.HTTPServer(server_address, handler_class)
