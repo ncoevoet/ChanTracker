@@ -3096,7 +3096,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         i.mark(irc, item.uid, reason, prefix,
                                self.getDb(irc.network), f, self)
                         key = '%s%s' % (m, value)
-                        del chan.mark[key]
+                        if key in chan.mark:
+                            del chan.mark[key]
             if irc.state.channels[channel].isHalfopPlus(irc.nick) and not self.registryValue('keepOp', channel=channel) and not chan.deopPending and not chan.deopAsked:
                 # ask for deop, delay it a bit
                 if not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
@@ -4387,7 +4388,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             chan.queue.enqueue(('-h', nick))
                                         if nick in irc.state.channels[channel].voices and not nick == irc.nick:
                                             chan.queue.enqueue(('-v', nick))
-                                        if m == 'q' and len(self.registryValue('quietMessage', channel=channel)) and not chan.attacked:
+                                        if m == 'q' and len(self.registryValue('quietMessage', channel=channel)) and not chan.attacked and not value == '$~a':
                                             qm = self.registryValue(
                                                 'quietMessage', channel=channel)
                                             log.info(
