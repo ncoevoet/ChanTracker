@@ -62,7 +62,7 @@ conf.registerGlobalValue(ChanTracker, 'resolveIp',
                          registry.Boolean(True, """trying to resolve host's ip with socket, could add latency"""))
 
 conf.registerGlobalValue(ChanTracker, 'modeD',
-                         registry.String("", """special mode if you want to use some specific stuff $hostmask (*!*@*) $klinemask (*@*) $host $channel $reason and $duration are available"""))
+                         registry.String("", """special mode if you want to use some specific stuff $hostmask (*!*@*) $klinemask (*@*) $host $channel $reason $nick and $duration are available"""))
 
 # per channel settings
 
