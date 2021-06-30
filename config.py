@@ -73,7 +73,7 @@ conf.registerGlobalValue(ChanTracker, 'modeD',
 ## per-channel settings
 
 conf.registerChannelValue(ChanTracker, 'useAccountBanIfPossible',
-    registry.Boolean(False, """bot will use account bans when user is identified, only works for b,q,e,I; note commands not automated bans"""))
+    registry.Boolean(False, """bot will use account bans when user is identified, only works for b,q,e,I and m (chantracker.m)"""))
 
 conf.registerChannelValue(ChanTracker, 'avoidOverlap',
     registry.Boolean(False, """avoid overlap between items, bot will try to use existing items against users, some limitations with extended bans"""))
