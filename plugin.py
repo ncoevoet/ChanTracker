@@ -325,7 +325,7 @@ def floatToGMT(t):
 
 class Ircd(object):
     __slots__ = ('irc', 'name', 'channels', 'nicks', 'queue',
-                 'lowQueue', 'logsSize', 'askedItems')
+                 'lowQueue', 'logsSize', 'askedItems', 'whoxpending')
     # define an ircd, keeps Chan and Nick items
 
     def __init__(self, irc, logsSize):
@@ -339,6 +339,7 @@ class Ircd(object):
         # contains less important IrcMsgs (sync, logChannel)
         self.lowQueue = utils.structures.smallqueue()
         self.logsSize = logsSize
+        self.whoxpending = False
         self.askedItems = {}
 
     def getChan(self, irc, channel):
@@ -1513,7 +1514,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         if self.registryValue('logChannel', channel=channel) in irc.state.channels:
                             toNag = ''
                             for mode in self.registryValue('announceNagMode', channel=channel):
-                                if mode in irc.state.channels[channel].modes:
+                                if len(mode) and mode in irc.state.channels[channel].modes:
                                     toNag = mode
                                     break
                             if len(toNag):
@@ -2760,8 +2761,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     for m in modesToAsk:
                         i.lowQueue.enqueue(ircmsgs.mode(channel, args=(m,)))
                 if not self.starting:
-                    i.lowQueue.enqueue(ircmsgs.ping(channel))
-                    i.lowQueue.enqueue(ircmsgs.who(channel, args=('%tuhnairf,1',)))
+                    if not i.whoxpending:
+                        i.whoxpending = True
+                        i.lowQueue.enqueue(ircmsgs.who(channel, args=('%tuhnairf,1',)))
                 self.forceTickle = True
         return i.getChan(irc, channel)
 
@@ -2855,6 +2857,17 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def doPong(self, irc, msg):
         self._tickle(irc)
+        i = self.getIrc(irc)
+        if not i.whoxpending:
+            candidate = None
+            for channel in list(irc.state.channels.keys()):
+                chan = self.getChan(irc, channel)
+                if not chan.syn:
+                    candidate = channel
+                    break
+            if candidate:
+                i.whoxpending = True
+                irc.queueMsg(ircmsgs.who(candidate, args=('%tuhnairf,1',)))
 
     def doPing(self, irc, msg):
         self._tickle(irc)
@@ -3174,6 +3187,11 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             #channel = msg.args[1]
         self._tickle(irc)
 
+    def do263(self, irc, msg):
+        self.log.info('WARNING WHOX THROTTLED')
+        i = self.getIrc(irc)
+        i.whoxpending = False
+
     def do315(self, irc, msg):
         # end of extended WHO $channel
         channel = msg.args[1]
@@ -3188,6 +3206,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         self._logChan(irc, channel, "[%s] is ready" % channel)
                 for nick in list(irc.state.channels[channel].users):
                     chan.nicks[nick] = True
+                i = self.getIrc(irc)
+                i.whoxpending = False
+                i.lowQueue.enqueue(ircmsgs.ping(channel))
         self._tickle(irc)
 
     def _logChan(self, irc, channel, message):
