@@ -4340,7 +4340,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             chan.action.enqueue(ircmsgs.kick(channel, nick, km))
                                             self.forceTickle = True
                                             kicked = True
-                                elif m == 'b' and not kicked:
+                                elif m == 'b' and not (kicked or chan.attacked):
                                     if msg.nick in (irc.nick, 'ChanServ'):
                                         bm = self.registryValue('banMessage', channel=channel)
                                         if len(bm):
@@ -4350,35 +4350,43 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                     (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
                                                     if nn != irc.nick:
                                                         bm += ' (by %s)' % nn
-                                            log.info('[%s] warned %s with: %s' % (channel, nick, bm))
-                                            if self.registryValue('banNotice', channel=channel):
-                                                irc.queueMsg(ircmsgs.notice(nick, bm))
-                                            else:
-                                                irc.queueMsg(ircmsgs.privmsg(nick, bm))
-                                if not kicked and m in self.registryValue('modesToAsk', channel=channel) \
-                                        and self.registryValue('doActionAgainstAffected', channel=channel):
+                                                    elif self.registryValue('proxyMsgOnly', channel=channel):
+                                                        qm = ''
+                                            if len(bm):
+                                                bm.replace('$channel', channel)
+                                                log.info('[%s] warned %s with: %s' % (channel, nick, bm))
+                                                if self.registryValue('banNotice', channel=channel):
+                                                    i.lowQueue.enqueue(ircmsgs.notice(nick, bm))
+                                                else:
+                                                    i.lowQueue.enqueue(ircmsgs.privmsg(nick, bm))
+                                elif m == 'q' and not (kicked or chan.attacked or value == '$~a'):
                                     if msg.nick in (irc.nick, 'ChanServ'):
-                                        if nick != irc.nick:
-                                            if nick in irc.state.channels[channel].ops:
-                                                chan.queue.enqueue(('-o', nick))
-                                            if nick in irc.state.channels[channel].halfops:
-                                                chan.queue.enqueue(('-h', nick))
-                                            if nick in irc.state.channels[channel].voices:
-                                                chan.queue.enqueue(('-v', nick))
-                                        if m == 'q' and not (chan.attacked or value == '$~a'):
-                                            qm = self.registryValue('quietMessage', channel=channel)
+                                        qm = self.registryValue('quietMessage', channel=channel)
+                                        if len(qm):
+                                            hk = '%s%s' % (m, value)
+                                            if hk in chan.update and len(chan.update[hk]) == 4:
+                                                if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                    (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                    if nn != irc.nick:
+                                                        qm += ' (by %s)' % nn
+                                                    elif self.registryValue('proxyMsgOnly', channel=channel):
+                                                        qm = ''
                                             if len(qm):
-                                                hk = '%s%s' % (m, value)
-                                                if hk in chan.update and len(chan.update[hk]) == 4:
-                                                    if ircutils.isUserHostmask(chan.update[hk][3]):
-                                                        (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                        if nn != irc.nick:
-                                                            qm += ' (by %s)' % nn
+                                                qm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, qm))
                                                 if self.registryValue('quietNotice', channel=channel):
-                                                    irc.queueMsg(ircmsgs.notice(nick, qm))
+                                                    i.lowQueue.enqueue(ircmsgs.notice(nick, qm))
                                                 else:
-                                                    irc.queueMsg(ircmsgs.privmsg(nick, qm))
+                                                    i.lowQueue.enqueue(ircmsgs.privmsg(nick, qm))
+                                if not kicked and m in self.registryValue('modesToAsk', channel=channel) \
+                                        and self.registryValue('doActionAgainstAffected', channel=channel) \
+                                        and msg.nick in (irc.nick, 'ChanServ') and nick != irc.nick:
+                                    if nick in irc.state.channels[channel].ops:
+                                        chan.queue.enqueue(('-o', nick))
+                                    if nick in irc.state.channels[channel].halfops:
+                                        chan.queue.enqueue(('-h', nick))
+                                    if nick in irc.state.channels[channel].voices:
+                                        chan.queue.enqueue(('-v', nick))
                         if m in self.registryValue('kickMode', channel=channel) \
                                 and not value.startswith('m:') and self.registryValue(
                                 'kickOnMode', channel=channel):

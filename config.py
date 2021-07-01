@@ -195,19 +195,24 @@ conf.registerChannelValue(ChanTracker, 'kickMax',
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.CommaSeparatedListOfStrings(["You are banned from this channel"], """bot kick reason"""))
 
-conf.registerChannelValue(ChanTracker, 'quietMessage',
-    registry.String("", """leave empty if you don't want the bot to tell something to the user when they have been quieted (by/via the bot);
-        in any case, if channel is under attack, bot will not send message; if filled, the operator nick will be given for accountability"""))
-
-conf.registerChannelValue(ChanTracker, 'quietNotice',
-    registry.Boolean(False, """if False, private message is used, if quietMessage is not empty"""))
-
 conf.registerChannelValue(ChanTracker, 'banMessage',
-    registry.String("", """leave empty if you don't want the bot to tell something to the user when they have been banned (by/via the bot);
-        in any case, if channel is under attack, bot will not send message; if filled, the operator nick will be given for accountability"""))
+    registry.String("You have been banned on $channel", """set empty if you don't want the bot to tell something to the user
+        when they have been banned (by/via the bot); in any case, if channel is under attack, bot will not send message;
+        if filled, the operator nick will be given for accountability if differing"""))
 
 conf.registerChannelValue(ChanTracker, 'banNotice',
-    registry.Boolean(False, """if False, private message is used, if banMessage is not empty"""))
+    registry.Boolean(True, """if False, private message is used, if banMessage is not empty"""))
+
+conf.registerChannelValue(ChanTracker, 'quietMessage',
+    registry.String("You have been quieted on $channel", """set empty if you don't want the bot to tell something to the user
+        when they have been quieted (by/via the bot); in any case, if channel is under attack, bot will not send message;
+        if filled, the operator nick will be given for accountability if differing"""))
+
+conf.registerChannelValue(ChanTracker, 'quietNotice',
+    registry.Boolean(True, """if False, private message is used, if quietMessage is not empty"""))
+
+conf.registerChannelValue(ChanTracker, 'proxyMsgOnly',
+    registry.Boolean(True, """only send message to user on operator action if it was proxied through the bot"""))
 
 conf.registerChannelValue(ChanTracker, 'trackAffected',
     registry.Boolean(True, """bot tracks affected users by mode change; if you encounter too much lag or cpu usage, you could disable this feature,
