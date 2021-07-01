@@ -183,11 +183,11 @@ conf.registerChannelValue(ChanTracker, 'keepOp',
     registry.Boolean(False, """bot stays opped"""))
 
 conf.registerChannelValue(ChanTracker, 'kickMode',
-    registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered,
+    registry.CommaSeparatedListOfStrings(['b'], """bot will kick affected users when mode is triggered;
         use with caution, if an op bans *!*@*, bot will kick everyone on the channel - see kickMax"""))
 
 conf.registerChannelValue(ChanTracker, 'kickOnMode',
-    registry.Boolean(False, """if the bot isn't the kickMode issuer it will still kick. use with caution"""))
+    registry.Boolean(False, """if the bot is not the kickMode issuer, it will still kick; use with caution"""))
 
 conf.registerChannelValue(ChanTracker, 'kickMax',
     registry.Integer(-1, """if > 0, disable kick if affected users > kickMax, avoid to clean up entire channel with ban like *!*@*"""))
@@ -197,14 +197,14 @@ conf.registerChannelValue(ChanTracker, 'kickMessage',
 
 conf.registerChannelValue(ChanTracker, 'quietMessage',
     registry.String("", """leave empty if you don't want the bot to tell something to the user when they have been quieted (by/via the bot);
-        in any case, if channel is under attack, bot will not send message, if filled, the operator nick will be given for accountability"""))
+        in any case, if channel is under attack, bot will not send message; if filled, the operator nick will be given for accountability"""))
 
 conf.registerChannelValue(ChanTracker, 'quietNotice',
     registry.Boolean(False, """if False, private message is used, if quietMessage is not empty"""))
 
 conf.registerChannelValue(ChanTracker, 'banMessage',
     registry.String("", """leave empty if you don't want the bot to tell something to the user when they have been banned (by/via the bot);
-        in any case, if channel is under attack, bot will not send message, if filled, the operator nick will be given for accountability"""))
+        in any case, if channel is under attack, bot will not send message; if filled, the operator nick will be given for accountability"""))
 
 conf.registerChannelValue(ChanTracker, 'banNotice',
     registry.Boolean(False, """if False, private message is used, if banMessage is not empty"""))
