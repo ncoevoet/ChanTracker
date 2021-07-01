@@ -1535,6 +1535,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         for message in messages:
             irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
         irc.replySuccess()
+        self.forceTickle = True
+        self._tickle(irc)
     summary = wrap(summary, ['op', 'channel'])
 
     def extract(self, irc, msg, args, channel, newChannel):
@@ -1567,6 +1569,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.replySuccess()
         else:
             irc.reply("%s uses global's settings" % channel)
+        self.forceTickle = True
+        self._tickle(irc)
     extract = wrap(extract, ['owner', 'private', 'channel', optional('validChannel')])
 
     def editandmark(self, irc, msg, args, user, ids, seconds, reason):
@@ -1610,6 +1614,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         else:
             irc.reply('item not found, already removed or not enough rights to modify it')
         self.forceTickle = True
+        self._tickle(irc)
     editandmark = wrap(editandmark, ['user', commalist('int'), any('getTs', True), optional('text')])
 
     def edit(self, irc, msg, args, user, ids, seconds):
@@ -1657,6 +1662,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
         else:
             irc.reply('item not found or not enough rights to see information')
+        self.forceTickle = True
         self._tickle(irc)
     info = wrap(info, ['user', 'int'])
 
@@ -1670,6 +1676,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.replies(results, None, None, False)
         else:
             irc.reply('item not found or not enough rights to see detail')
+        self.forceTickle = True
         self._tickle(irc)
     detail = wrap(detail, ['user', 'int'])
 
@@ -1683,6 +1690,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.replies(results, None, None, False)
         else:
             irc.reply('item not found or not enough rights to see affected users')
+        self.forceTickle = True
         self._tickle(irc)
     affect = wrap(affect, ['user', 'int'])
 
@@ -1793,6 +1801,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         irc.queueMsg(ircmsgs.privmsg(msg.nick, result))
         else:
             irc.reply('no result')
+        self.forceTickle = True
+        self._tickle(irc)
     pending = wrap(pending, ['op', getopts({'flood': '', 'mode': 'letter', 'never': '',
         'oper': 'somethingWithoutSpaces', 'ids': '', 'count': '', 'duration': 'getTs'})])
 
@@ -1820,6 +1830,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         else:
             la()
         irc.replySuccess()
+        self.forceTickle = True
+        self._tickle(irc)
     modes = wrap(modes, ['op', any('getTs', True), many('something')])
 
     def do(self, irc, msg, args, channel, mode, items, seconds, reason):
@@ -1833,6 +1845,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.reply('nicks not found or hostmasks invalid or targets are already +%s' % mode)
         else:
             irc.reply('selected mode is not supported by config, see modesToAsk and modesToAskWhenOpped')
+        self.forceTickle = True
+        self._tickle(irc)
     do = wrap(do, ['op', 'letter', commalist('something'), any('getTs', True), rest('text')])
 
     def q(self, irc, msg, args, channel, items, seconds, reason):
@@ -1842,6 +1856,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._adds(irc, msg, args, channel, 'q', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +q')
+        self.forceTickle = True
+        self._tickle(irc)
     q = wrap(q, ['op', commalist('something'), any('getTs', True), rest('text')])
 
     def b(self, irc, msg, args, channel, optlist, items, seconds, reason):
@@ -1856,6 +1872,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._adds(irc, msg, args, channel, 'b', items, getDuration(seconds), reason, perm)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +b')
+        self.forceTickle = True
+        self._tickle(irc)
     b = wrap(b, ['op', getopts({'perm': ''}), commalist('something'), any('getTs', True), rest('text')])
 
     def i(self, irc, msg, args, channel, items, seconds, reason):
@@ -1865,6 +1883,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._adds(irc, msg, args, channel, 'I', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +I')
+        self.forceTickle = True
+        self._tickle(irc)
     i = wrap(i, ['op', commalist('something'), any('getTs', True), rest('text')])
 
     def e(self, irc, msg, args, channel, items, seconds, reason):
@@ -1874,6 +1894,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._adds(irc, msg, args, channel, 'e', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +e')
+        self.forceTickle = True
+        self._tickle(irc)
     e = wrap(e, ['op', commalist('something'), any('getTs', True), rest('text')])
 
     def undo(self, irc, msg, args, channel, mode, items):
@@ -1883,6 +1905,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._removes(irc, msg, args, channel, mode, items, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are not +%s' % mode)
+        self.forceTickle = True
+        self._tickle(irc)
     undo = wrap(undo, ['op', 'letter', many('something')])
 
     def uq(self, irc, msg, args, channel, items):
@@ -1899,6 +1923,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._removes(irc, msg, args, channel, 'q', items, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are not +q')
+        self.forceTickle = True
+        self._tickle(irc)
     uq = wrap(uq, ['op', many('something')])
 
     def ub(self, irc, msg, args, channel, optlist, items):
@@ -1928,6 +1954,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         + 'you may try "channel ban remove %s %s"' % (channel, ''))
             else:
                 irc.reply('nicks not found or hostmasks invalid or targets are not +b')
+        self.forceTickle = True
+        self._tickle(irc)
     ub = wrap(ub, ['op', getopts({'perm': ''}), many('something')])
 
     def ui(self, irc, msg, args, channel, items):
@@ -1944,6 +1972,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._removes(irc, msg, args, channel, 'I', items, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are not +I')
+        self.forceTickle = True
+        self._tickle(irc)
     ui = wrap(ui, ['op', many('something')])
 
     def ue(self, irc, msg, args, channel, items):
@@ -1960,6 +1990,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         b = self._removes(irc, msg, args, channel, 'e', items, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are not +e')
+        self.forceTickle = True
+        self._tickle(irc)
     ue = wrap(ue, ['op', many('something')])
 
     def r(self, irc, msg, args, channel, nick, reason):
@@ -2018,6 +2050,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply(' '.join(results), private=True)
         else:
             irc.reply('no results or unknown mode')
+        self.forceTickle = True
         self._tickle(irc)
     overlap = wrap(overlap, ['op', 'text'])
 
@@ -2034,6 +2067,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             schannel = ircutils.bold(channel)
         self._logChan(irc, channel, "[%s] %s wants attention from ops (%s)" % (
             schannel, msg.prefix, text))
+        self.forceTickle = True
+        self._tickle(irc)
     ops = wrap(ops, ['channel', optional('text')])
 
     def match(self, irc, msg, args, channel, prefix):
@@ -2094,6 +2129,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.reply('nobody will be affected')
         else:
             irc.reply('invalid pattern given')
+        self._tickle(irc)
     check = wrap(check, ['op', 'text'])
 
     def cpmode(self, irc, msg, args, channel, sourceMode, target, targetMode, seconds, reason):
@@ -2111,6 +2147,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             targets.add(L[element].value)
         self._adds(irc, msg, args, target, targetMode, targets, getDuration(seconds), reason, False)
         irc.replySuccess()
+        self._tickle(irc)
     cpmode = wrap(cpmode, ['op', 'letter', 'validChannel', 'letter', any('getTs', True), rest('text')])
 
     def getmask(self, irc, msg, args, channel, prefix):
@@ -2137,6 +2174,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     'useIpForGateway', channel=channel), self.registryValue('resolveIp'))))
                 return
             irc.reply('nick not found or wrong hostmask given')
+        self._tickle(irc)
     getmask = wrap(getmask, ['op', 'text'])
 
     def isvip(self, irc, msg, args, channel, nick):
@@ -2148,6 +2186,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply(self._isVip(irc, channel, self.getNick(irc, nick)))
         else:
             irc.reply('nick not found')
+        self._tickle(irc)
     isvip = wrap(isvip, ['op', 'nick'])
 
     def isbad(self, irc, msg, args, channel, nick):
@@ -2169,6 +2208,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply(chan.isWrong(best))
         else:
             irc.reply('nick not found')
+        self._tickle(irc)
     isbad = wrap(isbad, ['op', 'nick'])
 
     def vacuum(self, irc, msg, args):
@@ -2220,6 +2260,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.replySuccess()
             else:
                 irc.reply('unknown patterns')
+        self.forceTickle = True
+        self._tickle(irc)
     m = wrap(m, ['op', commalist('something'), rest('text')])
 
     def addpattern(self, irc, msg, args, channel, limit, life, mode, duration, pattern):
@@ -2249,6 +2291,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply(result)
         else:
             irc.reply('not enough rights to add a pattern on %s' % channel)
+        self.forceTickle = True
+        self._tickle(irc)
     addregexpattern = wrap(addregexpattern, ['op', 'nonNegativeInt', 'positiveInt', 'letter',
         any('getTs', True), rest('getPatternAndMatcher')])
 
@@ -2266,6 +2310,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply('%s removed: %s' % (len(results), ','.join(results)))
         else:
             irc.reply('not found or not enough rights')
+        self.forceTickle = True
+        self._tickle(irc)
     rmpattern = wrap(rmpattern, ['op', many('positiveInt')])
 
     def lspattern(self, irc, msg, args, channel, pattern):
@@ -2279,6 +2325,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.replies(results, None, None, False)
         else:
             irc.reply('nothing found')
+        self._tickle(irc)
     lspattern = wrap(lspattern, ['op', optional('text')])
 
     def rmmode(self, irc, msg, args, ids):
@@ -2292,6 +2339,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if b:
                 results.append(uid)
         irc.reply('%s' % ', '.join(results))
+        self._tickle(irc)
     rmmode = wrap(rmmode, ['owner', commalist('int')])
 
     def rmtmp(self, irc, msg, args, channel):
@@ -2304,6 +2352,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             life = self.registryValue('repeatPatternLife', channel=channel)
             chan.repeatLogs[key] = utils.structures.TimeoutQueue(life)
         irc.replySuccess()
+        self.forceTickle = True
+        self._tickle(irc)
     rmtmp = wrap(rmtmp, ['op'])
 
     def addtmp(self, irc, msg, args, channel, pattern):
@@ -2312,6 +2362,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         add temporary pattern, which follows repeat punishments"""
         self._addTemporaryPattern(irc, channel, pattern, msg.nick, True, False)
         irc.replySuccess()
+        self.forceTickle = True
+        self._tickle(irc)
     addtmp = wrap(addtmp, ['op', 'text'])
 
     def cflood(self, irc, msg, args, channel, permit, life, mode, duration):
