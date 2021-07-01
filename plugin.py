@@ -1969,6 +1969,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         chan = self.getChan(irc, channel)
         if not reason:
             reason = msg.nick
+        else:
+            reason = reason + ' (by ' + msg.nick + ')'
         chan.action.enqueue(ircmsgs.IrcMsg('REMOVE %s %s :%s' % (channel, nick, reason)))
         self.forceTickle = True
         self._tickle(irc)
@@ -1981,6 +1983,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         chan = self.getChan(irc, channel)
         if not reason:
             reason = msg.nick
+        else:
+            reason = reason + ' (by ' + msg.nick + ')'
         chan.action.enqueue(ircmsgs.kick(channel, nick, reason))
         self.forceTickle = True
         self._tickle(irc)
@@ -4254,10 +4258,33 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                 or len(item.affects) < self.registryValue(
                                                 'kickMax', channel=channel):
                                             if nick in irc.state.channels[channel].users and nick != irc.nick:
-                                                chan.action.enqueue(ircmsgs.kick(channel, nick, random.choice(
-                                                    self.registryValue('kickMessage', channel=channel))))
+                                                kickMessage = random.choice(self.registryValue('kickMessage', channel=channel))
+                                                if msg.nick == irc.nick or msg.nick == 'ChanServ':
+                                                    if len(self.registryValue('banMessage', channel=channel)):
+                                                        hk = '%s%s' % (m,value)
+                                                        if hk in chan.update:
+                                                            if len(chan.update[hk]) == 4:
+                                                                if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                                    (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                                    kickMessage = kickMessage + ' (by ' + nn + ')'
+                                                chan.action.enqueue(ircmsgs.kick(channel, nick, kickMessage))
                                                 self.forceTickle = True
                                                 kicked = True
+                                elif m == 'b' and not kicked:
+                                    if msg.nick == irc.nick or msg.nick == 'ChanServ':
+                                        if len(self.registryValue('banMessage', channel=channel)):
+                                            bm = self.registryValue('banMessage', channel=channel)
+                                            hk = '%s%s' % (m,value)
+                                            if hk in chan.update:
+                                                if len(chan.update[hk]) == 4:
+                                                    if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                        (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                        bm = bm + ' (by ' + nn + ')'
+                                            log.info('[%s] warned %s by pm' % (channel, nick))
+                                            if self.registryValue('banNotice', channel=channel):
+                                                irc.queueMsg(ircmsgs.notice(nick, bm))
+                                            else:
+                                                irc.queueMsg(ircmsgs.privmsg(nick, bm))
                                 if not kicked and m in self.registryValue('modesToAsk', channel=channel) \
                                         and self.registryValue('doActionAgainstAffected', channel=channel):
                                     if msg.nick == irc.nick:
@@ -4271,6 +4298,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                         if m == 'q' and not (chan.attacked or value == '$~a'):
                                             qm = self.registryValue('quietMessage', channel=channel)
                                             if len(qm):
+                                                hk = '%s%s' % (m,value)
+                                                if hk in chan.update:
+                                                    if len(chan.update[hk]) == 4:
+                                                        if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                            (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                            qm = qm + ' (by ' + nn + ')'
                                                 log.info('[%s] warned %s by pm' % (channel, nick))
                                                 if self.registryValue('quietNotice', channel=channel):
                                                     irc.queueMsg(ircmsgs.notice(nick, qm))
