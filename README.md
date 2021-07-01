@@ -92,9 +92,9 @@ After the 'doNothingAboutOwnOpStatus' changed to False, bot will deop in each ch
     !config supybot.plugins.ChanTracker.keepOp False
     !config channel #myChannel supybot.plugins.ChanTracker.keepOp True
 
-You should increase the ping interval because when the bot joins a channel it requests lots of data and sometimes the server takes time to answer
+You should decrease the ping interval because when the bot request a load of data when it joins a channel, sometimes, it could be throttled by server, and bot will retry at next ping/pong
 
-    !config supybot.protocols.irc.ping.interval 3600
+    !config supybot.protocols.irc.ping.interval 60
 
 Here list of data requested by the bot at join:
 
