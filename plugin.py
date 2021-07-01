@@ -4330,14 +4330,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                         (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
                                                         if nn != irc.nick:
                                                             bm = bm + ' (by ' + nn + ')'
-                                            log.info('[%s] warned %s by pm' % (channel, nick))
+                                            log.info('[%s] warned %s %s' % (channel, nick, bm))
                                             if self.registryValue('banNotice', channel=channel):
                                                 irc.queueMsg(ircmsgs.notice(nick, bm))
                                             else:
                                                 irc.queueMsg(ircmsgs.privmsg(nick, bm))
                                 if not kicked and m in self.registryValue('modesToAsk', channel=channel) \
                                         and self.registryValue('doActionAgainstAffected', channel=channel):
-                                    if msg.nick == irc.nick:
+                                    if msg.nick == irc.nick  or msg.nick == 'ChanServ':
                                         if nick != irc.nick:
                                             if nick in irc.state.channels[channel].ops:
                                                 chan.queue.enqueue(('-o', nick))
@@ -4355,7 +4355,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                             (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
                                                             if nn != irc.nick:
                                                                 qm = qm + ' (by ' + nn + ')'
-                                                log.info('[%s] warned %s by pm' % (channel, nick))
+                                                log.info('[%s] warned %s %s' % (channel, nick, qm))
                                                 if self.registryValue('quietNotice', channel=channel):
                                                     irc.queueMsg(ircmsgs.notice(nick, qm))
                                                 else:
