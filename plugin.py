@@ -3053,12 +3053,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         key = '%s%s' % (m, value)
                         if key in chan.mark:
                             del chan.mark[key]
-            if (irc.state.channels[channel].isHalfopPlus(irc.nick)
-                    and not self.registryValue('keepOp', channel=channel)) \
-                    or chan.deopPending or chan.deopAsked:
+            if irc.state.channels[channel].isHalfopPlus(irc.nick) \
+                    and not (self.registryValue('keepOp', channel=channel)
+                    or self.registryValue('doNothingAboutOwnOpStatus', channel=channel)
+                    or chan.deopPending or chan.deopAsked):
                 # ask for deop, delay it a bit
-                if not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
-                    self.unOp(irc, channel)
+                self.unOp(irc, channel)
             # mostly logChannel, and maybe few sync msgs
             if len(i.lowQueue):
                 retickle = True
@@ -4184,24 +4184,20 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if chan.deopPending:
                 return
             def unOpBot():
-                if channel in irc.state.channels:
+                if channel in irc.state.channels \
+                        and irc.state.channels[channel].isHalfopPlus(irc.nick) \
+                        and not (self.registryValue('keepOp', channel=channel)
+                        or chan.deopAsked):
+                    chan.deopPending = False
                     if not (len(i.queue) or len(chan.queue)):
-                        if irc.state.channels[channel].isHalfopPlus(irc.nick) \
-                                and not self.registryValue('keepOp', channel=channel):
-                            if not chan.deopAsked:
-                                chan.deopPending = False
-                                chan.deopAsked = True
-                                irc.queueMsg(ircmsgs.deop(channel, irc.nick))
-                                # little trick here, tickle before setting deopFlag
-                                self.forceTickle = True
-                                self._tickle(irc)
+                        chan.deopAsked = True
+                        irc.queueMsg(ircmsgs.deop(channel, irc.nick))
+                        # little trick here, tickle before setting deopFlag
+                        self.forceTickle = True
+                        self._tickle(irc)
                     else:
                         # reask for deop
-                        if (irc.state.channels[channel].isHalfopPlus(irc.nick)
-                                and not self.registryValue('keepOp', channel=channel)) \
-                                and not chan.deopAsked:
-                            self.deopPending = False
-                            self.unOp(irc, channel)
+                        self.unOp(irc, channel)
             chan.deopPending = True
             schedule.addEvent(unOpBot, float(time.time()+10))
 
