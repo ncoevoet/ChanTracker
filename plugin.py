@@ -1306,7 +1306,7 @@ class Nick(object):
         return self
 
     def setIp(self, ip):
-        if not ip == self.ip and not ip == '255.255.255.255' and utils.net.isIP(ip):
+        if not (ip == self.ip or ip == '255.255.255.255') and utils.net.isIP(ip):
             self.ip = ip
         return self
 
@@ -2318,7 +2318,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None and duration is not None:
+            if not (permit is None or life is None or mode is None or duration is None):
                 self.setRegistryValue('floodPermit', permit, channel=channel)
                 self.setRegistryValue('floodLife', life, channel=channel)
                 self.setRegistryValue('floodMode', mode, channel=channel)
@@ -2341,10 +2341,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None \
-                    and duration is not None and minimum is not None \
-                    and probability is not None and count is not None \
-                    and patternLength is not None and patternLife is not None :
+            if not (permit is None or life is None or mode is None or duration is None
+                    or minimum is None or probability is None or count is None
+                    or patternLength is None or patternLife is None):
                 self.setRegistryValue('repeatPermit', permit, channel=channel)
                 self.setRegistryValue('repeatLife', life, channel=channel)
                 self.setRegistryValue('repeatMode', mode, channel=channel)
@@ -2378,8 +2377,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None \
-                    and duration  is not None and probability is not None:
+            if not (permit is None or life is None or mode is None
+                    or duration is None or probability is None):
                 self.setRegistryValue('capPermit', permit, channel=channel)
                 self.setRegistryValue('capLife', life, channel=channel)
                 self.setRegistryValue('capMode', mode, channel=channel)
@@ -2404,7 +2403,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and mode is not None and duration is not None:
+            if not (permit is None or mode is None or duration is None):
                 self.setRegistryValue('hilightPermit', permit, channel=channel)
                 self.setRegistryValue('hilightMode', mode, channel=channel)
                 self.setRegistryValue('hilightDuration', duration, channel=channel)
@@ -2424,7 +2423,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and mode is not None and duration is not None:
+            if not (permit is None or mode is None or duration is None):
                 self.setRegistryValue('clonePermit', permit, channel=channel)
                 self.setRegistryValue('cloneMode', mode, channel=channel)
                 self.setRegistryValue('cloneDuration', duration, channel=channel)
@@ -2444,7 +2443,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None and duration is not None:
+            if not (permit is None or life is None or mode is None or duration is None):
                 self.setRegistryValue('noticePermit', permit, channel=channel)
                 self.setRegistryValue('noticeLife', life, channel=channel)
                 self.setRegistryValue('noticeMode', mode, channel=channel)
@@ -2467,7 +2466,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None and duration is not None:
+            if not (permit is None or life is None or mode is None or duration is None):
                 self.setRegistryValue('cyclePermit', permit, channel=channel)
                 self.setRegistryValue('cycleLife', life, channel=channel)
                 self.setRegistryValue('cycleMode', mode, channel=channel)
@@ -2490,7 +2489,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None and duration is not None:
+            if not (permit is None or life is None or mode is None or duration is None):
                 self.setRegistryValue('nickPermit', permit, channel=channel)
                 self.setRegistryValue('nickLife', life, channel=channel)
                 self.setRegistryValue('nickMode', mode, channel=channel)
@@ -2513,7 +2512,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if permit is not None and life is not None and mode is not None and duration is not None:
+            if not (permit is None or life is None or mode is None or duration is None):
                 self.setRegistryValue('badPermit', permit, channel=channel)
                 self.setRegistryValue('badLife', life, channel=channel)
                 self.setRegistryValue('badMode', mode, channel=channel)
@@ -2871,8 +2870,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if not irc.state.channels[channel].isHalfopPlus(irc.nick):
                 chan.deopAsked = False
                 chan.deopPending = False
-            if chan.syn and not irc.state.channels[channel].isHalfopPlus(irc.nick) \
-                    and not chan.opAsked and self.registryValue('keepOp', channel=channel):
+            if chan.syn and not (irc.state.channels[channel].isHalfopPlus(irc.nick)
+                    or chan.opAsked) and self.registryValue('keepOp', channel=channel):
                 # chan.syn is necessary, otherwise bot can't call owner if rights missed (see doNotice)
                 if not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
                     chan.opAsked = True
@@ -2883,7 +2882,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         '$channel', channel).replace('$nick', irc.nick)))
                     retickle = True
             if len(chan.queue) or len(chan.action):
-                if not irc.state.channels[channel].isHalfopPlus(irc.nick) and not chan.opAsked:
+                if not (irc.state.channels[channel].isHalfopPlus(irc.nick) or chan.opAsked):
                     # pending actions, but not opped
                     if not chan.deopAsked:
                         if not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
@@ -2918,8 +2917,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 r.append(item)
                             # if glitch, just comment this if...
                             if not (len(chan.action) or adding or chan.attacked):
-                                if not self.registryValue('keepOp', channel=channel) \
-                                        and not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
+                                if not (self.registryValue('keepOp', channel=channel)
+                                        or self.registryValue('doNothingAboutOwnOpStatus', channel=channel)):
                                     chan.deopPending = True
                                     chan.deopAsked = True
                                     r.append(('-o', irc.nick))
@@ -2998,9 +2997,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         key = '%s%s' % (m, value)
                         if key in chan.mark:
                             del chan.mark[key]
-            if irc.state.channels[channel].isHalfopPlus(irc.nick) \
-                    and not (self.registryValue('keepOp', channel=channel) \
-                    or chan.deopPending or chan.deopAsked):
+            if (irc.state.channels[channel].isHalfopPlus(irc.nick)
+                    and not self.registryValue('keepOp', channel=channel)) \
+                    or chan.deopPending or chan.deopAsked:
                 # ask for deop, delay it a bit
                 if not self.registryValue('doNothingAboutOwnOpStatus', channel=channel):
                     self.unOp(irc, channel)
@@ -3262,7 +3261,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 n.addLog(channel, 'has joined')
                 banned = False
                 c = ircdb.channels.getChannel(channel)
-                if not self._isVip(irc, channel, n) and not chan.netsplit:
+                if not (self._isVip(irc, channel, n) or chan.netsplit):
                     if c.bans and len(c.bans) \
                             and self.registryValue('useChannelBansForPermanentBan', channel=channel):
                         for ban in list(c.bans):
@@ -3835,7 +3834,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if len(patterns):
                 best = patterns[0]
             # if it fails here stacktrace
-        if not n or not best:
+        if not (n and best):
             # server msgs or plugin reload, or state not ready
             self._tickle(irc)
             return
@@ -3999,8 +3998,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 and 'z' in irc.state.channels[channel].modes:
                             message = None
                             if 'm' in irc.state.channels[channel].modes:
-                                if not msg.nick in irc.state.channels[channel].voices \
-                                        and not irc.state.channels[channel].isHalfopPlus(msg.nick):
+                                if not (msg.nick in irc.state.channels[channel].voices
+                                        or irc.state.channels[channel].isHalfopPlus(msg.nick)):
                                     if self.registryValue('useColorForAnnounces', channel=channel):
                                         message = '[%s] [+m] <%s> %s' % (ircutils.bold(
                                             channel), ircutils.mircColor(msg.prefix, 'light blue'), text)
@@ -4008,8 +4007,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                         message = '[%s] [+m] <%s> %s' % (
                                             channel, msg.prefix, text)
                             if not message:
-                                if not msg.nick in irc.state.channels[channel].voices \
-                                        and not irc.state.channels[channel].isHalfopPlus(msg.nick):
+                                if not (msg.nick in irc.state.channels[channel].voices
+                                        or irc.state.channels[channel].isHalfopPlus(msg.nick)):
                                     modes = self.registryValue('modesToAsk', channel=channel)
                                     found = False
                                     for mode in modes:
@@ -4142,8 +4141,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 self._tickle(irc)
                     else:
                         # reask for deop
-                        if irc.state.channels[channel].isHalfopPlus(irc.nick) \
-                                and not self.registryValue('keepOp', channel=channel) \
+                        if (irc.state.channels[channel].isHalfopPlus(irc.nick)
+                                and not self.registryValue('keepOp', channel=channel)) \
                                 and not chan.deopAsked:
                             self.deopPending = False
                             self.unOp(irc, channel)
@@ -4523,7 +4522,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         results.append(nick)
             if len(results) and mode in 'kr':
                 chan = self.getChan(irc, channel)
-                if not reason or not len(reason):
+                if not (reason and len(reason)):
                     reason = random.choice(self.registryValue('kickMessage', channel=channel))
                 for n in results:
                     if mode == 'k':
