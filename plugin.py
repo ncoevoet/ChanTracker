@@ -2337,7 +2337,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         for uid in ids:
             b = i.remove(uid, self.getDb(irc.network))
             if b:
-                results.append(uid)
+                results.append(str(uid))
         irc.reply('%s' % ', '.join(results))
         self._tickle(irc)
     rmmode = wrap(rmmode, ['owner', commalist('int')])
