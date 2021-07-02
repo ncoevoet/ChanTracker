@@ -238,9 +238,15 @@ Example: a user repeating the same thing:
 
     !config channel #channel supybot.plugins.ChanTracker.repeatPermit 3 <-- triggered after 3 similar message 
     !config channel #channel supybot.plugins.ChanTracker.repeatLife 40 <-- keep previous messages during 40 seconds
+    
+    !config channel #channel supybot.plugins.ChanTracker.repeatMinimum 8 <-- minimal size of candidate patterns
     !config channel #channel supybot.plugins.ChanTracker.repeatPercent 0.88 <-- 1.00 for identical message, don't go too lower, you will get false positive
+    !config channel #channel supybot.plugins.ChanTracker.repeatCount 6 <-- or the number of time a pattern is repeated in a single message
+    !config channel #channel supybot.plugins.ChanTracker.repeatPatternMinimum 12 <-- mininal size of temporary lethal patter
+    !config channel #channel supybot.plugins.ChanTracker.repeatPatternLife 120 <-- life duration of those patterns in seconds
+    
     !config channel #channel supybot.plugins.ChanTracker.repeatMode q <-- quiet
-    !config channel #channel supybot.plugins.ChanTracker.repeatDuration 180 <-- for 3 minutes
+    !config channel #channel supybot.plugins.ChanTracker.repeatDuration 3600 <-- for 1h
 
 ## Other tips ##
 
