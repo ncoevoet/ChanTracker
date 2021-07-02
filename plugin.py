@@ -1012,7 +1012,7 @@ class Chan(object):
         return self._lists[mode]
 
     def summary(self, db):
-        r = []
+        r = ['For %s' % self.name, 'Format: active/total']
         c = db.cursor()
         c.execute("""SELECT id,oper,kind,removed_at FROM bans WHERE channel=?""", (self.name,))
         L = c.fetchall()
@@ -1039,14 +1039,18 @@ class Chan(object):
                     opers[oper][kind]['active'] = opers[oper][kind]['active'] + 1
                 else:
                     opers[oper][kind]['removed'] = opers[oper][kind]['removed'] + 1
+            modes = []
             for kind in total:
-                r.append('+%s: %s/%s (active/total)' % (kind, total[kind]['active'],
-                    total[kind]['active']+total[kind]['removed']))
+                modes.append('%s/%s %s' % (total[kind]['active'],
+                    total[kind]['active']+total[kind]['removed'], kind))
+            r.append(', '.join(modes))
             for oper in opers:
-                r.append('%s:' % oper)
+                modes = []
+                modes.append('%s:' % oper)
                 for kind in opers[oper]:
-                    r.append('+%s: %s/%s (active/total)' % (kind, opers[oper][kind]['active'],
-                        opers[oper][kind]['active']+opers[oper][kind]['removed']))
+                    modes.append('%s/%s %s' % (opers[oper][kind]['active'],
+                        opers[oper][kind]['active']+opers[oper][kind]['removed'], kind))
+                r.append(', '.join(modes))
         c.close()
         return r
 
