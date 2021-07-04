@@ -2371,10 +2371,26 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
     addtmp = wrap(addtmp, ['op', 'text'])
 
+    def cautoexpire(self, irc, msg, args, channel, autoexpire):
+        """[<channel>] [<autoexpire>]
+
+        display or set the configuration of auto expiration for new items (-1 to disable, in seconds)"""
+        cap = ircdb.canonicalCapability('owner')
+        if self.registryValue('allowOpToConfig', channel=channel) \
+                or ircdb.checkCapability(msg.prefix, cap):
+            results = ['for %s' % channel]
+            if not autoexpire is None:
+                self.setRegistryValue('autoExpire', autoexpire, channel=channel)
+            results.append('autoExpire: %s' % self.registryValue('autoExpire', channel=channel))
+            irc.replies(results, None, None, False)
+            return
+        irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
+    cautoexpire = wrap(cautoexpire, ['op', optional('int')])
+
     def cflood(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set the configuration of flood control (<permit> -1 to disable)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2397,7 +2413,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def crepeat(self, irc, msg, args, channel, permit, life, mode, duration, minimum, probability, count, patternLength, patternLife):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>]
 
-        return channel protection configuration; <probablity> is a float between 0 and 1"""
+        display or set the configuration of repeat control (<permit> -1 to disable, <patternLength> -1 to disable pattern creation); <probablity> is a float between 0 and 1"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2433,7 +2449,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def ccap(self, irc, msg, args, channel, permit, life, mode, duration, probability):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>]
 
-        return channel protection configuration; <probablity> is a float between 0 and 1"""
+        display or set the configuration of caplocks control; <permit> -1 to disable, <probablity> is a float between 0 and 1"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2459,7 +2475,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def chl(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set hilight control for a given channel <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2479,7 +2495,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cclone(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set clone control for a given channel <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2499,7 +2515,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cnotice(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set channel's notice control <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2522,7 +2538,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def ccycle(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set join/part control <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2545,7 +2561,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cnick(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set nick changes control <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2568,7 +2584,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cbad(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        return channel protection configuration"""
+        display or set bad control for a given channel <permit> -1 to disable"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -4596,6 +4612,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 else:
                     self._logChan(irc, channel, '[%s] debug %s %s %s %s' % (
                         channel, mode, mask, duration, reason))
+            self.forceTickle = True
+            self._tickle(irc)
             return
         if mode in self.registryValue('modesToAsk', channel=channel) \
                 or mode in self.registryValue('modesToAskWhenOpped', channel=channel):

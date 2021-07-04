@@ -49,7 +49,7 @@ conf.registerGlobalValue(ChanTracker, 'pool',
         Note, check is also based on irc activity, so removal may be delayed a bit, -1 to disable delay"""))
 
 conf.registerGlobalValue(ChanTracker, 'logsSize',
-    registry.PositiveInteger(60, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
+    registry.PositiveInteger(1, """number of messages to keep in logs. Note, this is per nick - not per nick per channel"""))
 
 conf.registerGlobalValue(ChanTracker, 'quietCommand',
     registry.String("PRIVMSG ChanServ :QUIET $channel $hostmask",
