@@ -195,6 +195,9 @@ conf.registerChannelValue(ChanTracker, 'kickMax',
 conf.registerChannelValue(ChanTracker, 'kickMessage',
     registry.CommaSeparatedListOfStrings(["You are banned from this channel"], """bot kick reason"""))
 
+conf.registerChannelValue(ChanTracker, 'discloseOperator',
+    registry.Boolean(True, """reveals operator's nick on sockpuppet action via the bot !b, !q, !r, !k (via the kick reason or banMessage/quietMessage)"""))
+
 conf.registerChannelValue(ChanTracker, 'banMessage',
     registry.String("You have been banned on $channel", """set empty if you don't want the bot to tell something to the user
         when they have been banned (by/via the bot); in any case, if channel is under attack, bot will not send message;

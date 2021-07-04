@@ -2005,9 +2005,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         force a part on <nick> with <reason> if provided"""
         chan = self.getChan(irc, channel)
         if not reason:
-            reason = msg.nick
-        else:
-            reason += ' (by %s)' % msg.nick
+            reason = ''
+        if self.registryValue('discloseOperator', channel=channel):
+            if len(reason):
+                reason += ' (by %s)' % msg.nick
+            else:
+                reason = 'by %s' % msg.nick
         chan.action.enqueue(ircmsgs.IrcMsg('REMOVE %s %s :%s' % (channel, nick, reason)))
         self.forceTickle = True
         self._tickle(irc)
@@ -2019,9 +2022,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         kick <nick> with <reason> if provided"""
         chan = self.getChan(irc, channel)
         if not reason:
-            reason = msg.nick
-        else:
-            reason += ' (by %s)' % msg.nick
+            reason = ''
+        if self.registryValue('discloseOperator', channel=channel):
+            if len(reason):
+                reason += ' (by %s)' % msg.nick
+            else:
+                reason = 'by %s' % msg.nick
         chan.action.enqueue(ircmsgs.kick(channel, nick, reason))
         self.forceTickle = True
         self._tickle(irc)
@@ -4367,7 +4373,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                     if hk in chan.update and len(chan.update[hk]) == 4:
                                                         if ircutils.isUserHostmask(chan.update[hk][3]):
                                                             (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                            if nn != irc.nick:
+                                                            if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
                                                                 km += ' (by %s)' % nn
                                             chan.action.enqueue(ircmsgs.kick(channel, nick, km))
                                             self.forceTickle = True
@@ -4380,10 +4386,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             if hk in chan.update and len(chan.update[hk]) == 4:
                                                 if ircutils.isUserHostmask(chan.update[hk][3]):
                                                     (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                    if nn != irc.nick:
+                                                    if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
                                                         bm += ' (by %s)' % nn
                                                     elif self.registryValue('proxyMsgOnly', channel=channel):
-                                                        qm = ''
+                                                        bm = ''
                                             if len(bm):
                                                 bm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, bm))
@@ -4399,7 +4405,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             if hk in chan.update and len(chan.update[hk]) == 4:
                                                 if ircutils.isUserHostmask(chan.update[hk][3]):
                                                     (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                    if nn != irc.nick:
+                                                    if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
                                                         qm += ' (by %s)' % nn
                                                     elif self.registryValue('proxyMsgOnly', channel=channel):
                                                         qm = ''
