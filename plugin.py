@@ -2380,7 +2380,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cautoexpire(self, irc, msg, args, channel, autoexpire):
         """[<channel>] [<autoexpire>]
 
-        returns channel's config or auto remove new elements after <autoexpiration> (-1 to disable, in seconds)"""
+        return channel's config or auto remove new elements after <autoexpire> (-1 to disable, in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2396,8 +2396,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cflood(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if an user send more <permit> (-1 to disable) messages during <life> (in seconds)"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if a user sends more than <permit> (-1 to disable) messages during <life> (in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2420,10 +2420,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def crepeat(self, irc, msg, args, channel, permit, life, mode, duration, minimum, probability, count, patternLength, patternLife):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if <permit> (-1 to disable) repetitions are found during <life> (in seconds)\
-        it creates temporary lethal patterns and reapply <mode> and <duration>,\
-        <patternLength> (-1 to disable pattern creation); <probablity> is a float between 0 and 1"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) repetitions are found during <life> (in seconds);
+        it will create a temporary lethal pattern with a mininum of <patternLength>
+        (-1 to disable pattern creation); <probablity> is a float between 0 and 1"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2459,9 +2459,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def ccap(self, irc, msg, args, channel, permit, life, mode, duration, probability):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if <permit> (-1 to disable) messages during <life> (in seconds) \
-        contains more than <probability> (float between 0-1) uppercase chars"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) messages during <life> (in seconds)
+        contain more than <probability> (float between 0-1) uppercase chars"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2487,8 +2487,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def chl(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) \
-        if <permit> (-1 to disable) channel's nicks are found in a message"""
+        return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds)
+        if <permit> (-1 to disable) channel nicks are found in a message"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2508,8 +2508,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cclone(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if <permit> (-1 to disable) users with the same host joined the channel"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) users with the same host join the channel"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2529,8 +2529,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cnotice(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if <permit> (-1 to disable) messages are channel's notices during <life> (in seconds)"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) messages are channel notices during <life> (in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2553,8 +2553,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def ccycle(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        returns channel's config  or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if <permit> (-1 to disable) /part are received by a host during <life> (in seconds)"""
+        return channel's config  or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) parts/quits are received by a host during <life> (in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2577,8 +2577,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cnick(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) \
-        if an user changes nick <permit> (-1 to disable) times during <life> (in seconds)"""
+        return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds)
+        if a user changes nick <permit> (-1 to disable) times during <life> (in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2601,8 +2601,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cbad(self, irc, msg, args, channel, permit, life, mode, duration):
         """[<channel>] [<permit>] [<life>] [<mode>] [<duration>]
 
-        returns channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) \
-        if an user triggers <permit> (-1 to disable) channel's protections during <life> (in seconds)"""
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if a user triggers <permit> (-1 to disable) channel protections during <life> (in seconds)"""
         cap = ircdb.canonicalCapability('owner')
         if self.registryValue('allowOpToConfig', channel=channel) \
                 or ircdb.checkCapability(msg.prefix, cap):
@@ -2973,7 +2973,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         s = s.replace('$hostmask', value)
                         i.queue.enqueue(ircmsgs.IrcMsg(s))
                         chan.queue.pop(index)
-                    index = index + 1
+                    index += 1
             if not irc.state.channels[channel].isHalfopPlus(irc.nick):
                 chan.deopAsked = False
                 chan.deopPending = False
@@ -3016,7 +3016,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                         adding = True
                                 if m in self.registryValue('modesToAskWhenOpped', channel=channel):
                                     adding = True
-                                index = index + 1
+                                index += 1
                             # remove duplicates (should not happen, but..)
                             S = set(L)
                             r = []
@@ -3063,7 +3063,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             if overexpire != expire:
                                 chan.update['%s%s' % (m, value)] = [
                                     m, value, overexpire, irc.prefix]
-                        index = index + 1
+                        index += 1
                 L = []
                 for update in list(chan.update.keys()):
                     L.append(chan.update[update])
@@ -4367,13 +4367,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                 and nick != irc.nick:
                                             km = random.choice(self.registryValue('kickMessage', channel=channel))
                                             if msg.nick in (irc.nick, 'ChanServ'):
-                                                bm = self.registryValue('banMessage', channel=channel)
-                                                if len(bm):
+                                                if self.registryValue('discloseOperator', channel=channel):
                                                     hk = '%s%s' % (m, value)
                                                     if hk in chan.update and len(chan.update[hk]) == 4:
                                                         if ircutils.isUserHostmask(chan.update[hk][3]):
                                                             (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                            if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
+                                                            if nn != irc.nick:
                                                                 km += ' (by %s)' % nn
                                             chan.action.enqueue(ircmsgs.kick(channel, nick, km))
                                             self.forceTickle = True
@@ -4382,14 +4381,15 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     if msg.nick in (irc.nick, 'ChanServ'):
                                         bm = self.registryValue('banMessage', channel=channel)
                                         if len(bm):
-                                            hk = '%s%s' % (m, value)
-                                            if hk in chan.update and len(chan.update[hk]) == 4:
-                                                if ircutils.isUserHostmask(chan.update[hk][3]):
-                                                    (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                    if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
-                                                        bm += ' (by %s)' % nn
-                                                    elif self.registryValue('proxyMsgOnly', channel=channel):
-                                                        bm = ''
+                                            if self.registryValue('discloseOperator', channel=channel):
+                                                hk = '%s%s' % (m, value)
+                                                if hk in chan.update and len(chan.update[hk]) == 4:
+                                                    if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                        (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                        if nn != irc.nick:
+                                                            bm += ' (by %s)' % nn
+                                                        elif self.registryValue('proxyMsgOnly', channel=channel):
+                                                            bm = ''
                                             if len(bm):
                                                 bm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, bm))
@@ -4401,14 +4401,15 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     if msg.nick in (irc.nick, 'ChanServ'):
                                         qm = self.registryValue('quietMessage', channel=channel)
                                         if len(qm):
-                                            hk = '%s%s' % (m, value)
-                                            if hk in chan.update and len(chan.update[hk]) == 4:
-                                                if ircutils.isUserHostmask(chan.update[hk][3]):
-                                                    (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
-                                                    if nn != irc.nick and self.registryValue('discloseOperator', channel=channel):
-                                                        qm += ' (by %s)' % nn
-                                                    elif self.registryValue('proxyMsgOnly', channel=channel):
-                                                        qm = ''
+                                            if self.registryValue('discloseOperator', channel=channel):
+                                                hk = '%s%s' % (m, value)
+                                                if hk in chan.update and len(chan.update[hk]) == 4:
+                                                    if ircutils.isUserHostmask(chan.update[hk][3]):
+                                                        (nn, ii, hh) = ircutils.splitHostmask(chan.update[hk][3])
+                                                        if nn != irc.nick:
+                                                            qm += ' (by %s)' % nn
+                                                        elif self.registryValue('proxyMsgOnly', channel=channel):
+                                                            qm = ''
                                             if len(qm):
                                                 qm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, qm))
