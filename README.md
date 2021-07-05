@@ -31,15 +31,16 @@ Note that you may need a newer version of Limnoria than your distribution provid
     !addtmp [<channel>] <pattern> add temporary pattern which follows repeat punishments
     !rmtmp [<channel>] remove temporary patterns if any
     
-    !cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
-    !crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>] return channel protections configuration, <probablity> is a float between 0 and 1
-    !chl [<channel>] [<permit>] [<mode>] [<duration>] return channel protections configuration
-    !cnotice [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
-    !ccycle [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
-    !cclone [<channel>] [<permit>] [<mode>] [<duration>] return channel protections configuration
-    !cnick [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
-    !ccap [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>] return channel protections configuration, <probablity> is a float between 0 and 1
-    !cbad [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel protections configuration
+    !cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if a user sends more than <permit> (-1 to disable) messages during <life> (in seconds)
+    !crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) repetitions are found during <life> (in seconds); it will create a temporary lethal pattern with a mininum of <patternLength> (-1 to disable pattern creation); <probablity> is a float between 0 and 1
+    !chl [<channel>] [<permit>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) if <permit> (-1 to disable) channel nicks are found in a message
+    !cnotice [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) messages are channel notices during <life> (in seconds)
+    !ccycle [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) parts/quits are received by a host during <life> (in seconds)
+    !cclone [<channel>] [<permit>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) users with the same host join the channel
+    !cnick [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) if a user changes nick <permit> (-1 to disable) times during <life> (in seconds)
+    !ccap [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) messages during <life> (in seconds) contain more than <probability> (float between 0-1) uppercase chars
+    !cbad [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if a user triggers <permit> (-1 to disable) channel protections during <life> (in seconds)
+    !cautoexpire [<channel>] [<autoexpire>] return channel's config or auto remove new elements after <autoexpire> (-1 to disable, in seconds)
     
 ## General Usage ##
 
