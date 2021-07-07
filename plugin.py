@@ -2505,7 +2505,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         irc.reply("Operators aren't allowed to see or change protection configuration in %s" % channel)
     chl = wrap(chl, ['op', optional('int'), optional('letter'), optional('positiveInt')])
 
-    def cclone(self, irc, msg, args, channel, permit, life, mode, duration):
+    def cclone(self, irc, msg, args, channel, permit, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
         return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
@@ -4607,6 +4607,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     # protection features
     def _act(self, irc, channel, mode, mask, duration, reason, nick):
+        self.log.info('ChanTracker: acting in %s against %s / %s : %s %s %s' % (channel, nick, mask, mode, duration, reason))
         if mode == 'D':
             action = self.registryValue('modeD')
             if len(action):
