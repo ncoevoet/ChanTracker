@@ -1529,7 +1529,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 self._logChan(irc, channel, message)
         if self.registryValue('announceNagInterval') > 0:
             schedule.addEvent(self.checkNag, time.time() +
-                self.registryValue('announceNagInterval'))
+                self.registryValue('announceNagInterval'), 'ChanTracker')
 
     def summary(self, irc, msg, args, channel):
         """[<channel>]
@@ -3226,7 +3226,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
 
     def do263(self, irc, msg):
-        self.log.info('WARNING WHOX THROTTLED')
         i = self.getIrc(irc)
         i.whoxpending = False
 
@@ -4607,7 +4606,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     # protection features
     def _act(self, irc, channel, mode, mask, duration, reason, nick):
-        self.log.info('ChanTracker: acting in %s against %s / %s : %s %s %s' % (channel, nick, mask, mode, duration, reason))
+        log.info('ChanTracker: acting in %s against %s / %s : %s %s %s' % (channel, nick, mask, mode, duration, reason))
         if mode == 'D':
             action = self.registryValue('modeD')
             if len(action):
