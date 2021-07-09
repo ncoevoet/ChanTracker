@@ -3039,7 +3039,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         retickle = True
         # send pending msgs
         while len(i.queue):
-            irc.queueMsg(i.queue.dequeue())
+            msg = i.queue.dequeue()
+            log.info(str(msg))
+            irc.queueMsg(msg)
         # update duration
         for channel in list(irc.state.channels.keys()):
             chan = self.getChan(irc, channel)
@@ -4190,7 +4192,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def addToAsked(self, irc, prefix, data, nick):
         toAsk = False
-        endTime = time.time() + 180
         i = self.getIrc(irc)
         if not prefix in i.askedItems:
             i.askedItems[prefix] = {}
@@ -4210,7 +4211,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if found:
                 i.askedItems[prefix][found[0]][6] = True
                 i.lowQueue.enqueue(ircmsgs.privmsg(nick, found[5]))
-                self.forceTickle
+                self.forceTickle = True
+                self._tickle(irc)
         schedule.addEvent(unAsk, time.time() + (300 * len(list(i.askedItems[prefix]))))
 
     def doTopic(self, irc, msg):
