@@ -1607,8 +1607,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     f = self._logChan
                 if be:
                     if reason and len(reason):
-                        bm = i.mark(irc, uid, reason, msg.prefix,
-                                    self.getDb(irc.network), f, self)
+                        bm = i.mark(irc, uid, reason, msg.prefix, self.getDb(irc.network), f, self)
                     else:
                         bm = True
                 b = b and be and bm
@@ -3986,11 +3985,11 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     flag = ircdb.makeChannelCapability(channel, 'flood')
                     isFlood = False
                     if ircdb.checkCapability(msg.prefix, flag):
-                        isFlood = self._isFlood(irc, channel, best)
+                        isFlood = self._isSomething(irc, channel, best, 'flood')
                     flag = ircdb.makeChannelCapability(channel, 'lowFlood')
                     isLowFlood = False
                     if ircdb.checkCapability(msg.prefix, flag):
-                        isLowFlood = self._isLowFlood(irc, channel, best)
+                        isLowFlood = self._isSomething(irc, channel, best, 'lowFlood')
                     flag = ircdb.makeChannelCapability(channel, 'repeat')
                     isRepeat = False
                     if ircdb.checkCapability(msg.prefix, flag):
@@ -4005,6 +4004,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         isCap = self._isCap(irc, channel, best, text)
                     flag = ircdb.makeChannelCapability(channel, 'pattern')
                     isPattern = False
+                    isTemporaryPattern = False
                     if ircdb.checkCapability(msg.prefix, flag):
                         for p in chan.patterns:
                             pattern = chan.patterns[p]
@@ -4032,9 +4032,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         isBad = self._isBad(irc, channel, best)
                         self.forceTickle = True
                         chan.countpattern(isPattern.uid, self.getDb(irc.network))
-                    isTemporaryPattern = False
-                    if isPattern:
-                        pass
                     elif not isRepeat:
                         key = 'pattern%s' % channel
                         if key in chan.repeatLogs:
@@ -4052,52 +4049,52 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     'repeatDuration', channel=channel, network=irc.network), 'temporary pattern', msg.nick)
                                 isBad = self._isBad(irc, channel, best)
                                 self.forceTickle = True
-                    elif not isTemporaryPattern:
-                        if isFlood or isHilight or isRepeat or isCap or isCtcp or isLowFlood:
-                            isBad = self._isBad(irc, channel, best)
-                            kind = None
-                            duration = 0
-                            if isBad:
-                                kind = 'bad'
-                                duration = self.registryValue('badDuration', channel=channel, network=irc.network)
-                            else:
-                                if isFlood:
-                                    d = self.registryValue('floodDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'flood'
-                                        duration = d
-                                if isLowFlood:
-                                    d = self.registryValue('lowFloodDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'lowFlood'
-                                        duration = d
-                                if isRepeat:
-                                    d = self.registryValue('repeatDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'repeat'
-                                        duration = d
-                                if isHilight:
-                                    d = self.registryValue('hilightDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'hilight'
-                                        duration = d
-                                if isCap:
-                                    d = self.registryValue('capDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'cap'
-                                        duration = d
-                                if isCtcp:
-                                    d = self.registryValue('ctcpDuration', channel=channel, network=irc.network)
-                                    if d > duration:
-                                        kind = 'ctcp'
-                                        duration = d
-                            mode = self.registryValue('%sMode' % kind, channel=channel, network=irc.network)
-                            comment = self.registryValue('%sComment' % kind, channel=channel, network=irc.network)
-                            if len(mode) > 1:
-                                mode = mode[0]
-                            r = self.getIrcdMode(irc, mode, best)
-                            self._act(irc, channel, r[0], r[1], duration, comment, msg.nick)
-                            self.forceTickle = True
+                    if not (isPattern or isTemporaryPattern) \
+                            and (isFlood or isLowFlood or isRepeat or isHilight or isCap or isCtcp):
+                        isBad = self._isBad(irc, channel, best)
+                        kind = None
+                        duration = 0
+                        if isBad:
+                            kind = 'bad'
+                            duration = self.registryValue('badDuration', channel=channel, network=irc.network)
+                        else:
+                            if isFlood:
+                                d = self.registryValue('floodDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'flood'
+                                    duration = d
+                            if isLowFlood:
+                                d = self.registryValue('lowFloodDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'lowFlood'
+                                    duration = d
+                            if isRepeat:
+                                d = self.registryValue('repeatDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'repeat'
+                                    duration = d
+                            if isHilight:
+                                d = self.registryValue('hilightDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'hilight'
+                                    duration = d
+                            if isCap:
+                                d = self.registryValue('capDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'cap'
+                                    duration = d
+                            if isCtcp:
+                                d = self.registryValue('ctcpDuration', channel=channel, network=irc.network)
+                                if d > duration:
+                                    kind = 'ctcp'
+                                    duration = d
+                        mode = self.registryValue('%sMode' % kind, channel=channel, network=irc.network)
+                        comment = self.registryValue('%sComment' % kind, channel=channel, network=irc.network)
+                        if len(mode) > 1:
+                            mode = mode[0]
+                        r = self.getIrcdMode(irc, mode, best)
+                        self._act(irc, channel, r[0], r[1], duration, comment, msg.nick)
+                        self.forceTickle = True
                 if not chan.isWrong(best):
                     # prevent the bot to flood logChannel with bad user craps
                     if self.registryValue('announceCtcp', channel=channel, network=irc.network) and isCtcpMsg and not isAction:
@@ -4744,15 +4741,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     + self.registryValue('attackDuration', channel=channel, network=irc.network)))
         return b
 
-    def _isFlood(self, irc, channel, key):
-        return self._isSomething(irc, channel, key, 'flood')
-
-    def _isLowFlood(self, irc, channel, key):
-        return self._isSomething(irc, channel, key, 'lowFlood')
-
     def _isHilight(self, irc, channel, key, message):
         limit = self.registryValue('hilightPermit', channel=channel, network=irc.network)
-        if limit == -1:
+        if limit < 0:
             return False
         count = 0
         users = []
@@ -4852,8 +4843,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         return result
 
     def _isCap(self, irc, channel, key, message):
-        limit = self.registryValue('capPermit', channel=channel, network=irc.network)
-        if limit == -1:
+        if self.registryValue('capPermit', channel=channel, network=irc.network) < 0:
             return False
         trigger = self.registryValue('capPercent', channel=channel, network=irc.network)
         match = self.recaps.findall(message)
