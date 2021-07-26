@@ -74,11 +74,10 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 	def page(self, query):
 		def write(subtitle, body):
 			page = [
-				'<html style="text-align:center;font-size:1.2em;">',
-				'<head>\n<title>BanTracker%s</title>' % (' &raquo; %s' % subtitle if subtitle else ''),
+				'<html>', '<head>\n<title>BanTracker%s</title>' % (' &raquo; %s' % subtitle if subtitle else ''),
 				'<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
-				'<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"></link>',
-				'</head>\n<body style="margin:0.5em;width:98%;margin-left:auto;margin-right:auto;text-align:left;" class="container">'
+				'<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />',
+				'</head>\n<body style="margin:0.5em;width:98%;" class="container">'
 			] + body + ['</body>\n</html>']
 			self.send_response(200)
 			self.send_header("Content-type","text/html")
@@ -116,7 +115,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 			body = [
 				'<form action="%s">' % h,
 				'<p>Username: <input name="username" /></p>',
-				'<p>Password: <input name="password" type="password"/></p>',
+				'<p>Password: <input name="password" type="password" /></p>',
 				'<button type="submit" class="btn btn-default">Login</button>',
 				'</form>'
 			]
@@ -129,7 +128,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 		query = utils.web.urlunquote(query)
 		subtitle = ''
 		body = [
-			'<div class="row"><div class="col-xs-6">',
+			'<div class="row"><div class="col-xs-6" style="width:100%;max-width:600px;">',
 			'<form action="%s" class="form">' % q,
 			'<div class="input-group">',
 			'<input type="hidden" name="hash" value="%s">' % base64string,
@@ -157,9 +156,9 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 				if not channels or channel in channels:
 					body.extend([
 						'<h3>#%d</h3>' % bid,
-						'<p>#%d by <a href="%s%s&%s">%s</a>' % (bid,h,q,utils.web.urlencode({'oper':oper}),oper),
-						'in <a href="%s%s&channel=%s">%s</a>:' % (h,q,channel.split('#')[1],channel),
-						'+%s <a href="%s%s&%s">%s</a></p>' % (kind,h,q,utils.web.urlencode({'mask':mask}),mask),
+						'<p>#%d by <a href="%s%s&amp;%s">%s</a>' % (bid,h,q,utils.web.urlencode({'oper':oper}),oper),
+						'in <a href="%s%s&amp;channel=%s">%s</a>:' % (h,q,channel.split('#')[1],channel),
+						'+%s <a href="%s%s&amp;%s">%s</a></p>' % (kind,h,q,utils.web.urlencode({'mask':mask}),mask),
 						'<p>Begin at %s</p>' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
 					])
 					was = float(begin_at) == float(end_at)
@@ -174,7 +173,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 					else:
 						body.extend(['<p>Removed after %s' % timeElapsed(float(removed_at)-float(begin_at)),
 								'on %s' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at))),
-								'by <a href="%s%s&%s">%s</a></p>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by)])
+								'by <a href="%s%s&amp;%s">%s</a></p>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by)])
 					c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(bid,))
 					r = c.fetchall()
 					if len(r):
@@ -305,7 +304,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 			print('Found %s results' % len(ar))
 			body.extend([
 				'<h3>Results <small>%s</small></h3>' % search,
-				'<div class="row"><div class="col-xs-12"><table class="table table-bordered sortable">',
+				'<div class="row"><div class="col-xs-12"><table class="table table-bordered">',
 				'<thead><tr><th>ID</th><th>Channel</th><th>Operator</th><th>Type</th><th>Mask</th><th>Begin date</th><th>End date</th><th>Removed</th><th>Removed by</th></tr></thead>',
 				'<tbody>'
 			])
@@ -315,11 +314,11 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 					s = time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(begin_at)))
 					body.extend([
 						'<tr>',
-						'<td><a href="%s%s&id=%d">%d</a></td>' % (h,q,bid,bid),
-						'<td><a href="%s%s&channel=%s">%s</a></td>' % (h,q,channel.split('#')[1],channel),
-						'<td><a href="%s%s&%s">%s</a></td>' % (h,q,utils.web.urlencode({'oper':oper}),oper),
+						'<td><a href="%s%s&amp;id=%d">%d</a></td>' % (h,q,bid,bid),
+						'<td><a href="%s%s&amp;channel=%s">%s</a></td>' % (h,q,channel.split('#')[1],channel),
+						'<td><a href="%s%s&amp;%s">%s</a></td>' % (h,q,utils.web.urlencode({'oper':oper}),oper),
 						'<td>+%s</td>' % kind,
-						'<td><a href="%s%s&%s">%s</a></td>' % (h,q,utils.web.urlencode({'mask':mask}),mask),
+						'<td><a href="%s%s&amp;%s">%s</a></td>' % (h,q,utils.web.urlencode({'mask':mask}),mask),
 						'<td>%s</td>' % s
 					])
 					if end_at and end_at != begin_at:
@@ -333,7 +332,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 					else:
 						body.append('<td></td>')
 					if removed_by:
-						body.append('<td><a href="%s%s&%s">%s</a></td>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by))
+						body.append('<td><a href="%s%s&amp;%s">%s</a></td>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by))
 					else:
 						body.append('<td></td>')
 #					affected = ''
