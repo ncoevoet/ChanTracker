@@ -74,16 +74,17 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 	def page(self, query):
 		def write(subtitle, body):
 			page = [
-				'<html>', '<head>\n<title>BanTracker%s</title>' % (' &raquo; %s' % subtitle if subtitle else ''),
+				'<!DOCTYPE html>', '<html>', '<head>',
+				'<title>BanTracker%s</title>' % (' &raquo; %s' % subtitle if subtitle else ''),
 				'<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />',
 				'<link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css" />',
-				'</head>\n<body style="margin:0.5em;width:98%;" class="container">'
-			] + body + ['</body>\n</html>']
+				'</head>', '<body style="margin:0.5em; width:98%;" class="container">'
+			] + body + ['</body>', '</html>']
 			self.send_response(200)
-			self.send_header("Content-type","text/html")
+			self.send_header("Content-Type", "text/html")
 			full = '\n'.join(page)
 			print('HTML lines %s' % len(full))
-			self.send_header("Content-length",len(full))
+			self.send_header("Content-Length", len(full))
 			self.end_headers()
 			self.wfile.write(full.encode('utf-8'))
 
@@ -128,7 +129,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 		query = utils.web.urlunquote(query)
 		subtitle = ''
 		body = [
-			'<div class="row"><div class="col-xs-6" style="width:100%;max-width:600px;">',
+			'<div class="row"><div class="col-xs-6" style="width:100%; max-width:600px;">',
 			'<form action="%s" class="form">' % q,
 			'<div class="input-group">',
 			'<input type="hidden" name="hash" value="%s">' % base64string,
