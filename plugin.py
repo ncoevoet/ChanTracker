@@ -3681,7 +3681,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 removeNick = False
             elif reason.startswith(('Killed (', 'K-Lined')):
                 if not ('Nickname regained by services' in reason
-                        or 'NickServ (GHOST command used by ' in reason):
+                        or 'NickServ (GHOST command used by ' in reason
+                        or 'NickServ (Forcing logout ' in reason):
                     for channel in irc.state.channels:
                         chan = self.getChan(irc, channel)
                         if msg.nick in chan.nicks:
