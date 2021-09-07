@@ -900,7 +900,7 @@ class Ircd(object):
                 else:
                     i.expire = newEnd
                     if scheduleFunction and newEnd != current:
-                        scheduleFunction(irc, newEnd)
+                        scheduleFunction(irc, newEnd, prefix != irc.prefix)
             if logFunction:
                 if ct.registryValue('useColorForAnnounces', channel=channel):
                     logFunction(irc, channel, '[%s] [#%s %s %s] edited by %s: %s' % (
@@ -1646,7 +1646,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             else:
                 b = False
         if not sf and getDuration(seconds) > 0:
-            self._schedule(irc, float(time.time())+getDuration(seconds))
+            self._schedule(irc, float(time.time())+getDuration(seconds), True)
         if not msg.nick == irc.nick:
             if b:
                 irc.replySuccess()
@@ -1656,13 +1656,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
     edit = wrap(edit, ['user', commalist('int'), any('getTs')])
 
-    def info(self, irc, msg, args, user, uid):
+    def info(self, irc, msg, args, user, optlist, uid):
         """<id>
 
         summary of a mode change"""
         i = self.getIrc(irc)
         results = i.info(irc, uid, msg.prefix, self.getDb(irc.network))
         if len(results):
+            
             for message in results:
                 irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
         else:
@@ -3905,14 +3906,13 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     channel, msg.prefix, text))
         self._tickle(irc)
 
-    def _schedule(self, irc, end):
+    def _schedule(self, irc, end, force):
         if end > time.time():
             def do():
-                self.forceTickle = True
+                self.forceTickle = force
                 self._tickle(irc)
             schedule.addEvent(do, end)
         else:
-            self.forceTickle = True
             self._tickle(irc)
 
     def _isVip(self, irc, channel, n):
