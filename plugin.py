@@ -2483,7 +2483,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     ccap = wrap(ccap, ['op', optional('int'), optional('positiveInt'), optional('letter'),
         optional('positiveInt'), optional('proba')])
 
-    def chl(self, irc, msg, args, channel, permit, life, mode, duration):
+    def chl(self, irc, msg, args, channel, permit, mode, duration):
         """[<channel>] [<permit>] [<mode>] [<duration>]
 
         return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds)
