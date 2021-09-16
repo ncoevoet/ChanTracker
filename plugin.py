@@ -1655,14 +1655,13 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
     edit = wrap(edit, ['user', commalist('int'), any('getTs')])
 
-    def info(self, irc, msg, args, user, optlist, uid):
+    def info(self, irc, msg, args, user, uid):
         """<id>
 
         summary of a mode change"""
         i = self.getIrc(irc)
         results = i.info(irc, uid, msg.prefix, self.getDb(irc.network))
         if len(results):
-            
             for message in results:
                 irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
         else:
