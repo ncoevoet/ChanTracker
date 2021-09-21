@@ -50,6 +50,15 @@ mcidr = re.compile(r'^(\d{1,3}\.){0,3}\d{1,3}/\d{1,2}$')
 m6cidr = re.compile(r'^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}/\d{1,3}$')
 
 
+def isCommand(irc, text):
+    args = text.lower().split(None, 2)
+    for c in irc.callbacks:
+        if (args[0] == c.name().lower() and len(args) > 1
+                and c.isCommandMethod(args[1])) \
+                or c.isCommandMethod(args[0]):
+            return True
+
+
 def compareString(a, b):
     """return 0 to 1 float percent of similarity (0.85 seems to be a good average)"""
     if a == b:
@@ -4148,12 +4157,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                 msg.nick, text)
                             if message:
                                 self._logChan(irc, channel, message)
-            elif irc.nick == channel:
+            elif irc.nick == channel and not isCommand(irc, text):
                 found = self.hasAskedItems(irc, msg.prefix, True)
                 if found:
                     tokens = callbacks.tokenize('ChanTracker editAndMark %s %s' % (found[0], text))
-                    msg.command = 'PRIVMSG'
-                    msg.prefix = msg.prefix
                     self.Proxy(irc.irc, msg, tokens)
                 found = self.hasAskedItems(irc, msg.prefix, False)
                 if found:
