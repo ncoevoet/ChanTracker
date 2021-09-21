@@ -113,7 +113,7 @@ def findPattern(text, minimalCount, minimalLength, minimalPercent):
 
 def matchHostmask(pattern, n, resolve):
     # return the matched pattern for Nick
-    if n.prefix is None or not ircutils.isUserHostmask(n.prefix):
+    if not (n.prefix and ircutils.isUserHostmask(n.prefix)):
         return None
     (nick, ident, host) = ircutils.splitHostmask(n.prefix)
     if '/' in host:
@@ -3225,8 +3225,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if account == '0':
                 account = None
             n = self.getNick(irc, nick)
-            prefix = '%s!%s@%s' % (nick, ident, host)
-            n.setPrefix(prefix)
+            n.setPrefix('%s!%s@%s' % (nick, ident, host))
             if self.registryValue('resolveIp') and n.ip is None and ip != '255.255.255.255':
                 # validate ip
                 n.setIp(ip)
@@ -4222,11 +4221,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def doTopic(self, irc, msg):
         if len(msg.args) == 1:
             return
+        n = None
         if ircutils.isUserHostmask(msg.prefix):
             n = self.getNick(irc, msg.nick)
+            if 'account' in msg.server_tags:
+                n.setAccount(msg.server_tags['account'])
         channel = msg.args[0]
-        if 'account' in msg.server_tags:
-            n.setAccount(msg.server_tags['account'])
         if channel in irc.state.channels:
             if n:
                 n.addLog(channel, 'sets topic "%s"' % msg.args[1])
