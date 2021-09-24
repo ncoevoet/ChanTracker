@@ -100,7 +100,9 @@ conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
 
 conf.registerChannelValue(ChanTracker, 'autoExpire',
     registry.Integer(-1, """default expiration time for newly placed bans; -1 disables auto-expiration, otherwise it's in seconds"""))
-
+conf.registerChannelValue(ChanTracker, 'autoRemoveUnregisteredQuiets',
+    registry.Boolean(True, """auto remove from database unregistered quiets once expired -q $~a"""))
+    
 conf.registerChannelValue(ChanTracker, 'removeAllBans',
     registry.Boolean(False, """prevent accidental removal of all bans"""))
 conf.registerChannelValue(ChanTracker, 'removeAllQuiets',

@@ -949,6 +949,7 @@ class Ircd(object):
                                     ircutils.mircColor(mask, 'light blue')))
                             else:
                                 msgs.append('[#%s %s]' % (uid, mask))
+                            self.verifyRemoval(irc, channel, mode, mask, db, ct, uid)
         if commits > 0:
             db.commit()
             if logFunction:
@@ -970,6 +971,10 @@ class Ircd(object):
                     chan.patterns[uid] = Pattern(uid, pattern,
                         int(regexp) == 1, trigger, life, mode, duration)
         c.close()
+                
+    def verifyRemoval (self, irc, channel, mode, value, db, ct, uid):
+        if ct.registryValue('autoRemoveUnregisteredQuiets', channel=channel, network=irc.network) and mode == 'q' and value == '$~a':
+            self.remove(uid, db)
 
 
 class Chan(object):
@@ -4308,6 +4313,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         toCommit = False
         toexpire = []
         tolift = []
+        toremove = []
         if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels:
             modes = ircutils.separateModes(msg.args[1:])
             chan = self.getChan(irc, channel)
@@ -4456,6 +4462,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 or m in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):
                             toCommit = True
                             item = chan.removeItem(m, value, msg.prefix, c)
+                            toremove.append(item)
                     if n:
                         n.addLog(channel, 'sets %s %s' % (mode, value))
                     if item:
@@ -4552,7 +4559,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             msgs.append(mode)
             if toCommit:
                 db.commit()
-
+            if len(toremove):
+                for r in toremove:
+                    i.verifyRemoval(irc, item.channel, item.mode, item.value, db, self, item.uid)
             if irc.state.channels[channel].isHalfopPlus(irc.nick) \
                     and not self.registryValue('keepOp', channel=channel, network=irc.network):
                 self.forceTickle = True
