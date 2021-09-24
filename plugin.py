@@ -399,29 +399,29 @@ class Ircd(object):
             return []
         results = []
         current = time.time()
-        results.append('[%s] [%s] %s sets +%s %s' % (
-            channel, floatToGMT(begin_at), oper, kind, mask))
+        results.append([channel, '[%s] [%s] %s sets +%s %s' % (
+            channel, floatToGMT(begin_at), oper, kind, mask)])
         if not removed_at:
             if begin_at == end_at:
-                results.append('set forever')
+                results.append([channel, 'set forever'])
             else:
                 s = 'set for %s' % utils.timeElapsed(end_at-begin_at)
                 s = s + ' with %s more' % utils.timeElapsed(end_at-current)
                 s = s + ' and ends at [%s]' % floatToGMT(end_at)
-                results.append(s)
+                results.append([channel, s])
         else:
             s = 'was active %s and ended on [%s]' % (
                 utils.timeElapsed(removed_at-begin_at), floatToGMT(removed_at))
             if end_at != begin_at:
                 s = s + ', initially for %s' % utils.timeElapsed(end_at-begin_at)
             s = s + ', removed by %s' % removed_by
-            results.append(s)
+            results.append([channel,s])
         c.execute("""SELECT oper,comment FROM comments WHERE ban_id=? ORDER BY at DESC""", (uid,))
         L = c.fetchall()
         if len(L):
             for com in L:
                 (oper, comment) = com
-                results.append('"%s" by %s' % (comment, oper))
+                results.append([channel,'"%s" by %s' % (comment, oper)])
         c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""", (uid,))
         L = c.fetchall()
         if len(L) == 1:
@@ -431,9 +431,9 @@ class Ircd(object):
                 for line in log.split('\n'):
                     message = '%s' % line
                     break
-                results.append(message)
+                results.append([channel,message])
         elif len(L) > 1:
-            results.append('affects %s users' % len(L))
+            results.append([channel,'affects %s users' % len(L)])
 #        if len(L):
 #            for affected in L:
 #                (full, log) = affected
@@ -1676,8 +1676,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         results = i.info(irc, uid, msg.prefix, self.getDb(irc.network))
         if len(results):
-            for message in results:
-                irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
+            if self.registryValue('allowPublicInfo', channel=results[0][0], network=irc.network):
+                msgs = []
+                for message in results:
+                    msgs.append(message[1])
+                irc.replies(msgs, None, None, True, None)
+            else:
+                for message in results:
+                    irc.queueMsg(ircmsgs.privmsg(msg.nick, message[1]))
         else:
             irc.reply('item not found or not enough rights to see information')
         self.forceTickle = True
