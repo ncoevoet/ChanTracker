@@ -4598,7 +4598,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 db.commit()
             if len(toremove):
                 for r in toremove:
-                    i.verifyRemoval(irc, r.channel, r.mode, r.value, db, self, r.uid)
+                    i.verifyRemoval(irc, channel, r.mode, r.value, db, self, r.uid)
             if irc.state.channels[channel].isHalfopPlus(irc.nick) \
                     and not self.registryValue('keepOp', channel=channel, network=irc.network):
                 self.forceTickle = True
