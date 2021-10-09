@@ -757,7 +757,7 @@ class Ircd(object):
         c.close()
         return b
 
-    def mark(self, irc, uid, message, prefix, db, logFunction, ct, useSmartLog = False):
+    def mark(self, irc, uid, message, prefix, db, logFunction, ct, useSmartLog=False):
         # won't use channel,mode,value, because Item may be removed already
         if not (prefix and message):
             return False
@@ -777,7 +777,7 @@ class Ircd(object):
             if logFunction:
                 if ct.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                     if useSmartLog:
-                        logFunction(irc, '"%s"' % message)
+                        logFunction('"%s"' % message)
                     else:
                         logFunction(irc, channel, '[%s] [#%s %s %s] marked by %s: %s' % (
                             ircutils.bold(channel), ircutils.mircColor(uid, 'yellow', 'black'),
@@ -785,7 +785,7 @@ class Ircd(object):
                             ircutils.mircColor(mask, 'light blue'), prefix.split('!')[0], message))
                 else:
                     if useSmartLog:
-                        logFunction(irc, channel, '"%s"' % message)
+                        logFunction('"%s"' % message)
                     else:
                         logFunction(irc, channel, '[%s] [#%s +%s %s] marked by %s: %s' % (
                             channel, uid, kind, mask, prefix.split('!')[0], message))
@@ -869,7 +869,7 @@ class Ircd(object):
             b = True
         return b
 
-    def edit(self, irc, channel, mode, value, seconds, prefix, db, scheduleFunction, logFunction, ct, useSmartLog = False):
+    def edit(self, irc, channel, mode, value, seconds, prefix, db, scheduleFunction, logFunction, ct, useSmartLog=False):
         # edit eIqb duration
         if not (channel and mode and value and prefix):
             return False
@@ -919,7 +919,7 @@ class Ircd(object):
             if logFunction:
                 if ct.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                     if useSmartLog:
-                        logFunction(irc, '[%s] [#%s %s %s] by %s: %s' % (
+                        logFunction('[%s] [#%s %s %s] by %s: %s' % (
                             ircutils.bold(channel), ircutils.mircColor(str(uid), 'yellow', 'black'),
                             ircutils.bold(ircutils.mircColor('+%s' % kind, 'red')),
                             ircutils.mircColor(mask, 'light blue'), prefix.split('!')[0], reason))
@@ -930,7 +930,7 @@ class Ircd(object):
                             ircutils.mircColor(mask, 'light blue'), prefix.split('!')[0], reason))
                 else:
                     if useSmartLog:
-                        logFunction(irc, channel, '[%s] [#%s +%s %s] by %s: %s' % (
+                        logFunction('[%s] [#%s +%s %s] by %s: %s' % (
                             channel, uid, kind, mask, prefix.split('!')[0], reason))
                     else:
                         logFunction(irc, channel, '[%s] [#%s +%s %s] edited by %s: %s' % (
@@ -1624,9 +1624,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if item:
                 f = None
                 mm = []
-                useEAM = self.registryValue(
-                            'announceInTimeEditAndMark', channel=item.channel, network=irc.network) and not getDuration(seconds) == -1.0 and reason and len(reason) > 0
-                def ff(self, m):
+                useEAM = self.registryValue('announceInTimeEditAndMark', channel=item.channel, network=irc.network) \
+                    and not getDuration(seconds) == -1.0 and reason and len(reason) > 0
+                def ff(m):
                    mm.append(m)
                    if len(mm) == 2:
                        lc(irc, item.channel, ' '.join(mm)) 
