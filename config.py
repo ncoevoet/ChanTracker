@@ -121,12 +121,15 @@ conf.registerChannelValue(ChanTracker, 'logChannel',
     registry.String("", """where bot announces op actions; it is highly recommended to set an appropriate operators channel
         to receive the various useful messages, nick can be used"""), opSettable=False)
 
+conf.registerChannelValue(ChanTracker, 'useSmartLog',
+    registry.Boolean(True, """compress multiple announce messages at the same time into a single one"""))
+
 conf.registerChannelValue(ChanTracker, 'useColorForAnnounces',
     registry.Boolean(False, """use colors for announce messages"""))
 
 conf.registerChannelValue(ChanTracker, 'announceOthers',
     registry.Boolean(True, """forward messages from quieted/banned users to logChannel; used when bot stays opped and channel is +z (reduced moderation).
-        Messages from users flagged as bad, or when channel is under attack will not be forwarded"""))
+        messages from users flagged as bad, or when channel is under attack will not be forwarded"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeMadeByIgnored',
     registry.Boolean(True, """announce channel modes made by ignored user"""))
@@ -135,7 +138,7 @@ conf.registerChannelValue(ChanTracker, 'announceWithNotice',
     registry.Boolean(False, """use NOTICE instead of PRIVMSG to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModes',
-    registry.CommaSeparatedListOfStrings(['b', 'q', 'e', 'I', 'r', 'l', 'v', 'o', 'h', 'k', 'n', 't', 'F', 'i', 't', 's', 'n', 'c', 'C'],
+    registry.CommaSeparatedListOfStrings(['b', 'q', 'e', 'I', 'r', 'l', 'k', 'n', 't', 'F', 'i', 't', 's', 'n', 'c', 'C'],
         """announce modes listed to logChannel"""))
 
 conf.registerChannelValue(ChanTracker, 'announceModeSync',
