@@ -116,9 +116,6 @@ def matchHostmask(pattern, n, resolve):
     if not (n.prefix and ircutils.isUserHostmask(n.prefix)):
         return None
     (nick, ident, host) = ircutils.splitHostmask(n.prefix)
-    if '/' in host:
-        if host.startswith('gateway/web/freenode/ip.'):
-            n.ip = cache[n.prefix] = host.split('ip.')[1]
     if n.ip is not None and '@' in pattern and n.ip.find('*') == -1 \
             and mcidr.match(pattern.split('@')[1]):
         address = IPAddress('%s' % n.ip)
@@ -168,13 +165,11 @@ def matchRealname(pattern, pat, negate, n, extprefix):
     if n.realname is None:
         return None
     if negate:
-        if len(pat):
-            if not ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
-                return '%sr:%s' % (extprefix, n.realname.replace(' ', '?'))
+        if len(pat) and not ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
+            return '%sr:%s' % (extprefix, n.realname.replace(' ', '?'))
     else:
-        if len(pat):
-            if ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
-                return '%sr:%s' % (extprefix, n.realname.replace(' ', '?'))
+        if len(pat) and ircutils.hostmaskPatternEqual('*!*@%s' % pat, '*!*@%s' % n.realname):
+            return '%sr:%s' % (extprefix, n.realname.replace(' ', '?'))
     return None
 
 
@@ -255,9 +250,8 @@ def getBestPattern(n, irc, useIp=False, resolve=True):
     match(n.prefix, n, irc, resolve)
     results = []
     (nick, ident, host) = ircutils.splitHostmask(n.prefix)
-    if host.startswith('gateway/web/freenode/ip.') or host.startswith('gateway/tor-sasl/') \
-            or host.startswith('gateway/vpn/') or host.startswith('unaffiliated/') \
-            or ident.startswith('~') or n.realname == 'https://webchat.freenode.net':
+    if host.startswith(('gateway/tor-sasl/', 'gateway/vpn/', 'user/')) \
+            or ident.startswith('~') or n.realname.startswith('[https://web.libera.chat]'):
         ident = '*'
     if n.ip is not None:
         if len(n.ip.split(':')) > 4:
@@ -273,18 +267,14 @@ def getBestPattern(n, irc, useIp=False, resolve=True):
     if '/' in host:
         # cloaks
         if host.startswith('gateway/'):
-            if useIp and 'ip.' in host:
-                ident = '*'
-                host = '*ip.%s' % host.split('ip.')[1]
-            else:
-                h = host.split('/')
-                if 'x-' in host and not 'vpn/' in host:
-                    # gateway/type/(domain|account) [?/random]
-                    p = ''
-                    if len(h) > 3:
-                        p = '/*'
-                        h = h[:3]
-                        host = '%s%s' % ('/'.join(h), p)
+            h = host.split('/')
+            if 'x-' in host and not 'vpn/' in host:
+                # gateway/type/(domain|account) [?/random]
+                p = ''
+                if len(h) > 3:
+                    p = '/*'
+                    h = h[:3]
+                    host = '%s%s' % ('/'.join(h), p)
         elif host.startswith('nat/'):
             h = host.replace('nat/', '')
             if '/' in h:
@@ -478,10 +468,8 @@ class Ircd(object):
         if len(r):
             for item in r:
                 (uid, mode, value, by, when, expire) = item
-                if pattern is not None:
-                    if not by.startswith(pattern):
-                        if not ircutils.hostmaskPatternEqual(pattern, by):
-                            continue
+                if pattern is not None and not ircutils.hostmaskPatternEqual(pattern, by):
+                    continue
                 c.execute("""SELECT oper,comment FROM comments WHERE ban_id=?
                              ORDER BY at DESC LIMIT 1""", (uid,))
                 L = c.fetchall()
@@ -3321,46 +3309,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     cache[n.prefix] = n.ip
                 else:
                     cache[n.prefix] = host
-        for channel in channels:
-            if ircutils.isChannel(channel) and channel in irc.state.channels:
-                best = getBestPattern(n, irc, self.registryValue(
-                    'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))[0]
-                chan = self.getChan(irc, channel)
-                banned = False
-                if self.registryValue('checkEvade', channel=channel, network=irc.network) and '/ip.' in prefix:
-                    items = chan.getItemsFor('b')
-                    for k in items:
-                        item = items[k]
-                        if ircutils.isUserHostmask(item.value):
-                            n = Nick(0)
-                            n.setPrefix(item.value)
-                            if match('*!*@%s' % prefix.split('ip.')[1], n, irc, self.registryValue('resolveIp')):
-                                self._act(irc, channel, 'b', best, self.registryValue(
-                                    'autoExpire', channel=channel, network=irc.network), 'evade of [#%s +%s %s]' % (
-                                    item.uid, item.mode, item.value), nick)
-                                f = None
-                                banned = True
-                                self.forceTickle = True
-                                if self.registryValue('announceBotMark', channel=channel, network=irc.network):
-                                    f = self._logChan
-                                i.mark(irc, item.uid, 'evade with %s --> %s' % (prefix, best),
-                                    irc.prefix, self.getDb(irc.network), f, self)
-                                break
-                    if not banned:
-                        items = chan.getItemsFor('q')
-                        for k in items:
-                            item = items[k]
-                            if ircutils.isUserHostmask(item.value):
-                                n = Nick(0)
-                                n.setPrefix(item.value)
-                                pat = '*!*@%s' % prefix.split('ip.')[1]
-                                if pat != item.value and match(pat, n, irc, self.registryValue('resolveIp')):
-                                    f = None
-                                    if self.registryValue('announceBotMark', channel=channel, network=irc.network):
-                                        f = self._logChan
-                                    i.mark(irc, item.uid, 'evade with %s --> %s' % (prefix, best),
-                                        irc.prefix, self.getDb(irc.network), f, self)
-                                    break
         self._tickle(irc)
 
     def doChghost(self, irc, msg):
