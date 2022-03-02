@@ -11,6 +11,12 @@ password = 'password'
 filename = '/home/botaccount/data/networkname/ChanTracker.db'
 channels = [] # empty to allow view of all channels recorded, otherwise restrict the views to channels
 
+# httpd server address
+if not standalone:
+	servaddr = '127.0.0.1'
+else:
+	servaddr = ''
+
 # usage python server.py
 auth = '%s:%s' % (username,password)
 base64string = base64.b64encode(auth.encode('utf-8')).decode('utf-8')
@@ -24,54 +30,11 @@ def weblink():
 	weblink += '/?hash=%s' % base64string
 	return weblink
 
-def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
-				weeks=True, days=True, hours=True, minutes=True, seconds=True):
-	"""Given <elapsed> seconds, returns a string with an English description of
-	how much time as passed.  leadingZeroes determines whether 0 days, 0 hours,
-	etc. will be printed; the others determine what larger time periods should
-	be used.
-	"""
-	ret = []
-	def Format(s, i):
-		if i or leadingZeroes or ret:
-			if short:
-				ret.append('%s%s' % (i, s[0]))
-			else:
-				ret.append(format('%n', (i, s)))
-	elapsed = int(elapsed)
-	assert years or weeks or days or \
-		hours or minutes or seconds, 'One flag must be True'
-	if years:
-		(yrs, elapsed) = (elapsed // 31536000, elapsed % 31536000)
-		Format('year', yrs)
-	if weeks:
-		(wks, elapsed) = (elapsed // 604800, elapsed % 604800)
-		Format('week', wks)
-	if days:
-		(ds, elapsed) = (elapsed // 86400, elapsed % 86400)
-		Format('day', ds)
-	if hours:
-		(hrs, elapsed) = (elapsed // 3600, elapsed % 3600)
-		Format('hour', hrs)
-	if minutes or seconds:
-		(mins, secs) = (elapsed // 60, elapsed % 60)
-		if leadingZeroes or mins:
-			Format('minute', mins)
-		if seconds:
-			leadingZeroes = True
-			Format('second', secs)
-	if not ret:
-		raise ValueError('Time difference not great enough to be noted.')
-	if short:
-		return ' '.join(ret)
-	else:
-		return format('%L', ret)
-
 def htmlEscape(text):
 	return text.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
 
 
-class MyHandler(http.server.BaseHTTPRequestHandler):
+class BanTracker(http.server.BaseHTTPRequestHandler):
 	if not standalone:
 		def log_request(self, *args):
 			pass    # disable logging
@@ -174,13 +137,17 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 					if was:
 						was = 'forever'
 					else:
-						was = timeElapsed(float(end_at) - float(begin_at))
+						was = utils.timeElapsed(float(end_at) - float(begin_at))
 					body.append('<p>Original duration: %s</p>' % was)
 					if not removed_at:
 						if was != 'forever':
-							body.append('<p>It will expire in %s</p>' % timeElapsed(float(end_at) - time.time()))
+							remaining = float(end_at) - time.time()
+							if remaining >= 0:
+								body.append('<p>It will expire in %s</p>' % utils.timeElapsed(remaining))
+							else:
+								body.append('<p>It expired %s</p>' % utils.timeElapsed(remaining))
 					else:
-						body.extend(['<p>Removed after %s' % timeElapsed(float(removed_at)-float(begin_at)),
+						body.extend(['<p>Removed after %s' % utils.timeElapsed(float(removed_at)-float(begin_at)),
 								'on %s' % time.strftime('%Y-%m-%d %H:%M:%S GMT',time.gmtime(float(removed_at))),
 								'by <a href="%s%s&amp;%s">%s</a></p>' % (h,q,utils.web.urlencode({'removed_by':removed_by}),removed_by)])
 					c.execute("""SELECT full,log FROM nicks WHERE ban_id=?""",(bid,))
@@ -391,7 +358,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
 		return db
 
 
-def httpd(handler_class=MyHandler, server_address=('', port)):
+def httpd(handler_class=BanTracker, server_address=(servaddr, port)):
 	srvr = http.server.HTTPServer(server_address, handler_class)
 	srvr.serve_forever()
 

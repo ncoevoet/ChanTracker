@@ -396,16 +396,21 @@ class Ircd(object):
             if begin_at == end_at:
                 results.append([channel, 'is set forever'])
             else:
-                s = 'set for %s' % utils.timeElapsed(end_at-begin_at)
-                s = s + ' with %s more' % utils.timeElapsed(end_at-current)
-                s = s + ' and ends at [%s]' % floatToGMT(end_at)
+                s = 'set for %s, ' % utils.timeElapsed(end_at-begin_at)
+                remaining = end_at - current
+                if remaining >= 0:
+                    s += ' with %s more,' % utils.timeElapsed(remaining)
+                    s += ' and ends at [%s]' % floatToGMT(end_at)
+                else:
+                    s += ' expired %s,' % utils.timeElapsed(remaining)
+                    s += ' and ended at [%s]' % floatToGMT(end_at)
                 results.append([channel, s])
         else:
             s = 'was active %s and ended on [%s]' % (
                 utils.timeElapsed(removed_at-begin_at), floatToGMT(removed_at))
             if end_at != begin_at:
-                s = s + ', initially for %s' % utils.timeElapsed(end_at-begin_at)
-            s = s + ', removed by %s' % removed_by
+                s += ', initially for %s' % utils.timeElapsed(end_at-begin_at)
+            s += ', removed by %s' % removed_by
             results.append([channel,s])
         c.execute("""SELECT oper,comment FROM comments WHERE ban_id=?""", (uid,))
         L = c.fetchall()
@@ -902,7 +907,7 @@ class Ircd(object):
                     message = 'edited by %s: %s' % (prefix.split('!')[0], expires)
                 elif ct.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                     message = '[%s] [#%s %s %s] edited by %s: %s' % (
-                        ircutils.bold(channel), ircutils.mircColor(str(uid), 'yellow', 'black'),
+                        ircutils.bold(channel), ircutils.mircColor(uid, 'yellow', 'black'),
                         ircutils.bold(ircutils.mircColor('+%s' % kind, 'red')),
                         ircutils.mircColor(mask, 'light blue'), prefix.split('!')[0], expires)
                 else:
@@ -3450,7 +3455,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         n.setPrefix(msg.prefix)
         reason = ''
         if len(msg.args) == 2:
-            reason = msg.args[1].lstrip().rstrip()
+            reason = msg.args[1].strip()
         canRemove = True
         for channel in channels:
             if isBot and channel in i.channels:
@@ -4310,7 +4315,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 (mode, value) = change
                 m = mode[1]
                 if value:
-                    value = str(value).lstrip().rstrip()
+                    value = str(value).strip()
                     item = None
                     if mode[0] == '+':
                         if m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
@@ -4458,70 +4463,70 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'red')),
                                             ircutils.mircColor(value, 'light blue')))
                                     else:
                                         msgs.append('[#%s %s %s]' % (
-                                            str(item.uid), mode, value))
+                                            item.uid, mode, value))
                             elif len(item.affects) > 1:
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s - %s users]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'red')),
                                             ircutils.mircColor(value, 'light blue'),
-                                            str(len(item.affects))))
+                                            len(item.affects)))
                                     else:
                                         msgs.append('[#%s %s %s - %s users]' % (
-                                            str(item.uid), mode, value, str(len(item.affects))))
+                                            item.uid, mode, value, len(item.affects)))
                             else:
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s - %s]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'red')),
                                             ircutils.mircColor(value, 'light blue'), item.affects[0]))
                                     else:
                                         msgs.append('[#%s %s %s - %s]' % (
-                                            str(item.uid), mode, value, item.affects[0]))
+                                            item.uid, mode, value, item.affects[0]))
                         else:
                             if not len(item.affects):
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s - %s]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'green')),
                                             ircutils.mircColor(value, 'light blue'),
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            utils.timeElapsed(item.removed_at-item.when)))
                                     else:
                                         msgs.append('[#%s %s %s - %s]' % (
-                                            str(item.uid), mode, value,
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            item.uid, mode, value,
+                                            utils.timeElapsed(item.removed_at-item.when)))
                             elif len(item.affects) > 1:
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s - %s users, %s]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'green')),
-                                            ircutils.mircColor(value, 'light blue'), str(len(item.affects)),
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            ircutils.mircColor(value, 'light blue'), len(item.affects),
+                                            utils.timeElapsed(item.removed_at-item.when)))
                                     else:
                                         msgs.append('[#%s %s %s - %s users, %s]' % (
-                                            str(item.uid), mode, value, str(len(item.affects)),
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            item.uid, mode, value, len(item.affects),
+                                            utils.timeElapsed(item.removed_at-item.when)))
                             else:
                                 if m in announces:
                                     if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                         msgs.append('[#%s %s %s - %s, %s]' % (
-                                            ircutils.mircColor(str(item.uid), 'yellow', 'black'),
+                                            ircutils.mircColor(item.uid, 'yellow', 'black'),
                                             ircutils.bold(ircutils.mircColor(mode, 'green')),
                                             ircutils.mircColor(value, 'light blue'), item.affects[0],
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            utils.timeElapsed(item.removed_at-item.when)))
                                     else:
                                         msgs.append('[#%s %s %s - %s, %s]' % (
-                                            str(item.uid), mode, value, item.affects[0],
-                                            str(utils.timeElapsed(item.removed_at-item.when))))
+                                            item.uid, mode, value, item.affects[0],
+                                            utils.timeElapsed(item.removed_at-item.when)))
                     else:
                         if m in announces:
                             if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
