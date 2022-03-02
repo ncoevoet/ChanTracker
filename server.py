@@ -15,6 +15,14 @@ channels = [] # empty to allow view of all channels recorded, otherwise restrict
 auth = '%s:%s' % (username,password)
 base64string = base64.b64encode(auth.encode('utf-8')).decode('utf-8')
 
+def weblink():
+	weblink = host
+	if standalone:
+		weblink += ':%s' % port
+	else:
+		weblink += webpath
+	weblink += '/?hash=%s' % base64string
+	return weblink
 
 def timeElapsed(elapsed, short=False, leadingZeroes=False, years=True,
 				weeks=True, days=True, hours=True, minutes=True, seconds=True):

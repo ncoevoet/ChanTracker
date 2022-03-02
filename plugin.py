@@ -40,6 +40,7 @@ from supybot.commands import *
 from supybot import utils, ircutils, ircmsgs, ircdb, plugins, callbacks
 from supybot import conf, registry, log, schedule, world
 
+from . import server
 
 # due to more kind of pattern checked, increase size
 ircutils._hostmaskPatternEqualCache = utils.structures.CacheDict(10000)
@@ -1539,6 +1540,23 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             schedule.addEvent(self.checkNag, time.time() +
                 self.registryValue('announceNagInterval'), 'ChanTracker')
 
+    def weblink(self, irc, msg, args, user):
+        """takes no arguments
+
+        provides link to web interface"""
+        allowed = False
+        for capab in user.capabilities:
+            if capab in ('owner', 'admin') or capab.endswith(',op'):
+                allowed = True
+                break
+        if allowed:
+            irc.queueMsg(ircmsgs.privmsg(msg.nick, server.weblink()))
+        else:
+            irc.errorNoCapability('#channel,op')
+        self.forceTickle = True
+        self._tickle(irc)
+    weblink = wrap(weblink, ['user'])
+
     def summary(self, irc, msg, args, channel):
         """[<channel>]
 
@@ -2166,7 +2184,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         copy <channelSource> <channelMode> elements in <channelTarget> on <targetMode>; <-1> or empty means forever"""
         op = ircdb.makeChannelCapability(target, 'protected')
         if not ircdb.checkCapability(msg.prefix, op):
-            irc.replyError('you are missing %s,op capability' % target)
+            irc.errorNoCapability('%s,op' % target)
             return
         chan = self.getChan(irc, channel)
         targets = set([])

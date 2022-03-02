@@ -50,8 +50,12 @@ __url__ = 'https://github.com/ncoevoet/ChanTracker'
 
 from . import config
 from . import plugin
-from imp import reload
-reload(plugin) # In case we're being reloaded.
+from . import server
+from importlib import reload
+# In case we're being reloaded.
+reload(config)
+reload(plugin)
+reload(server)
 # Add more reloads here if you add third-party modules and want them to be
 # reloaded when this plugin is reloaded.  Don't forget to import them as well!
 
