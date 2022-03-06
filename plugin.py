@@ -252,7 +252,8 @@ def getBestPattern(n, irc, useIp=False, resolve=True):
     results = []
     (nick, ident, host) = ircutils.splitHostmask(n.prefix)
     if host.startswith(('gateway/tor-sasl/', 'gateway/vpn/', 'user/')) \
-            or ident.startswith('~') or n.realname.startswith('[https://web.libera.chat]'):
+            or ident.startswith('~') or (n.realname and
+            n.realname.startswith('[https://web.libera.chat]')):
         ident = '*'
     if n.ip is not None:
         if len(n.ip.split(':')) > 4:
