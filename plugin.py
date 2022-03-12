@@ -4394,7 +4394,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                         elif self.registryValue('proxyMsgOnly', channel=channel, network=irc.network):
                                                             bm = ''
                                             if len(bm):
-                                                bm.replace('$channel', channel)
+                                                bm = bm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, bm))
                                                 if self.registryValue('banNotice', channel=channel, network=irc.network):
                                                     i.lowQueue.enqueue(ircmsgs.notice(nick, bm))
@@ -4414,7 +4414,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                         elif self.registryValue('proxyMsgOnly', channel=channel, network=irc.network):
                                                             qm = ''
                                             if len(qm):
-                                                qm.replace('$channel', channel)
+                                                qm = qm.replace('$channel', channel)
                                                 log.info('[%s] warned %s with: %s' % (channel, nick, qm))
                                                 if self.registryValue('quietNotice', channel=channel, network=irc.network):
                                                     i.lowQueue.enqueue(ircmsgs.notice(nick, qm))
