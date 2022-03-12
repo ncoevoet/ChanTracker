@@ -397,7 +397,7 @@ class Ircd(object):
             if begin_at == end_at:
                 results.append([channel, 'is set forever'])
             else:
-                s = 'set for %s, ' % utils.timeElapsed(end_at-begin_at)
+                s = 'set for %s,' % utils.timeElapsed(end_at-begin_at)
                 remaining = end_at - current
                 if remaining >= 0:
                     s += ' with %s more,' % utils.timeElapsed(remaining)
@@ -412,7 +412,7 @@ class Ircd(object):
             if end_at != begin_at:
                 s += ', initially for %s' % utils.timeElapsed(end_at-begin_at)
             s += ', removed by %s' % removed_by
-            results.append([channel,s])
+            results.append([channel, s])
         c.execute("""SELECT oper,comment FROM comments WHERE ban_id=?""", (uid,))
         L = c.fetchall()
         if len(L):
