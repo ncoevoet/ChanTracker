@@ -1348,13 +1348,13 @@ class Nick(object):
     def __repr__(self):
         ip = self.ip
         if ip is None:
-            ip = ''
+            ip = '(n/a)'
         account = self.account
         if account is None:
-            account = ''
+            account = '(n/a)'
         realname = self.realname
         if realname is None:
-            realname = ''
+            realname = '(n/a)'
         return '%s ip:%s account:%s username:%s' % (self.prefix, ip, account, realname)
 
 
