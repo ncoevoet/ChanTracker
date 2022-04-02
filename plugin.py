@@ -1513,7 +1513,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self.__parent.__init__(irc)
         callbacks.Plugin.__init__(self, irc)
         plugins.ChannelDBHandler.__init__(self)
-        self.lastTickle = time.time()-self.registryValue('pool')
+        self.lastTickle = None
         self.dbUpgraded = False
         self.forceTickle = True
         self._ircs = ircutils.IrcDict()
@@ -2148,7 +2148,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if self.registryValue('resolveIp') and utils.net.isIP(prefix.split('@')[1]):
                         n.setIp(prefix.split('@')[1])
             else:
-                irc.reply('unknow nick')
+                irc.reply('unknown nick')
                 return
         results = i.against(irc, channel, n, msg.prefix, self.getDb(irc.network), self)
         if len(results):
@@ -2970,9 +2970,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             self.lastTickle = t
         if not self.forceTickle:
             pool = self.registryValue('pool')
-            if pool > 0:
-                if self.lastTickle+pool < t:
-                    return
+            if pool > 0 and self.lastTickle+pool > t:
+                return
         self.lastTickle = t
         i = self.getIrc(irc)
         retickle = False
