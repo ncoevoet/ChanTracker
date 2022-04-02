@@ -51,6 +51,15 @@ mcidr = re.compile(r'^(\d{1,3}\.){0,3}\d{1,3}/\d{1,2}$')
 m6cidr = re.compile(r'^([0-9a-f]{0,4}:){2,7}[0-9a-f]{0,4}/\d{1,3}$')
 
 
+def checkAddressed(irc, text, channel):
+    if irc.isChannel(channel):
+        if text[0] in str(conf.supybot.reply.whenAddressedBy.chars.get(channel)):
+            return True
+    elif text[0] in conf.supybot.reply.whenAddressedBy.chars():
+        return True
+    return False
+
+
 def isCommand(irc, text):
     args = text.lower().split(None, 2)
     for c in irc.callbacks:
@@ -768,7 +777,7 @@ class Ircd(object):
             db.commit()
             if logFunction:
                 key = '%s|%s' % (kind, mask)
-                if key in ct.smartLog:
+                if key in ct.smartLog and ct.smartLog[key]:
                     message = 'and marked: %s' % message
                     message = '; '.join(ct.smartLog[key] + [message])
                     del ct.smartLog[key]
@@ -869,10 +878,10 @@ class Ircd(object):
             (uid, channel, kind, mask, begin_at, end_at) = L[0]
             chan = self.getChan(irc, channel)
             current = time.time()
-            if begin_at == end_at and seconds < 0:
-                c.close()
-                return True
             if begin_at == end_at:
+                if seconds < 0:
+                    c.close()
+                    return True
                 text = 'was set forever'
             else:
                 text = 'ended [%s] for %s' % (
@@ -912,7 +921,6 @@ class Ircd(object):
                 else:
                     message = '[%s] [#%s +%s %s] edited by %s: %s' % (
                         channel, uid, kind, mask, prefix.split('!')[0], expires)
-                key = '%s|%s' % (kind, mask)
                 if key in ct.smartLog:
                     ct.smartLog[key].append(message)
                 else:
@@ -952,8 +960,9 @@ class Ircd(object):
             db.commit()
             if logFunction:
                 if ct.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                    logFunction(irc, channel, '[%s] [%s] %s removed: %s' % (
-                        ircutils.bold(channel), ircutils.mircColor(mode, 'green'), commits, ' '.join(msgs)))
+                    logFunction(irc, channel, '[%s] [%s] %s removed: %s' % (ircutils.bold(
+                        channel), ircutils.bold(ircutils.mircColor(mode, 'green')),
+                        commits, ' '.join(msgs)))
                 else:
                     logFunction(irc, channel, '[%s] [%s] %s removed: %s' % (
                         channel, mode, commits, ' '.join(msgs)))
@@ -969,7 +978,7 @@ class Ircd(object):
                     chan.patterns[uid] = Pattern(uid, pattern,
                         int(regexp) == 1, trigger, life, mode, duration)
         c.close()
-                
+
     def verifyRemoval (self, irc, channel, mode, value, db, ct, uid):
         if ct.registryValue('autoRemoveUnregisteredQuiets', channel=channel, network=irc.network) and mode == 'q' and value == '$~a':
             self.remove(uid, db)
@@ -1172,7 +1181,7 @@ class Chan(object):
                 (removed_at, by, int(i.uid)))
             i.removed_by = by
             i.removed_at = removed_at
-            self._lists[mode].pop(value)
+            del self._lists[mode][value]
         return i
 
     def addpattern(self, prefix, limit, life, mode, duration, pattern, regexp, db):
@@ -1339,7 +1348,7 @@ class Nick(object):
 
     def addLog(self, target, message):
         if len(self.logs) == self.logSize:
-            self.logs.pop(0)
+            del self.logs[0]
         self.logs.append([time.time(), target, message])
         return self
 
@@ -1411,33 +1420,14 @@ addConverter('getPatternAndMatcher', getPatternAndMatcher)
 
 
 # Taken from plugins.Time.seconds
+_SECONDS_RE = re.compile(r'-?[0-9]+[ywdhms]')
 def getTs(irc, msg, args, state):
-    """[<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]
-
-    Returns the number of seconds in the number of <years>, <weeks>,
-    <days>, <hours>, <minutes>, and <seconds> given.  An example usage is
-    "seconds 2h 30m", which would return 9000, which is '3600*2 + 30*60'.
-    Useful for scheduling events at a given number of seconds in the
-    future.
-    """
-    # here there is some glitch / ugly hack to allow any('getTs'), with rest('test') after...
-    # TODO: check that bot can't kill itself with loop
-    seconds = -1
-    items = list(args)
-    for arg in items:
-        if not (arg and arg[-1] in 'ywdhms'):
-            try:
-                n = int(arg)
-                state.args.append(n)
-            except:
-                state.args.append(float(seconds))
-                raise callbacks.ArgumentError
-        (s, kind) = arg[:-1], arg[-1]
-        try:
-            i = int(s)
-        except ValueError:
-            state.args.append(float(seconds))
-            raise callbacks.ArgumentError
+    seconds = None
+    secs = _SECONDS_RE.findall(args[0])
+    for sec in secs:
+        (i, kind) = int(sec[:-1]), sec[-1]
+        if seconds is None:
+            seconds = 0
         if kind == 'y':
             seconds += i*31536000
         elif kind == 'w':
@@ -1449,13 +1439,10 @@ def getTs(irc, msg, args, state):
         elif kind == 'm':
             seconds += i*60
         elif kind == 's':
-            if i == 0:
-                i = 1
             seconds += i
-        elif kind == '-':
-            state.args.append(float(seconds))
-            raise callbacks.ArgumentError
-        args.pop(0)
+    if seconds is None:
+        raise callbacks.ArgumentError
+    del args[0]
     state.args.append(float(seconds))
 
 
@@ -1479,7 +1466,7 @@ addConverter('proba', getProba)
 def getDuration(seconds):
     if not len(seconds):
         return -1
-    return seconds[0]
+    return sum(seconds)
 
 
 def getWrapper(name):
@@ -1541,11 +1528,11 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     toNag = mode
                                     break
                             if len(toNag):
-                                message = '[%s] has %s mode' % (channel, toNag)
                                 if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                                    message = '[%s] has %s mode' % (
-                                        ircutils.bold(channel), ircutils.mircColor(toNag, 'red'))
-                                self._logChan(irc, channel, message)
+                                    self._logChan(irc, channel, '[%s] has %s mode' % (
+                                        ircutils.bold(channel), ircutils.bold(ircutils.mircColor(toNag, 'red'))))
+                                else:
+                                    self._logChan(irc, channel, '[%s] has %s mode' % (channel, toNag))
         if self.registryValue('announceNagInterval') > 0:
             schedule.addEvent(self.checkNag, time.time() +
                 self.registryValue('announceNagInterval'), 'ChanTracker')
@@ -1650,11 +1637,16 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 break
         if b:
             irc.replySuccess()
+            self.hasAskedItems(irc, msg.prefix, remove=True, prompt=False)
+            found = self.hasAskedItems(irc, msg.prefix, remove=False, prompt=True)
+            if found:
+                i.askedItems[msg.prefix][found[0]][6] = True
+                i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick, found[5]))
         else:
             irc.reply('item not found, already removed or not enough rights to modify it')
         self.forceTickle = True
         self._tickle(irc)
-    editandmark = wrap(editandmark, ['user', commalist('int'), any('getTs', True), optional('text')])
+    editandmark = wrap(editandmark, ['user', commalist('int'), many('getTs', True), rest('text')])
 
     def edit(self, irc, msg, args, user, ids, seconds):
         """<id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]
@@ -1690,7 +1682,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.reply('item not found, already removed or not enough rights to modify it')
         self.forceTickle = True
         self._tickle(irc)
-    edit = wrap(edit, ['user', commalist('int'), any('getTs')])
+    edit = wrap(edit, ['user', commalist('int'), many('getTs')])
 
     def info(self, irc, msg, args, user, uid):
         """<id>
@@ -2118,11 +2110,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return
         if not text:
             text = ''
-        schannel = channel
         if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-            schannel = ircutils.bold(channel)
-        self._logChan(irc, channel, "[%s] %s wants attention from ops (%s)" % (
-            schannel, msg.prefix, text))
+            self._logChan(irc, channel, "[%s] %s wants attention from ops (%s)" % (
+                ircutils.bold(channel), msg.prefix, text))
+        else:
+            self._logChan(irc, channel, "[%s] %s wants attention from ops (%s)" % (
+                channel, msg.prefix, text))
         self.forceTickle = True
         self._tickle(irc)
     ops = wrap(ops, ['channel', optional('text')])
@@ -3016,7 +3009,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         s = s.replace('$channel', channel)
                         s = s.replace('$hostmask', value)
                         i.queue.enqueue(ircmsgs.IrcMsg(s))
-                        chan.queue.pop(index)
+                        del chan.queue[index]
                     index += 1
             if not irc.state.channels[channel].isHalfopPlus(irc.nick):
                 chan.deopAsked = False
@@ -3436,8 +3429,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     clones.append(nick)
                             if len(clones) > permit:
                                 if self.registryValue('cloneMode', channel=channel, network=irc.network) == 'd':
-                                    self._logChan(irc, channel, '[%s] clones (%s) detected (%s)' % (
-                                        ircutils.bold(channel), best, ', '.join(clones)))
+                                    if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
+                                        self._logChan(irc, channel, '[%s] clones (%s) detected (%s)' % (
+                                            ircutils.bold(channel), best, ', '.join(clones)))
+                                    else:
+                                        self._logChan(irc, channel, '[%s] clones (%s) detected (%s)' % (
+                                            channel, best, ', '.join(clones)))
                                 else:
                                     (m, p) = self.getIrcdMode(irc, self.registryValue(
                                         'cloneMode', channel=channel, network=irc.network), best)
@@ -3474,8 +3471,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if reason.startswith('requested by') \
                             and self.registryValue('announceKick', channel=channel, network=irc.network):
                         if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                            self._logChan(irc, channel, '[%s] %s has left (%s)' % (
-                                ircutils.bold(channel), ircutils.mircColor(msg.prefix, 'light blue'), reason))
+                            self._logChan(irc, channel, '[%s] %s has left (%s)' % (ircutils.bold(
+                                channel), ircutils.mircColor(msg.prefix, 'light blue'), reason))
                         else:
                             self._logChan(irc, channel, '[%s] %s has left (%s)' % (
                                 channel, msg.prefix, reason))
@@ -4145,9 +4142,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             break
                                     if found:
                                         if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                                            message = '[%s] [#%s +%s %s] <%s> %s' % (
+                                            message = '[%s] [#%s %s %s] <%s> %s' % (
                                                 ircutils.bold(channel), found[0].uid,
-                                                ircutils.mircColor(found[0].mode, 'red'),
+                                                ircutils.bold(ircutils.mircColor('+%s' % found[0].mode, 'red')),
                                                 ircutils.mircColor(found[0].value, 'light blue'),
                                                 msg.nick, text)
                                         else:
@@ -4156,25 +4153,22 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                 msg.nick, text)
                             if message:
                                 self._logChan(irc, channel, message)
-            elif irc.nick == channel and not isCommand(irc, text):
-                found = self.hasAskedItems(irc, msg.prefix, True)
+            elif irc.nick == channel and not (checkAddressed(irc, text, channel)
+                    or isCommand(irc, text)):
+                found = self.hasAskedItems(irc, msg.prefix, remove=False, prompt=False)
                 if found:
                     tokens = callbacks.tokenize('ChanTracker editAndMark %s %s' % (found[0], text))
                     self.Proxy(irc.irc, msg, tokens)
-                found = self.hasAskedItems(irc, msg.prefix, False)
-                if found:
-                    i.askedItems[msg.prefix][found[0]][6] = True
-                    i.lowQueue.enqueue(ircmsgs.privmsg(msg.nick, found[5]))
-                    self.forceTickle = True
         self._tickle(irc)
 
-    def hasAskedItems(self, irc, prefix, remove):
+    def hasAskedItems(self, irc, prefix, remove, prompt):
         i = self.getIrc(irc)
         if prefix in i.askedItems:
             found = None
-            for item in i.askedItems[prefix]:
-                if not found or (item < found[0] and not found[6]):
-                    found = i.askedItems[prefix][item]
+            for item in list(i.askedItems[prefix].values()):
+                if (not found or item[0] < found[0]) \
+                        and not (prompt and item[6]):
+                    found = item
             if found:
                 chan = self.getChan(irc, found[3])
                 items = chan.getItemsFor(found[1])
@@ -4204,13 +4198,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             i.askedItems[prefix][data[0]][6] = True
             i.lowQueue.enqueue(ircmsgs.privmsg(nick, data[5]))
             self.forceTickle = True
+            self._tickle(irc)
         def unAsk():
             if prefix in i.askedItems:
                 if data[0] in i.askedItems[prefix]:
                     del i.askedItems[prefix][data[0]]
                 if not len(list(i.askedItems[prefix])):
                     del i.askedItems[prefix]
-            found = self.hasAskedItems(irc, prefix, False)
+            found = self.hasAskedItems(irc, prefix, remove=False, prompt=True)
             if found:
                 i.askedItems[prefix][found[0]][6] = True
                 i.lowQueue.enqueue(ircmsgs.privmsg(nick, found[5]))
@@ -4333,7 +4328,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
                                     message = message % (
                                         ircutils.mircColor(item.uid, 'yellow', 'black'),
-                                        ircutils.bold(ircutils.mircColor('+%s' % m, 'green')),
+                                        ircutils.bold(ircutils.mircColor('+%s' % m, 'red')),
                                         ircutils.mircColor(value, 'light blue'), channel, len(item.affects))
                                 else:
                                     message = message % (
