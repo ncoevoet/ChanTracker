@@ -4380,7 +4380,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             chan.action.enqueue(ircmsgs.kick(channel, nick, km))
                                             self.forceTickle = True
                                             kicked = True
-                                elif m == 'b' and not (kicked or chan.attacked):
+                                if m == 'b' and not (kicked or chan.attacked):
                                     if msg.nick in (irc.nick, 'ChanServ'):
                                         bm = self.registryValue('banMessage', channel=channel, network=irc.network)
                                         if len(bm):
@@ -4400,7 +4400,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                                     i.lowQueue.enqueue(ircmsgs.notice(nick, bm))
                                                 else:
                                                     i.lowQueue.enqueue(ircmsgs.privmsg(nick, bm))
-                                elif m == 'q' and not (kicked or chan.attacked or value == '$~a'):
+                                if m == 'q' and not (kicked or chan.attacked or value == '$~a'):
                                     if msg.nick in (irc.nick, 'ChanServ'):
                                         qm = self.registryValue('quietMessage', channel=channel, network=irc.network)
                                         if len(qm):
