@@ -475,7 +475,7 @@ class Ircd(object):
         if len(r):
             for item in r:
                 (uid, mode, value, by, when, expire) = item
-                if pattern is not None and not ircutils.hostmaskPatternEqual(pattern, by):
+                if not (pattern is None or ircutils.hostmaskPatternEqual(pattern, by)):
                     continue
                 c.execute("""SELECT oper,comment FROM comments WHERE ban_id=?
                              ORDER BY at DESC LIMIT 1""", (uid,))
@@ -554,13 +554,12 @@ class Ircd(object):
         if not (uid and prefix):
             return []
         c = db.cursor()
-        c.execute("""SELECT channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by
-                     FROM bans WHERE id=?""", (uid,))
+        c.execute("""SELECT channel FROM bans WHERE id=?""", (uid,))
         L = c.fetchall()
         if not len(L):
             c.close()
             return []
-        (channel, oper, kind, mask, begin_at, end_at, removed_at, removed_by) = L[0]
+        (channel,) = L[0]
         if not ircdb.checkCapability(prefix, '%s,op' % channel):
             c.close()
             return []
@@ -589,7 +588,7 @@ class Ircd(object):
         # deep search inside database,
         # results filtered depending prefix capability
         c = db.cursor()
-        bans = {}
+        bans = set([])
         results = []
         isOwner = ircdb.checkCapability(prefix, 'owner') or prefix == irc.prefix
         glob = '*%s*' % pattern
@@ -619,14 +618,14 @@ class Ircd(object):
                 for item in items:
                     (uid, mask) = item
                     if ircutils.hostmaskPatternEqual(pattern, mask):
-                        bans[uid] = uid
+                        bans.add(uid)
             c.execute("""SELECT ban_id,full FROM nicks ORDER BY ban_id DESC""")
             items = c.fetchall()
             if len(items):
                 for item in items:
                     (uid, full) = item
                     if ircutils.hostmaskPatternEqual(pattern, full):
-                        bans[uid] = uid
+                        bans.add(uid)
         if deep:
             c.execute("""SELECT ban_id,full FROM nicks WHERE full GLOB ? OR full LIKE ?
                          OR log GLOB ? OR log LIKE ? ORDER BY ban_id DESC""", (glob, like, glob, like))
@@ -637,21 +636,21 @@ class Ircd(object):
         if len(items):
             for item in items:
                 (uid, full) = item
-                bans[uid] = uid
+                bans.add(uid)
         c.execute("""SELECT id,mask FROM bans WHERE mask GLOB ? OR mask LIKE ?
                      ORDER BY id DESC""", (glob, like))
         items = c.fetchall()
         if len(items):
             for item in items:
-                (uid, full) = item
-                bans[uid] = uid
+                (uid, mask) = item
+                bans.add(uid)
         c.execute("""SELECT ban_id,comment FROM comments WHERE comment GLOB ? OR comment LIKE ?
                      ORDER BY ban_id DESC""", (glob, like))
         items = c.fetchall()
         if len(items):
             for item in items:
-                (uid, full) = item
-                bans[uid] = uid
+                (uid, comment) = item
+                bans.add(uid)
         if len(bans):
             for uid in bans:
                 c.execute("""SELECT id,mask,kind,channel,begin_at,end_at,removed_at
@@ -661,11 +660,11 @@ class Ircd(object):
                     (uid, mask, kind, chan, begin_at, end_at, removed_at) = item
                     if isOwner or ircdb.checkCapability(prefix, '%s,op' % chan):
                         if (never or active) and removed_at:
-                                continue
+                            continue
                         if never and begin_at != end_at:
-                                continue
-                        if channel and  chan != channel:
-                                continue
+                            continue
+                        if channel and chan != channel:
+                            continue
                         results.append([uid, mask, kind, chan])
         if len(results):
             results.sort(reverse=True)
@@ -690,13 +689,12 @@ class Ircd(object):
         if not (uid and prefix):
             return []
         c = db.cursor()
-        c.execute("""SELECT channel,oper,kind,mask,begin_at,end_at,removed_at,removed_by
-                     FROM bans WHERE id=?""", (uid,))
+        c.execute("""SELECT channel FROM bans WHERE id=?""", (uid,))
         L = c.fetchall()
         if not len(L):
             c.close()
             return []
-        (channel, oper, kind, mask, begin_at, end_at, removed_at, removed_by) = L[0]
+        (channel,) = L[0]
         if not ircdb.checkCapability(prefix, '%s,op' % channel):
             c.close()
             return []
@@ -727,10 +725,10 @@ class Ircd(object):
         b = False
         if len(L):
             (uid, channel, kind, mask) = L[0]
-            if not ircdb.checkCapability(prefix, '%s,op' % channel):
-                if prefix != irc.prefix:
-                    c.close()
-                    return False
+            if not (ircdb.checkCapability(prefix, '%s,op' % channel)
+                    or prefix == irc.prefix):
+                c.close()
+                return False
             current = time.time()
             c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""", (uid, prefix, current, message))
             db.commit()
@@ -761,10 +759,10 @@ class Ircd(object):
         b = False
         if len(L):
             (uid, channel, kind, mask) = L[0]
-            if not ircdb.checkCapability(prefix, '%s,op' % channel):
-                if prefix != irc.prefix:
-                    c.close()
-                    return False
+            if not (ircdb.checkCapability(prefix, '%s,op' % channel)
+                    or prefix == irc.prefix):
+                c.close()
+                return False
             current = time.time()
             c.execute("""INSERT INTO comments VALUES (?, ?, ?, ?)""", (uid, prefix, current, message))
             db.commit()
@@ -859,9 +857,9 @@ class Ircd(object):
         # edit eIqb duration
         if not (channel and mode and value and prefix):
             return False
-        if not ircdb.checkCapability(prefix, '%s,op' % channel):
-            if prefix != irc.prefix:
-                return False
+        if not (ircdb.checkCapability(prefix, '%s,op' % channel)
+                or prefix == irc.prefix):
+            return False
         c = db.cursor()
         c.execute("""SELECT id,channel,kind,mask,begin_at,end_at FROM bans WHERE channel=? AND kind=?
                      AND mask=? AND removed_at is NULL ORDER BY id LIMIT 1""", (channel, mode, value))
@@ -870,7 +868,7 @@ class Ircd(object):
         if len(L):
             (uid, channel, kind, mask, begin_at, end_at) = L[0]
             chan = self.getChan(irc, channel)
-            current = float(time.time())
+            current = time.time()
             if begin_at == end_at and seconds < 0:
                 c.close()
                 return True
@@ -1100,7 +1098,7 @@ class Chan(object):
                         i.affects.append(full)
             else:
                 # if begin_at == end_at --> that means forever
-                c.execute("""INSERT INTO bans VALUES (NULL, ?, ?, ?, ?, ?, ?,NULL, NULL)""",
+                c.execute("""INSERT INTO bans VALUES (NULL, ?, ?, ?, ?, ?, ?, NULL, NULL)""",
                     (self.name, by, mode, value, when, when))
                 i.isNew = True
                 uid = c.lastrowid
@@ -1152,7 +1150,7 @@ class Chan(object):
     def removeItem(self, mode, value, by, c):
         # flag item as removed in database, we use a cursor as argument
         # because otherwise database tends to be locked
-        removed_at = float(time.time())
+        removed_at = time.time()
         i = self.getItem(mode, value)
         created = False
         if not i:
@@ -1178,9 +1176,9 @@ class Chan(object):
         return i
 
     def addpattern(self, prefix, limit, life, mode, duration, pattern, regexp, db):
-        if not ircdb.checkCapability(prefix, '%s,op' % self.name):
-            if prefix != irc.prefix:
-                return False
+        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
+                or prefix == irc.prefix):
+            return False
         c = db.cursor()
         c.execute("""INSERT INTO patterns VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
             (self.name, prefix, time.time(), pattern, regexp, limit, life, mode, duration))
@@ -1194,9 +1192,9 @@ class Chan(object):
         return '[#%s "%s"%s]' % (uid, pattern, r)
 
     def rmpattern(self, prefix, uid, db):
-        if not ircdb.checkCapability(prefix, '%s,op' % self.name):
-            if prefix != irc.prefix:
-                return False
+        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
+                or prefix == irc.prefix):
+            return False
         c = db.cursor()
         c.execute("""SELECT id,channel,pattern,regexp FROM patterns
                      WHERE id=? and channel=? LIMIT 1""", (uid, self.name))
@@ -1206,7 +1204,7 @@ class Chan(object):
             c.execute("""DELETE FROM patterns WHERE id=? and channel=? LIMIT 1""", (uid, self.name))
             if uid in self.patterns:
                 del self.patterns[uid]
-            prop = 'Pattern%s' % id
+            prop = 'Pattern%s' % rid
             if prop in self.spam:
                 del self.spam[prop]
             db.commit()
@@ -1228,9 +1226,9 @@ class Chan(object):
         c.close()
 
     def lspattern(self, prefix, pattern, db):
-        if not ircdb.checkCapability(prefix, '%s,op' % self.name):
-            if prefix != irc.prefix:
-                return []
+        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
+                or prefix != irc.prefix):
+            return []
         c = db.cursor()
         results = []
         items = []
@@ -1678,7 +1676,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if not b:
                 break
         if not sf and getDuration(seconds) > 0:
-            self._schedule(irc, float(time.time())+getDuration(seconds), True)
+            self._schedule(irc, time.time()+getDuration(seconds), True)
         if not msg.nick == irc.nick:
             if b:
                 irc.replySuccess()
@@ -2791,7 +2789,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             targets.add(LL[pattern].value)
                 elif item == '*':
                     massremove = True
-                    targets = []
+                    targets = set([])
                     if channel in list(irc.state.channels.keys()):
                         L = chan.getItemsFor(self.getIrcdMode(irc, mode, '*!*@*')[0])
                         for pattern in L:
@@ -3064,7 +3062,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             # remove duplicates (should not happen, but..)
                             S = set(L)
                             r = []
-                            for item in L:
+                            for item in S:
                                 r.append(item)
                             # if glitch, just comment this if...
                             if not (len(chan.action) or adding or chan.attacked):
@@ -3421,8 +3419,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     else:
                                         chan.action.enqueue(ircmsgs.mode(channel,
                                             args=(self.registryValue('massJoinUnMode', channel=channel, network=irc.network),)))
-                            schedule.addEvent(unAttack, float(time.time()
-                                + self.registryValue('massJoinDuration', channel=channel, network=irc.network)))
+                            schedule.addEvent(unAttack, time.time()
+                                + self.registryValue('massJoinDuration', channel=channel, network=irc.network))
                             self.forceTickle = True
                     flag = ircdb.makeChannelCapability(channel, 'clone')
                     if not banned and ircdb.checkCapability(msg.prefix, flag):
@@ -4259,7 +4257,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         # reask for deop
                         self.unOp(irc, channel)
             chan.deopPending = True
-            schedule.addEvent(unOpBot, float(time.time()+10))
+            schedule.addEvent(unOpBot, time.time()+10)
 
     def hasExtendedSharedBan(self, irc, fromChannel, target, mode):
         # TODO: add support for other ircds if possible, currently only freenode
@@ -4748,8 +4746,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             chan.action.enqueue(ircmsgs.mode(channel,
                                 args=(self.registryValue('attackUnMode', channel=channel, network=irc.network),)))
                         chan.attacked = False
-                schedule.addEvent(unAttack, float(time.time()
-                    + self.registryValue('attackDuration', channel=channel, network=irc.network)))
+                schedule.addEvent(unAttack, time.time()
+                    + self.registryValue('attackDuration', channel=channel, network=irc.network))
         return b
 
     def _isHilight(self, irc, channel, key, message):
