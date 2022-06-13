@@ -1373,8 +1373,14 @@ class Pattern(object):
 
     def match(self, text):
         if self._match:
-            return self._match.search(text) is not None
-        return self.pattern in text
+            tmp = self._match.search(text)
+            if tmp is not None:
+                return (True, tmp.group(0))
+            else:
+                return (False, None)
+        if self.pattern in text:
+            return (True, self.pattern)
+        return (False, None)
 
 
 def _getRe(f):
@@ -4005,13 +4011,16 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         isCap = self._isCap(irc, channel, best, text)
                     flag = ircdb.makeChannelCapability(channel, 'pattern')
                     isPattern = False
+                    isMatch = False
                     isTemporaryPattern = False
                     if ircdb.checkCapability(msg.prefix, flag):
                         for p in chan.patterns:
                             pattern = chan.patterns[p]
-                            if pattern.match(text):
+                            match = pattern.match(text)
+                            if match[0]:
                                 if pattern.limit == 0:
                                     isPattern = pattern
+                                    isMatch = match
                                     break
                                 else:
                                     prop = 'Pattern%s' % pattern.uid
@@ -4025,11 +4034,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     if len(chan.spam[prop][key]) > pattern.limit:
                                         chan.spam[prop][key].reset()
                                         isPattern = pattern
+                                        isMatch = match
                                         break
-                    if isPattern:
+                    if isMatch:
                         (m, p) = self.getIrcdMode(irc, isPattern.mode, best)
                         self._act(irc, channel, m, p, isPattern.duration,
-                            'matches #%s' % isPattern.uid, msg.nick)
+                            'matches #%s : %s' % (isPattern.uid, isMatch[1]), msg.nick)
                         isBad = self._isBad(irc, channel, best)
                         self.forceTickle = True
                         chan.countpattern(isPattern.uid, self.getDb(irc.network))
