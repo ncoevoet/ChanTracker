@@ -282,7 +282,7 @@ def getBestPattern(n, irc, useIp=False, resolve=True):
             if '/' in h:
                 host = 'nat/%s/*' % h.split('/')[0]
     k = '*!%s@%s' % (ident, host)
-    if not k in results:
+    if k not in results:
         results.append(k)
     extprefix = ''
     extmodes = ''
@@ -347,7 +347,7 @@ class Ircd(object):
         if not (channel and irc):
             return None
         self.irc = irc
-        if not channel in self.channels:
+        if channel not in self.channels:
             self.channels[channel] = Chan(self, channel)
         return self.channels[channel]
 
@@ -355,7 +355,7 @@ class Ircd(object):
         if not (nick and irc):
             return None
         self.irc = irc
-        if not nick in self.nicks:
+        if nick not in self.nicks:
             self.nicks[nick] = Nick(self.logsSize)
         return self.nicks[nick]
 
@@ -1019,7 +1019,7 @@ class Chan(object):
         return self._lists
 
     def getItemsFor(self, mode):
-        if not mode in self._lists:
+        if mode not in self._lists:
             self._lists[mode] = ircutils.IrcDict()
         return self._lists[mode]
 
@@ -1033,7 +1033,7 @@ class Chan(object):
         if len(L):
             for item in L:
                 (uid, oper, kind, removed_at) = item
-                if not kind in total:
+                if kind not in total:
                     total[kind] = {}
                     total[kind]['active'] = 0
                     total[kind]['removed'] = 0
@@ -1041,9 +1041,9 @@ class Chan(object):
                     total[kind]['active'] += 1
                 else:
                     total[kind]['removed'] += 1
-                if not oper in opers:
+                if oper not in opers:
                     opers[oper] = {}
-                if not kind in opers[oper]:
+                if kind not in opers[oper]:
                     opers[oper][kind] = {}
                     opers[oper][kind]['active'] = 0
                     opers[oper][kind]['removed'] = 0
@@ -1075,7 +1075,7 @@ class Chan(object):
             l = {}
         if not self.syn:
             checkUser = False
-        if not value in l:
+        if value not in l:
             i = Item()
             i.channel = self.name
             i.mode = mode
@@ -2826,31 +2826,27 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def getIrc(self, irc):
         # init irc db
-        if not irc.network in self._ircs:
+        if irc.network not in self._ircs:
             self._ircs[irc.network] = Ircd(
                 irc, self.registryValue('logsSize'))
         return self._ircs[irc.network]
 
     def getChan(self, irc, channel):
         i = self.getIrc(irc)
-        if not channel in i.channels:
+        if channel not in i.channels:
             # restore channel state, load lists
             modesToAsk = ''.join(self.registryValue('modesToAsk', channel=channel, network=irc.network))
             modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network))
             if channel in irc.state.channels:
-                if irc.state.channels[channel].isHalfopPlus(irc.nick):
-                    if len(modesToAsk) or len(modesWhenOpped):
-                        for m in modesWhenOpped:
-                            i.queue.enqueue(ircmsgs.mode(channel, args=(m,)))
-                        for m in modesToAsk:
-                            i.lowQueue.enqueue(ircmsgs.mode(channel, args=(m,)))
-                elif len(modesToAsk):
+                if len(modesWhenOpped) and irc.state.channels[channel].isHalfopPlus(irc.nick):
+                    for m in modesWhenOpped:
+                        i.queue.enqueue(ircmsgs.mode(channel, args=(m,)))
+                if len(modesToAsk):
                     for m in modesToAsk:
                         i.lowQueue.enqueue(ircmsgs.mode(channel, args=(m,)))
-                if not self.starting:
-                    if not i.whoxpending:
-                        i.whoxpending = True
-                        i.lowQueue.enqueue(ircmsgs.who(channel, args=('%tuhnairf,1',)))
+                if not (self.starting or i.whoxpending):
+                    i.whoxpending = True
+                    i.lowQueue.enqueue(ircmsgs.who(channel, args=('%tuhnairf,1',)))
                 self.forceTickle = True
         return i.getChan(irc, channel)
 
@@ -3194,7 +3190,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if irc.isChannel(channel) and channel in irc.state.channels:
             chan = self.getChan(irc, channel)
             b = False
-            if not mode in chan.dones:
+            if mode not in chan.dones:
                 chan.dones.append(mode)
                 b = True
             i = self.getIrc(irc)
@@ -3325,7 +3321,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         u = {}
                         L = []
                         for item in r:
-                            if not item[4][0] in u:
+                            if item[4][0] not in u:
                                 u[item[4][0]] = item[4][0]
                                 L.append(item[4][0])
                         if len(L) == 1:
@@ -3360,7 +3356,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             self.forceTickle = True
             self._tickle(irc)
             return
-        if not '/' in msg.prefix.split('@')[1] and n.ip is None:
+        if '/' not in msg.prefix.split('@')[1] and n.ip is None:
             if self.registryValue('resolveIp'):
                 t = world.SupyThread(target=self.resolve, name=format(
                     'Resolving %s for %s', msg.prefix, channels), args=(irc, channels, msg.prefix))
@@ -4025,9 +4021,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 else:
                                     prop = 'Pattern%s' % pattern.uid
                                     key = best
-                                    if not prop in chan.spam:
+                                    if prop not in chan.spam:
                                         chan.spam[prop] = {}
-                                    if not key in chan.spam[prop] \
+                                    if key not in chan.spam[prop] \
                                             or chan.spam[prop][key].timeout != pattern.life:
                                         chan.spam[prop][key] = utils.structures.TimeoutQueue(pattern.life)
                                     chan.spam[prop][key].enqueue(key)
@@ -4200,7 +4196,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def addToAsked(self, irc, prefix, data, nick):
         toAsk = False
         i = self.getIrc(irc)
-        if not prefix in i.askedItems:
+        if prefix not in i.askedItems:
             i.askedItems[prefix] = {}
             toAsk = True
         i.askedItems[prefix][data[0]] = data
@@ -4449,7 +4445,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             asked = ''.join(asked)
                             asked = asked.replace(',', '')
                             for k in asked:
-                                if not k in chan.dones:
+                                if k not in chan.dones:
                                     irc.queueMsg(ircmsgs.mode(channel, args=(k,)))
                             # flush pending queue, if items are waiting
                             self.forceTickle = True
@@ -4718,9 +4714,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return False
         chan = self.getChan(irc, channel)
         life = self.registryValue('%sLife' % prop, channel=channel, network=irc.network)
-        if not prop in chan.spam:
+        if prop not in chan.spam:
             chan.spam[prop] = {}
-        if not key in chan.spam[prop] or chan.spam[prop][key].timeout != life:
+        if key not in chan.spam[prop] or chan.spam[prop][key].timeout != life:
             chan.spam[prop][key] = utils.structures.TimeoutQueue(life)
         chan.spam[prop][key].enqueue(key)
         if len(chan.spam[prop][key]) > limit:
@@ -4785,7 +4781,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         life = self.registryValue('repeatPatternLife', channel=channel, network=irc.network)
         key = 'pattern%s' % channel
         chan = self.getChan(irc, channel)
-        if not key in chan.repeatLogs or chan.repeatLogs[key].timeout != life:
+        if key not in chan.repeatLogs or chan.repeatLogs[key].timeout != life:
             chan.repeatLogs[key] = utils.structures.TimeoutQueue(life)
         if self.registryValue('announceRepeatPattern', channel=channel, network=irc.network):
             if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
@@ -4827,7 +4823,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return False
         chan = self.getChan(irc, channel)
         timeout = self.registryValue('repeatLife', channel=channel, network=irc.network)
-        if not key in chan.repeatLogs or chan.repeatLogs[key].timeout != timeout:
+        if key not in chan.repeatLogs or chan.repeatLogs[key].timeout != timeout:
             chan.repeatLogs[key] = utils.structures.TimeoutQueue(timeout)
         count = self.registryValue('repeatCount', channel=channel, network=irc.network)
         probability = self.registryValue('repeatPercent', channel=channel, network=irc.network)
@@ -4848,7 +4844,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if pattern:
                 self._addTemporaryPattern(irc, channel, pattern, 'single src', False, False)
         return result
-        if not channel in chan.repeatLogs or chan.repeatLogs[channel].timeout != timeout:
+        if channel not in chan.repeatLogs or chan.repeatLogs[channel].timeout != timeout:
             chan.repeatLogs[channel] = utils.structures.TimeoutQueue(timeout)
         logs = chan.repeatLogs[channel]
         (flag, pattern) = self._computePattern(message, logs, probability, patternLength)
