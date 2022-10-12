@@ -86,6 +86,9 @@ conf.registerChannelValue(ChanTracker, 'triggerOps',
 conf.registerChannelValue(ChanTracker, 'allowOpToConfig',
     registry.Boolean(False, """grant channel operators the ability to configure some ChanTracker protections for their channel"""))
 
+conf.registerChannelValue(ChanTracker, 'ignoreVoicedUser',
+    registry.Boolean(False, """exempt voiced users from channel protections"""))
+
 conf.registerChannelValue(ChanTracker, 'opCommand',
     registry.String("PRIVMSG ChanServ :OP $channel $nick", """command used to obtain channel operator status"""), opSettable=False)
 

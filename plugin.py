@@ -2232,7 +2232,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         tell if <nick> is vip in <channel>; mostly used for debugging"""
         i = self.getIrc(irc)
         if nick in i.nicks:
-            irc.reply(self._isVip(irc, channel, self.getNick(irc, nick)))
+            isVip = self._isVip(irc, channel, self.getNick(irc, nick))
+            irc.reply(str(isVip))
         else:
             irc.reply('nick not found')
         self._tickle(irc)
@@ -2254,7 +2255,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if p.startswith('$a:'):
                         best = p
                         break
-            irc.reply(chan.isWrong(best))
+            isWrong = chan.isWrong(best)
+            irc.reply(str(isWrong))
         else:
             irc.reply('nick not found')
         self._tickle(irc)
@@ -3771,7 +3773,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     isNick = self._isSomething(irc, channel, best, 'nick')
                     if isNick:
                         isBad = self._isBad(irc, channel, best)
-                        kind = None
                         if isBad:
                             kind = 'bad'
                         else:
@@ -3878,8 +3879,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 break
                     chan = self.getChan(irc, channel)
                     n.addLog(channel, 'NOTICE | %s' % text)
-                    isVip = self._isVip(irc, channel, n)
-                    if not isVip:
+                    if not self._isVip(irc, channel, n):
                         isNotice = self._isSomething(irc, channel, best, 'notice')
                         isBad = False
                         if isNotice:
@@ -3895,14 +3895,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             (m, p) = self.getIrcdMode(irc, mode, best)
                             self._act(irc, channel, m, p, duration, comment, msg.nick)
                             self.forceTickle = True
-                    if self.registryValue('announceNotice', channel=channel, network=irc.network):
-                        if not chan.isWrong(best):
-                            if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                                self._logChan(irc, channel, '[%s] %s notice "%s"' % (ircutils.bold(
-                                    channel), ircutils.mircColor(msg.prefix, 'light blue'), text))
-                            else:
-                                self._logChan(irc, channel, '[%s] %s notice "%s"' % (
-                                    channel, msg.prefix, text))
+                        if self.registryValue('announceNotice', channel=channel, network=irc.network):
+                            if not chan.isWrong(best):
+                                if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
+                                    self._logChan(irc, channel, '[%s] %s notice "%s"' % (ircutils.bold(
+                                        channel), ircutils.mircColor(msg.prefix, 'light blue'), text))
+                                else:
+                                    self._logChan(irc, channel, '[%s] %s notice "%s"' % (
+                                        channel, msg.prefix, text))
         self._tickle(irc)
 
     def _schedule(self, irc, end, force):
@@ -3923,6 +3923,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return True
         protected = ircdb.makeChannelCapability(channel, 'protected')
         if ircdb.checkCapability(n.prefix, protected):
+            return True
+        if self.registryValue('ignoreVoicedUser', channel=channel, network=irc.network) \
+                and irc.state.channels[channel].isVoicePlus(n.prefix.split('!')[0]):
             return True
         return False
 
@@ -3977,8 +3980,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     message = '- %s -' % text
                 n.addLog(channel, message)
                 # protection features
-                isVip = self._isVip(irc, channel, n)
-                if not isVip:
+                if not self._isVip(irc, channel, n):
                     isCtcp = False
                     if isCtcpMsg and not isAction:
                         isCtcp = self._isSomething(irc, channel, best, 'ctcp')
@@ -4034,8 +4036,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         self._act(irc, channel, m, p, isPattern.duration,
                             'matches #%s : %s' % (isPattern.uid, isMatch[1]), msg.nick)
                         isBad = self._isBad(irc, channel, best)
-                        self.forceTickle = True
                         chan.countpattern(isPattern.uid, self.getDb(irc.network))
+                        self.forceTickle = True
                     elif not isRepeat:
                         key = 'pattern%s' % channel
                         if key in chan.repeatLogs:
@@ -4057,7 +4059,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if not (isPattern or isTemporaryPattern) \
                             and (isFlood or isLowFlood or isRepeat or isHilight or isCap or isCtcp):
                         isBad = self._isBad(irc, channel, best)
-                        kind = None
                         duration = 0
                         if isBad:
                             kind = 'bad'
@@ -4272,7 +4273,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 for nick in list(irc.state.channels[channel].users):
                     L.append(nick)
                 for nick in L:
-                    if not self._isVip(irc, channel, self.getNick(irc, nick)):
+                    isVip = self._isVip(irc, channel, self.getNick(irc, nick))
+                    if not isVip:
                         n = self.getNick(irc, nick)
                         m = match(target, n, irc, self.registryValue('resolveIp'))
                         if m:
@@ -4342,7 +4344,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         if item and len(item.affects):
                             for affected in item.affects:
                                 nick = affected.split('!')[0]
-                                if self._isVip(irc, channel, self.getNick(irc, nick)):
+                                isVip = self._isVip(irc, channel, self.getNick(irc, nick))
+                                if isVip:
                                     continue
                                 if m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
                                         and self.registryValue('doActionAgainstAffected', channel=channel, network=irc.network) \
