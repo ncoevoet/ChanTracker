@@ -5,7 +5,13 @@ This supybot plugin keeps records of channel mode changes in a sqlite database a
 The plugin is used in various and large channels on Libera.Chat and others networks
 This version works with python 3
 
+## Install 
+
 Note that you may need a newer version of Limnoria than your distribution provides, and you may need to install from the Limnoria source code or from PyPI / `pip` to make it function.  (Currently requires Limnoria version `2018.04.14` or newer)
+
+You can install this plugin with: `pip3 install git+https://github.com/ncoevoet/ChanTracker.git`.
+(Or, with Limnoria versions older than 2020.05.08: `git clone https://github.com/ncoevoet/ChanTracker.git` in your bot's `plugins/` directory.)
+Then, `@load ChanTracker`.
 
 ## Commands ##
 
