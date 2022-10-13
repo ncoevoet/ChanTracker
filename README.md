@@ -28,11 +28,11 @@ Then `@load ChanTracker`.
     @b,e,i,q [<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>) -- +mode targets for duration <reason> is mandatory
     @ub,ue,ui,uq [<channel>] <nick|hostmask|*> [<nick|hostmask>]) -- sets -mode on them, if * found, remove them all
     @check [<channel>] <pattern> returns list of users who will be affected by such pattern
-    @edit <id> [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever) -- change expiration of some active modes
+    @edit <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever) -- change expiration of some active modes
     @info <id> returns information about a mode change
     @affect <id> returns affected users by a mode placed
-    @mark <id> [,<id>] <message> add a comment about a mode change
-    @editandmark <id> [,<id>] [,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] [<comment>] edit duration and add comment on a mode change
+    @mark <id>[,<id>] <message> add a comment about a mode change
+    @editandmark <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] [<comment>] edit duration and add comment on a mode change
     @pending [<channel>] (pending [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] ) -- returns active items for --mode if given, filtered by --oper if given, --never never expire only if given
     @query [--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>) -- search inside ban database, --deep to search on log, --never returns items set forever and active, --active returns only active modes, --channel reduces results to a specific channel
     @match [<channel>] <nick|hostmask> returns list of modes that affects the nick,hostmask given
@@ -42,7 +42,7 @@ Then `@load ChanTracker`.
     @summary [<channel>] returns some stats about <channel>
     @addpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
     @addregexpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
-    @rmpattern [<channel>] <id> [<id>] remove patterns
+    @rmpattern [<channel>] <id>[,<id>] remove patterns
     @lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
     @addtmp [<channel>] <pattern> add temporary pattern which follows repeat punishments
     @rmtmp [<channel>] remove temporary patterns if any
@@ -307,10 +307,10 @@ Maintaining separate bots for the banning/bantracking functions and other factoi
 or amusement functions is good practice.
 
 If the main purpose of your bot is to manage bans etc and never interact with users, you should remove all plugins
-from `defaultcapabilities`, which will prevent the bot from responding to various commands and being used as a
+from the default capabilities, which will prevent the bot from responding to various commands and being used as a
 flood tool by others (like with `@echo SPAM`):
 
-    @defaultcapabilities remove <pluginname>
+    @defaultcapability remove <pluginname>
 
 You could otherwise change the value of `supybot.capabilities.default`, but be prepared to waste a lot of time
 each time you add a new user account on your bot. If the setting is changed to `False`, then when you want to grant
@@ -320,7 +320,7 @@ access to a command for someone, you must do it this way:
     @admin capability add <accountname> User.whoami
     @admin capability add <accountname> whoami
 
-If your bot manages different channels or communities, remove all `User.<action>` from `defaultcapabilities`,
+If your bot manages different channels or communities, remove all `User.<action>` from the default capabilities,
 create one user per channel/community, and add ops' hostmasks to it -- it's easier to manage this way.
 Until you have someone with rights in multiple channels/communities, who will need a separate account.
 

@@ -455,8 +455,6 @@ class Ircd(object):
         # returns active items for a channel mode
         if not (channel and mode and prefix):
             return []
-        if not ircdb.checkCapability(prefix, '%s,op' % channel):
-            return []
         chan = self.getChan(irc, channel)
         results = []
         r = []
@@ -508,8 +506,6 @@ class Ircd(object):
     def against(self, irc, channel, n, prefix, db, ct):
         # returns active items that match n
         if not (channel and n and db):
-            return []
-        if not ircdb.checkCapability(prefix, '%s,op' % channel):
             return []
         chan = self.getChan(irc, channel)
         results = []
@@ -1185,9 +1181,6 @@ class Chan(object):
         return i
 
     def addpattern(self, prefix, limit, life, mode, duration, pattern, regexp, db):
-        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
-                or prefix == irc.prefix):
-            return False
         c = db.cursor()
         c.execute("""INSERT INTO patterns VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)""",
             (self.name, prefix, time.time(), pattern, regexp, limit, life, mode, duration))
@@ -1201,9 +1194,6 @@ class Chan(object):
         return '[#%s "%s"%s]' % (uid, pattern, r)
 
     def rmpattern(self, prefix, uid, db):
-        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
-                or prefix == irc.prefix):
-            return False
         c = db.cursor()
         c.execute("""SELECT id,channel,pattern,regexp FROM patterns
                      WHERE id=? and channel=? LIMIT 1""", (uid, self.name))
@@ -1235,9 +1225,6 @@ class Chan(object):
         c.close()
 
     def lspattern(self, prefix, pattern, db):
-        if not (ircdb.checkCapability(prefix, '%s,op' % self.name)
-                or prefix != irc.prefix):
-            return []
         c = db.cursor()
         results = []
         items = []
@@ -1842,7 +1829,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     for result in results:
                         irc.queueMsg(ircmsgs.privmsg(msg.nick, result))
         else:
-            irc.reply('no result')
+            irc.reply('nothing found')
         self.forceTickle = True
         self._tickle(irc)
     pending = wrap(pending, ['op', getopts({'flood': '', 'mode': 'letter', 'never': '',
@@ -2097,7 +2084,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if len(results):
             irc.reply(' '.join(results), private=True)
         else:
-            irc.reply('no results or unknown mode')
+            irc.reply('nothing found or unknown mode')
         self.forceTickle = True
         self._tickle(irc)
     overlap = wrap(overlap, ['op', 'text'])
@@ -2151,7 +2138,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if len(results):
             irc.reply(' '.join(results), private=True)
         else:
-            irc.reply('no results')
+            irc.reply('nothing found')
         self._tickle(irc)
     match = wrap(match, ['op', 'text'])
 
@@ -2185,9 +2172,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         """[<channelSource>] <channelMode> <channelTarget> <targetMode> [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
         copy <channelSource> <channelMode> elements in <channelTarget> on <targetMode>; <-1> or empty means forever"""
-        op = ircdb.makeChannelCapability(target, 'protected')
+        op = ircdb.makeChannelCapability(target, 'op')
         if not ircdb.checkCapability(msg.prefix, op):
-            irc.errorNoCapability('%s,op' % target)
+            irc.errorNoCapability(op)
             return
         chan = self.getChan(irc, channel)
         targets = set([])
@@ -2232,8 +2219,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         tell if <nick> is vip in <channel>; mostly used for debugging"""
         i = self.getIrc(irc)
         if nick in i.nicks:
-            isVip = self._isVip(irc, channel, self.getNick(irc, nick))
-            irc.reply(str(isVip))
+            vip = self._isVip(irc, channel, self.getNick(irc, nick))
+            if not vip:
+                vip = 'no vip'
+            irc.reply('%s is %s' % (nick, vip))
         else:
             irc.reply('nick not found')
         self._tickle(irc)
@@ -2323,10 +2312,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         chan = self.getChan(irc, channel)
         result = chan.addpattern(msg.prefix, limit, life, mode, getDuration(duration),
             pattern, 0, self.getDb(irc.network))
-        if result:
-            irc.reply(result)
-        else:
-            irc.reply('not enough rights to add a pattern on %s' % channel)
+        irc.reply(result)
     addpattern = wrap(addpattern, ['op', 'nonNegativeInt', 'positiveInt', 'letter',
         any('getTs', True), rest('text')])
 
@@ -2338,17 +2324,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         chan = self.getChan(irc, channel)
         result = chan.addpattern(msg.prefix, limit, life, mode, getDuration(duration),
             pattern[0], 1, self.getDb(irc.network))
-        if result:
-            irc.reply(result)
-        else:
-            irc.reply('not enough rights to add a pattern on %s' % channel)
+        irc.reply(result)
         self.forceTickle = True
         self._tickle(irc)
     addregexpattern = wrap(addregexpattern, ['op', 'nonNegativeInt', 'positiveInt', 'letter',
         any('getTs', True), rest('getPatternAndMatcher')])
 
     def rmpattern(self, irc, msg, args, channel, ids):
-        """[<channel>] <id> [<id>]
+        """[<channel>] <id>[,<id>]
 
         remove patterns by <id>"""
         results = []
@@ -2360,7 +2343,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if len(results):
             irc.reply('%s removed: %s' % (len(results), ','.join(results)))
         else:
-            irc.reply('not found or not enough rights')
+            irc.reply('nothing found')
         self.forceTickle = True
         self._tickle(irc)
     rmpattern = wrap(rmpattern, ['op', many('positiveInt')])
@@ -3916,17 +3899,17 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def _isVip(self, irc, channel, n):
         if n.prefix == irc.prefix:
-            return True
+            return 'me!'
         if ircdb.checkCapability(n.prefix, 'trusted'):
-            return True
+            return 'trusted'
         if ircdb.checkCapability(n.prefix, 'protected'):
-            return True
+            return 'protected'
         protected = ircdb.makeChannelCapability(channel, 'protected')
         if ircdb.checkCapability(n.prefix, protected):
-            return True
+            return 'protected'
         if self.registryValue('ignoreVoicedUser', channel=channel, network=irc.network) \
                 and irc.state.channels[channel].isVoicePlus(n.prefix.split('!')[0]):
-            return True
+            return 'voiced'
         return False
 
     def doPrivmsg(self, irc, msg):
