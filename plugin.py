@@ -1844,8 +1844,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
         sets the mode in <channel> to <mode>, sending the arguments given;
         <channel> is only necessary if the message isn't sent in the channel
-        itself, <delay> is optional
-        """
+        itself, <delay> is optional"""
         def f(L):
             return ircmsgs.modes(channel, L)
         def la():

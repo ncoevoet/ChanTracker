@@ -25,38 +25,79 @@ Then `@load ChanTracker`.
 
 ## Commands ##
 
-    @b,e,i,q [<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1> or empty means forever] <reason>) -- +mode targets for duration <reason> is mandatory
-    @ub,ue,ui,uq [<channel>] <nick|hostmask|*> [<nick|hostmask>]) -- sets -mode on them, if * found, remove them all
-    @check [<channel>] <pattern> returns list of users who will be affected by such pattern
-    @edit <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] means forever) -- change expiration of some active modes
-    @info <id> returns information about a mode change
-    @affect <id> returns affected users by a mode placed
-    @mark <id>[,<id>] <message> add a comment about a mode change
-    @editandmark <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<-1>] [<comment>] edit duration and add comment on a mode change
-    @pending [<channel>] (pending [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [<channel>] ) -- returns active items for --mode if given, filtered by --oper if given, --never never expire only if given
-    @query [--deep] [--never] [--active] [--channel=<channel>] <pattern|hostmask|comment>) -- search inside ban database, --deep to search on log, --never returns items set forever and active, --active returns only active modes, --channel reduces results to a specific channel
-    @match [<channel>] <nick|hostmask> returns list of modes that affects the nick,hostmask given
-    @detail <id> returns log from a mode change
-    @r [<channel>] <nick> [<reason>] do a force part on <nick> in <channel> with <reason> if provided
-    @modes [<channel>] <mode> Sets the mode in <channel> to <mode>, sending the arguments given, bot will ask for op if needed.
-    @summary [<channel>] returns some stats about <channel>
-    @addpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
-    @addregexpattern [<channel>] <limit> <life> <mode>(qbeId) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/) add a <pattern> which triggers <mode> for <duration> if the <pattern> appears more than <limit> (0 for immediate action) during <life> in seconds
-    @rmpattern [<channel>] <id>[,<id>] remove patterns
-    @lspattern [<channel>] [<id|pattern>] return patterns in <channel> filtered by optional <pattern> or <id>
-    @addtmp [<channel>] <pattern> add temporary pattern which follows repeat punishments
-    @rmtmp [<channel>] remove temporary patterns if any
+    @b,q,e,i [<channel>] [--perm] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
+        +<mode> targets for duration; <reason> is mandatory, <-1> or empty means forever,
+        add --perm if you want to add it to permanent bans of channel
+    @ub,uq,ue,ui [<channel>] <nick|hostmask|*> [<nick|hostmask|*>] -- sets -<mode> on them; if * is given, remove them all
+    @k,r [<channel>] <nick> [<reason>] -- kick or force-part <nick> with <reason> if provided
+    @edit <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]
+        change expiry of an active mode change; <-1s> means forever, <0s> means remove
+    @mark <id>[,<id>] <message> -- add comment on a mode change
+    @editandmark <id>[,<id>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] [<reason>]
+        change expiry and mark of an active mode change; if you got this message while the bot
+        prompted you, your changes were not saved; <-1s> means forever, <0s> means remove
+    @info <id> -- summary of a mode change
+    @detail <id> -- logs of a mode change
+    @check [<channel>] <pattern> -- returns a list of users affected by a pattern
+    @affect <id> -- list users affected by a mode change
+    @match [<channel>] <nick|hostmask#username>
+        returns active modes that affect the given target; nick must be in a channel shared with the bot
+    @query [--deep] [--never] [--active] [--ids] [--channel=<channel>] <pattern|hostmask|comment>
+        search in tracking database; --deep to search in logs, --never returns items set forever and active,
+        --active returns only active modes, --ids returns only ids, --channel limits results to the specified channel
+    @pending [<channel>] [--mode=<e|b|q|l>] [--oper=<nick|hostmask>] [--never] [--ids] [--count] [--flood] [--duration [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s]]
+        returns active items for --mode, filtered by --oper, --never (never expire), --ids (only ids),
+        --duration (item longer than), --count returns the total, --flood one message per mode
+    @modes [<channel>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <mode> [<arg> ...]
+        sets the mode in <channel> to <mode>, sending the arguments given; <channel> is only
+        necessary if the message isn't sent in the channel itself, <delay> is optional
+    @ops [<reason>] -- triggers ops in the operators channel
+    @summary [<channel>] -- returns various statistics about channel activity
+    @weblink -- provides link to web interface
 
-    @cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if a user sends more than <permit> (-1 to disable) messages during <life> (in seconds)
-    @crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) repetitions are found during <life> (in seconds); it will create a temporary lethal pattern with a mininum of <patternLength> (-1 to disable pattern creation); <probablity> is a float between 0 and 1
-    @chl [<channel>] [<permit>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) if <permit> (-1 to disable) channel nicks are found in a message
-    @cnotice [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) messages are channel notices during <life> (in seconds)
-    @ccycle [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) parts/quits are received by a host during <life> (in seconds)
-    @cclone [<channel>] [<permit>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) users with the same host join the channel
-    @cnick [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds) if a user changes nick <permit> (-1 to disable) times during <life> (in seconds)
-    @ccap [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if <permit> (-1 to disable) messages during <life> (in seconds) contain more than <probability> (float between 0-1) uppercase chars
-    @cbad [<channel>] [<permit>] [<life>] [<mode>] [<duration>] return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds) if a user triggers <permit> (-1 to disable) channel protections during <life> (in seconds)
-    @cautoexpire [<channel>] [<autoexpire>] return channel's config or auto remove new elements after <autoexpire> (-1 to disable, in seconds)
+    @addpattern [<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>
+        add a <pattern> which triggers <mode> for <duration> if the <pattern> appears
+        more often than <limit> (0 for immediate action) during <life> in seconds
+    @addregexpattern [<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/
+        add a <pattern> which triggers <mode> for <duration> if the <pattern> appears
+        more often than <limit> (0 for immediate action) during <life> in seconds
+    @rmpattern [<channel>] <id>[,<id>] -- remove patterns by <id>
+    @lspattern [<channel>] [<id|pattern>] -- return patterns in <channel> filtered by optional <id> or <pattern>
+    @addtmp [<channel>] <pattern> -- add temporary pattern, which follows repeat punishments
+    @rmtmp [<channel>] -- remove temporary patterns if any
+
+    @cflood [<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if a user sends more than <permit> (-1 to disable) messages during <life> (in seconds)
+    @crepeat [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<minimum>] [<probability>] [<count>] [<patternLength>] [<patternLife>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) repetitions are found during <life> (in seconds);
+        it will create a temporary lethal pattern with a mininum of <patternLength>
+        (-1 to disable pattern creation); <probablity> is a float between 0 and 1
+    @chl [<channel>] [<permit>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds)
+        if <permit> (-1 to disable) channel nicks are found in a message
+    @cnotice [<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) messages are channel notices during <life> (in seconds)
+    @ccycle [<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        return channel's config  or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) parts/quits are received by a host during <life> (in seconds)
+    @cclone [<channel>] [<permit>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) users with the same host join the channel
+    @cnick [<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) during <duration> (in seconds)
+        if a user changes nick <permit> (-1 to disable) times during <life> (in seconds)
+    @ccap [<channel>] [<permit>] [<life>] [<mode>] [<duration>] [<probability>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if <permit> (-1 to disable) messages during <life> (in seconds)
+        contain more than <probability> (float between 0-1) uppercase chars
+    @cbad [<channel>] [<permit>] [<life>] [<mode>] [<duration>]
+        return channel's config or apply <mode> (bqeIkrdD) for <duration> (in seconds)
+        if a user triggers <permit> (-1 to disable) channel protections during <life> (in seconds)
+    @cautoexpire [<channel>] [<autoexpire>]
+        return channel's config or auto remove new elements after <autoexpire> (-1 to disable, in seconds)
 
 ## General Usage ##
 
