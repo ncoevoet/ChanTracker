@@ -3273,17 +3273,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         # send messages to logChannel if configured for
         if channel in irc.state.channels:
             logChannel = self.registryValue('logChannel', channel=channel, network=irc.network)
-            if logChannel:
+            if logChannel and logChannel in irc.state.channels:
                 i = self.getIrc(irc)
-                if logChannel in irc.state.channels and logChannel == channel \
-                        and irc.state.channels[channel].isHalfopPlus(irc.nick) \
-                        and self.registryValue('keepOp', channel=channel, network=irc.network):
-                    logChannel = '@%s' % logChannel
                 if self.registryValue('announceWithNotice', channel=channel, network=irc.network):
                     i.lowQueue.enqueue(ircmsgs.notice(logChannel, message))
                 else:
                     i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
-            self.forceTickle = True
+                self.forceTickle = True
+                self._tickle(irc)
 
     def resolve(self, irc, channels, prefix):
         i = self.getIrc(irc)
