@@ -360,12 +360,17 @@ class Ircd(object):
             self.channels[channel] = Chan(self, channel)
         return self.channels[channel]
 
-    def getNick(self, irc, nick):
+    def getNick(self, irc, nick, raw=False):
         if not (nick and irc):
             return None
         self.irc = irc
         if nick not in self.nicks:
             self.nicks[nick] = Nick(self.logsSize)
+        if not (self.nicks[nick].prefix or raw):
+            try:
+                self.nicks[nick].setPrefix(irc.state.nickToHostmask(nick))
+            except:
+                pass
         return self.nicks[nick]
 
     def getItem(self, irc, uid):
@@ -1073,7 +1078,7 @@ class Chan(object):
 
     def addItem(self, mode, value, by, when, db, checkUser=True, ct=None):
         # eqIb(+*) (-ov) pattern prefix when
-        # mode : eqIb -ov + ?
+        # mode: eqIb -ov + ?
         if mode != 'm':
             l = self.getItemsFor(mode)
         else:
@@ -1110,16 +1115,8 @@ class Chan(object):
                 # leave channel user list management to supybot
                 ns = []
                 if self.name in self.ircd.irc.state.channels and checkUser:
-                    L = []
                     for nick in list(self.ircd.irc.state.channels[self.name].users):
-                        L.append(nick)
-                    for nick in L:
                         n = self.ircd.getNick(self.ircd.irc, nick)
-                        if not n.prefix:
-                            try:
-                                n.setPrefix(self.ircd.irc.state.nickToHostmask(nick))
-                            except:
-                                pass
                         m = match(value, n, self.ircd.irc, ct.registryValue('resolveIp'))
                         if m:
                             i.affects.append(n.prefix)
@@ -1307,7 +1304,7 @@ class Nick(object):
         self.account = None
         self.logSize = logSize
         self.logs = []
-        # log format :
+        # log format:
         # target can be a channel, or 'ALL' when it's related to nick itself
         # (account changes, nick changes, host changes, etc)
         # [float(timestamp),target,message]
@@ -2150,11 +2147,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             i = self.getIrc(irc)
             for nick in list(irc.state.channels[channel].users):
                 n = self.getNick(irc, nick)
-                if not n.prefix:
-                    try:
-                        n.setPrefix(self.ircd.irc.state.nickToHostmask(nick))
-                    except:
-                        pass
                 m = match(pattern, n, irc, self.registryValue('resolveIp'))
                 if m:
                     results.append('[%s - %s]' % (nick, m))
@@ -2645,7 +2637,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         optional('letter'), optional('positiveInt')])
 
     def getIrcdMode(self, irc, mode, pattern):
-        # here we try to know which kind of mode and pattern should be computed :
+        # here we try to know which kind of mode and pattern should be computed:
         # based on supported modes and extbans on the ircd
         # works for q in charybdis, and should work for unreal and inspire
         if 'chanmodes' in irc.state.supported and mode == 'q':
@@ -2827,8 +2819,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 self.forceTickle = True
         return i.getChan(irc, channel)
 
-    def getNick(self, irc, nick):
-        return self.getIrc(irc).getNick(irc, nick)
+    def getNick(self, irc, nick, raw=True):
+        return self.getIrc(irc).getNick(irc, nick, raw)
 
     def makeDb(self, filename):
         """Create a database and connect to it."""
@@ -3217,7 +3209,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def do352(self, irc, msg):
         # WHO $channel
         (nick, ident, host) = (msg.args[5], msg.args[2], msg.args[3])
-        n = self.getNick(irc, nick)
+        n = self.getNick(irc, nick, raw=True)
         n.setPrefix('%s!%s@%s' % (nick, ident, host))
         chan = self.getChan(irc, msg.args[1])
         chan.nicks[nick] = True
@@ -3236,7 +3228,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
              status, account, realname) = msg.args
             if account == '0':
                 account = None
-            n = self.getNick(irc, nick)
+            n = self.getNick(irc, nick, raw=True)
             n.setPrefix('%s!%s@%s' % (nick, ident, host))
             if self.registryValue('resolveIp') and n.ip is None and ip != '255.255.255.255':
                 # validate ip
@@ -3309,7 +3301,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
 
     def doChghost(self, irc, msg):
-        n = self.getNick(irc, msg.nick)
+        n = self.getNick(irc, msg.nick, raw=True)
         (user, host) = msg.args
         hostmask = '%s!%s@%s' % (msg.nick, user, host)
         n.setPrefix(hostmask)
@@ -3318,7 +3310,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def doJoin(self, irc, msg):
         channels = msg.args[0].split(',')
-        n = self.getNick(irc, msg.nick)
+        n = self.getNick(irc, msg.nick, raw=True)
         n.setPrefix(msg.prefix)
         i = self.getIrc(irc)
         if len(msg.args) == 3:
@@ -3429,7 +3421,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         isBot = msg.prefix == irc.prefix
         channels = msg.args[0].split(',')
         i = self.getIrc(irc)
-        n = self.getNick(irc, msg.nick)
+        n = self.getNick(irc, msg.nick, raw=True)
         n.setPrefix(msg.prefix)
         reason = ''
         if len(msg.args) == 2:
@@ -3642,7 +3634,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             self._ircs = ircutils.IrcDict()
             return
         if not isBot:
-            n = self.getNick(irc, msg.nick)
+            n = self.getNick(irc, msg.nick, raw=True)
+            n.setPrefix(msg.prefix)
             bests = getBestPattern(n, irc, self.registryValue(
                 'useIpForGateway'), self.registryValue('resolveIp'))
             best = None
@@ -3716,15 +3709,13 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         oldNick = msg.prefix.split('!')[0]
         newNick = msg.args[0]
         i = self.getIrc(irc)
-        n = None
         if oldNick in i.nicks:
-            n = self.getNick(irc, oldNick)
+            n = self.getNick(irc, oldNick, raw=True)
             del i.nicks[oldNick]
-            if n.prefix:
-                prefixNew = '%s!%s' % (newNick, n.prefix.split('!')[1])
-                n.setPrefix(prefixNew)
             i.nicks[newNick] = n
-            n = self.getNick(irc, newNick)
+            n = self.getNick(irc, newNick, raw=True)
+            prefixNew = '%s!%s' % (newNick, msg.prefix.split('!')[1])
+            n.setPrefix(prefixNew)
             n.addLog('ALL', '%s is now known as %s' % (oldNick, newNick))
             best = None
             patterns = getBestPattern(n, irc, self.registryValue(
@@ -3774,8 +3765,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         n = None
         nick = None
         if ircutils.isUserHostmask(msg.prefix):
-            nick = ircutils.nickFromHostmask(msg.prefix)
-            n = self.getNick(irc, nick)
+            nick = msg.nick
+            n = self.getNick(irc, nick, raw=True)
+            n.setPrefix(msg.prefix)
             acc = msg.args[0]
             old = n.account
             if acc == '*':
@@ -3784,7 +3776,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             n.addLog('ALL', '%s is now identified as %s' % (old, acc))
         else:
             return
-        if n and n.account and n.ip and nick:
+        if nick and n and n.account and n.ip:
             i = self.getIrc(irc)
             for channel in irc.state.channels:
                 if self.registryValue('checkEvade', channel=channel, network=irc.network):
@@ -3832,7 +3824,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         else:
             if msg.nick == irc.nick:
                 return
-            n = self.getNick(irc, msg.nick)
+            n = self.getNick(irc, msg.nick, raw=True)
+            n.setPrefix(msg.prefix)
             if 'account' in msg.server_tags:
                 n.setAccount(msg.server_tags['account'])
             patterns = getBestPattern(n, irc, self.registryValue(
@@ -3894,6 +3887,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             self._tickle(irc)
 
     def _isVip(self, irc, channel, n):
+        if not n.prefix:
+            return False
         if n.prefix == irc.prefix:
             return 'me!'
         if ircdb.checkCapability(n.prefix, 'trusted'):
@@ -3925,7 +3920,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         patterns = None
         i = self.getIrc(irc)
         if ircutils.isUserHostmask(msg.prefix):
-            n = self.getNick(irc, msg.nick)
+            n = self.getNick(irc, msg.nick, raw=True)
+            n.setPrefix(msg.prefix)
             patterns = getBestPattern(n, irc, self.registryValue(
                 'useIpForGateway'), self.registryValue('resolveIp'))
             if len(patterns):
@@ -4013,7 +4009,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if isMatch:
                         (m, p) = self.getIrcdMode(irc, isPattern.mode, best)
                         self._act(irc, channel, m, p, isPattern.duration,
-                            'matches #%s : %s' % (isPattern.uid, isMatch[1]), msg.nick)
+                            'matches #%s: %s' % (isPattern.uid, isMatch[1]), msg.nick)
                         isBad = self._isBad(irc, channel, best)
                         chan.countpattern(isPattern.uid, self.getDb(irc.network))
                         self.forceTickle = True
@@ -4198,7 +4194,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return
         n = None
         if ircutils.isUserHostmask(msg.prefix):
-            n = self.getNick(irc, msg.nick)
+            n = self.getNick(irc, msg.nick, raw=True)
+            n.setPrefix(msg.prefix)
             if 'account' in msg.server_tags:
                 n.setAccount(msg.server_tags['account'])
         channel = msg.args[0]
@@ -4247,14 +4244,11 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         for channel in irc.state.channels:
             if b in irc.state.channels[channel].bans \
                     and mode in self.registryValue('kickMode', channel=channel, network=irc.network) \
-                    and not target.startswith('m:'):
-                L = []
+                    and self.registryValue('kickOnMode', channel=channel, network=irc.network):
                 for nick in list(irc.state.channels[channel].users):
-                    L.append(nick)
-                for nick in L:
-                    isVip = self._isVip(irc, channel, self.getNick(irc, nick))
+                    n = self.getNick(irc, nick)
+                    isVip = self._isVip(irc, channel, n)
                     if not isVip:
-                        n = self.getNick(irc, nick)
                         m = match(target, n, irc, self.registryValue('resolveIp'))
                         if m:
                             if len(kicks) < self.registryValue('kickMax', channel=channel, network=irc.network):
@@ -4274,7 +4268,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         if ircutils.isUserHostmask(msg.prefix):
             # prevent server.netsplit to create a Nick
-            n = self.getNick(irc, msg.nick)
+            n = self.getNick(irc, msg.nick, raw=True)
             n.setPrefix(msg.prefix)
             if 'account' in msg.server_tags:
                 n.setAccount(msg.server_tags['account'])
@@ -4323,7 +4317,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         if item and len(item.affects):
                             for affected in item.affects:
                                 nick = affected.split('!')[0]
-                                isVip = self._isVip(irc, channel, self.getNick(irc, nick))
+                                n = self.getNick(irc, msg.nick)
+                                isVip = self._isVip(irc, channel, n)
                                 if isVip:
                                     continue
                                 if m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
@@ -4335,8 +4330,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                             if len(items):
                                                 for active in items:
                                                     active = items[active]
-                                                    if match(active.value, self.getNick(irc, nick),
-                                                            irc, self.registryValue('resolveIp')):
+                                                    if match(active.value, n, irc, self.registryValue('resolveIp')):
                                                         tolift.append(active)
                                 kicked = False
                                 # and not value.startswith(self.getIrcdExtbans(irc)) works for unreal
@@ -4410,8 +4404,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     if nick in irc.state.channels[channel].voices:
                                         chan.queue.enqueue(('-v', nick))
                         if m in self.registryValue('kickMode', channel=channel, network=irc.network) \
-                                and not value.startswith('m:') and self.registryValue(
-                                'kickOnMode', channel=channel, network=irc.network):
+                                and self.registryValue('kickOnMode', channel=channel, network=irc.network) \
+                                and not value.startswith('m:'):
                             self.hasExtendedSharedBan(irc, channel, value, m)
                         # bot just got op
                         if m == 'o' and value == irc.nick:
@@ -4583,16 +4577,15 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def do478(self, irc, msg):
         # message when ban list is full after adding something to eqIb list
         (nick, channel, ban, info) = msg.args
-        if self.registryValue('logChannel', channel=channel, network=irc.network) in irc.state.channels:
-            L = []
-            for user in list(irc.state.channels[self.registryValue('logChannel', channel=channel, network=irc.network)].users):
-                L.append(user)
+        logChannel = self.registryValue('logChannel', channel=channel, network=irc.network)
+        if logChannel in irc.state.channels:
+            ops = list(irc.state.channels[logChannel].users)
             if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                self._logChannel(irc, channel, '[%s] %s : %s' % (ircutils.bold(
-                    channel), ircutils.bold(ircutils.mircColor(info, 'red')), ' '.join(L)))
+                self._logChannel(irc, channel, '[%s] %s: %s' % (ircutils.bold(
+                    channel), ircutils.bold(ircutils.mircColor(info, 'red')), ' '.join(ops)))
             else:
-                self._logChan(irc, channel, '[%s] %s : %s' % (
-                    channel, info, ' '.join(L)))
+                self._logChan(irc, channel, '[%s] %s: %s' % (
+                    channel, info, ' '.join(ops)))
         self._tickle(irc)
 
     # protection features
