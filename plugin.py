@@ -1505,7 +1505,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if world.ircs:
                 for irc in world.ircs:
                     for channel in irc.state.channels:
-                        if self.registryValue('logChannel', channel=channel, network=irc.network) in irc.state.channels:
+                        logChannel = self.registryValue('logChannel', channel=channel, network=irc.network)
+                        if logChannel and logChannel in irc.state.channels:
                             toNag = ''
                             for mode in self.registryValue('announceNagMode', channel=channel, network=irc.network):
                                 if len(mode) and mode in irc.state.channels[channel].modes:
@@ -3272,7 +3273,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 else:
                     i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
                 self.forceTickle = True
-                self._tickle(irc)
+        self._tickle(irc)
 
     def resolve(self, irc, channels, prefix):
         i = self.getIrc(irc)
@@ -4576,16 +4577,24 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
 
     def do478(self, irc, msg):
         # message when ban list is full after adding something to eqIb list
-        (nick, channel, ban, info) = msg.args
+        channel = msg.args[1]
+        info = msg.args[3]
         logChannel = self.registryValue('logChannel', channel=channel, network=irc.network)
-        if logChannel in irc.state.channels:
-            ops = list(irc.state.channels[logChannel].users)
-            if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                self._logChannel(irc, channel, '[%s] %s: %s' % (ircutils.bold(
-                    channel), ircutils.bold(ircutils.mircColor(info, 'red')), ' '.join(ops)))
-            else:
-                self._logChan(irc, channel, '[%s] %s: %s' % (
-                    channel, info, ' '.join(ops)))
+        if logChannel and logChannel in irc.state.channels:
+            ops = []
+            for nick in list(irc.state.channels[logChannel].users):
+                if nick != irc.nick:
+                    n = self.getNick(irc, nick)
+                    if n.prefix and (ircdb.checkCapability(n.prefix, 'owner') or
+                            ircdb.checkCapability(n.prefix, '%s,op' % channel)):
+                        ops.append(nick)
+            if ops:
+                if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
+                    self._logChan(irc, channel, '[%s] %s: %s' % (ircutils.bold(
+                        channel), ircutils.bold(ircutils.mircColor(info, 'red')), ', '.join(ops)))
+                else:
+                    self._logChan(irc, channel, '[%s] %s: %s' % (
+                        channel, info, ', '.join(ops)))
         self._tickle(irc)
 
     # protection features
@@ -4607,14 +4616,13 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 irc.queueMsg(ircmsgs.IrcMsg(s))
             return
         if mode == 'd':
-            if self.registryValue('logChannel', channel=channel, network=irc.network) in irc.state.channels:
-                if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                    self._logChan(irc, channel, '[%s] debug %s %s %s %s' % (
-                        ircutils.bold(channel), mode, ircutils.mircColor(mask, 'teal'),
-                        ircutils.bold(duration), reason))
-                else:
-                    self._logChan(irc, channel, '[%s] debug %s %s %s %s' % (
-                        channel, mode, mask, duration, reason))
+            if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
+                self._logChan(irc, channel, '[%s] debug %s %s %s %s' % (
+                    ircutils.bold(channel), mode, ircutils.mircColor(mask, 'teal'),
+                    ircutils.bold(duration), reason))
+            else:
+                self._logChan(irc, channel, '[%s] debug %s %s %s %s' % (
+                    channel, mode, mask, duration, reason))
             self.forceTickle = True
             self._tickle(irc)
             return
