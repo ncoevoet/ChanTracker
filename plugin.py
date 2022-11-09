@@ -3273,7 +3273,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 else:
                     i.lowQueue.enqueue(ircmsgs.privmsg(logChannel, message))
                 self.forceTickle = True
-        self._tickle(irc)
 
     def resolve(self, irc, channels, prefix):
         i = self.getIrc(irc)
@@ -3987,11 +3986,11 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if ircdb.checkCapability(msg.prefix, flag):
                         for p in chan.patterns:
                             pattern = chan.patterns[p]
-                            match = pattern.match(text)
-                            if match[0]:
+                            matched = pattern.match(text)
+                            if matched[0]:
                                 if pattern.limit == 0:
                                     isPattern = pattern
-                                    isMatch = match
+                                    isMatch = matched
                                     break
                                 else:
                                     prop = 'Pattern%s' % pattern.uid
@@ -4005,7 +4004,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                     if len(chan.spam[prop][key]) > pattern.limit:
                                         chan.spam[prop][key].reset()
                                         isPattern = pattern
-                                        isMatch = match
+                                        isMatch = matched
                                         break
                     if isMatch:
                         (m, p) = self.getIrcdMode(irc, isPattern.mode, best)
