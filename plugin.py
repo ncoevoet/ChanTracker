@@ -4317,7 +4317,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         if item and len(item.affects):
                             for affected in item.affects:
                                 nick = affected.split('!')[0]
-                                n = self.getNick(irc, msg.nick)
+                                n = self.getNick(irc, nick)
                                 isVip = self._isVip(irc, channel, n)
                                 if isVip:
                                     continue
