@@ -98,6 +98,8 @@ conf.registerChannelValue(ChanTracker, 'modesToAsk',
 conf.registerChannelValue(ChanTracker, 'modesToAskWhenOpped',
     registry.CommaSeparatedListOfStrings(['e', 'I'], """list of channel modes to sync into the bot's tracking database when it is opped"""))
 
+conf.registerChannelValue(ChanTracker, 'ignoreOnAbuse',
+    registry.Boolean(False, """adds abusers on ignore for the punishment period"""))
 
 ## related to ban tracking
 

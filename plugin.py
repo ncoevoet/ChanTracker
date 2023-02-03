@@ -4599,6 +4599,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     # protection features
     def _act(self, irc, channel, mode, mask, duration, reason, nick):
         log.info('ChanTracker: acting in %s against %s / %s : %s %s %s' % (channel, nick, mask, mode, duration, reason))
+        if self.registryValue('ignoreOnAbuse', channel=channel, network=irc.network):
+            c = ircdb.channels.getChannel(channel)
+            c.addIgnore(mask, time.time() + duration)
+            ircdb.channels.setChannel(channel, c)
         if mode == 'D':
             action = self.registryValue('modeD')
             if len(action):
