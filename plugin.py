@@ -779,7 +779,10 @@ class Ircd(object):
             if logFunction:
                 key = '%s|%s' % (kind, mask)
                 if key in ct.smartLog and ct.smartLog[key]:
-                    message = 'and marked: %s' % message
+                    if 'edited by' in ct.smartLog[key][-1]:
+                        message = 'and marked: %s' % message
+                    else:
+                        message = 'marked by %s: %s' % (prefix.split('!')[0], message)
                     message = '; '.join(ct.smartLog[key] + [message])
                     del ct.smartLog[key]
                 elif ct.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
@@ -816,13 +819,13 @@ class Ircd(object):
             chan = self.getChan(irc, channel)
             item = chan.getItem(mode, value)
             if not item:
-                key = '%s|%s' % (mode, value)
                 # prepare item update after being set (we don't have id yet)
+                key = '%s|%s' % (mode, value)
                 chan.mark[key] = [mode, value, message, prefix]
                 return True
         return False
 
-    def add(self, irc, channel, mode, value, seconds, prefix, db):
+    def add(self, irc, channel, mode, value, seconds, autoexpire, prefix, db):
         # add new eIqb item
         if channel not in self.channels:
             return False
@@ -836,15 +839,14 @@ class Ircd(object):
                      AND removed_at is NULL ORDER BY id LIMIT 1""", (channel, mode, value))
         L = c.fetchall()
         c.close()
-        if len(L):
-            chan = self.getChan(irc, channel)
-            key = '%s|%s' % (mode, value)
+        chan = self.getChan(irc, channel)
+        # prepare item update after being set (we don't have id yet)
+        key = '%s|%s' % (mode, value)
+        if seconds is not None:
             chan.update[key] = [mode, value, seconds, prefix]
         else:
-            chan = self.getChan(irc, channel)
-            key = '%s|%s' % (mode, value)
-            # prepare item update after being set (we don't have id yet)
-            chan.update[key] = [mode, value, seconds, prefix]
+            chan.update[key] = [mode, value, autoexpire, irc.prefix]
+        if not len(L):
             # enqueue mode changes
             chan.queue.enqueue(('+%s' % mode, value))
         return True
@@ -1121,13 +1123,10 @@ class Chan(object):
                         if m:
                             i.affects.append(n.prefix)
                             # insert logs
-                            index = 0
-                            logs = []
-                            logs.append('%s' % n)
+                            logs = ['%s' % n]
                             for line in n.logs:
-                                (ts, target, message) = n.logs[index]
-                                index += 1
-                                if target == self.name or target == 'ALL':
+                                (ts, target, message) = line
+                                if target in (self.name, 'ALL'):
                                     logs.append('[%s] <%s> %s' % (floatToGMT(ts), nick, message))
                             c.execute("""INSERT INTO nicks VALUES (?, ?, ?, ?)""",
                                 (uid, value, n.prefix, '\n'.join(logs)))
@@ -1449,7 +1448,7 @@ addConverter('proba', getProba)
 
 def getDuration(seconds):
     if not len(seconds):
-        return -1
+        return None
     return sum(seconds)
 
 
@@ -1595,13 +1594,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         b = False
         lc = self._logChan
+        duration = getDuration(seconds)
         for uid in ids:
             be = False
             bm = False
             item = i.getItem(irc, uid)
             if item:
                 f = None
-                suppZero = getDuration(seconds) == 0 \
+                suppZero = duration == 0 \
                     and not self.registryValue('announceInTimeEditAndMark',
                     channel=item.channel, network=irc.network)
                 if not suppZero and reason and self.registryValue(
@@ -1611,7 +1611,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 if self.registryValue('announceEdit', channel=item.channel, network=irc.network) \
                         and not suppZero:
                     f = self._logChan
-                be = i.edit(irc, item.channel, item.mode, item.value, getDuration(seconds),
+                be = i.edit(irc, item.channel, item.mode, item.value, duration,
                     msg.prefix, self.getDb(irc.network), self._schedule, f, self)
                 if be and reason:
                     if self.registryValue('announceMark', channel=item.channel, network=irc.network):
@@ -1640,13 +1640,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         b = False
         sf = None
+        duration = getDuration(seconds)
         if not len(ids) > 1:
             sf = self._schedule
         for uid in ids:
             item = i.getItem(irc, uid)
             if item:
                 f = None
-                if not (getDuration(seconds) == 0
+                if not (duration == 0
                         and not self.registryValue('announceInTimeEditAndMark',
                         channel=item.channel, network=irc.network)) \
                         and ((msg.prefix != irc.prefix and self.registryValue(
@@ -1654,12 +1655,12 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         or (msg.prefix == irc.prefix and self.registryValue(
                         'announceBotEdit', channel=item.channel, network=irc.network))):
                     f = self._logChan
-                b = i.edit(irc, item.channel, item.mode, item.value, getDuration(seconds),
+                b = i.edit(irc, item.channel, item.mode, item.value, duration,
                     msg.prefix, self.getDb(irc.network), sf, f, self)
             if not b:
                 break
-        if not sf and getDuration(seconds) > 0:
-            self._schedule(irc, time.time()+getDuration(seconds), True)
+        if not sf and duration > 0:
+            self._schedule(irc, time.time()+duration, True)
         if not msg.nick == irc.nick:
             if b:
                 irc.replySuccess()
@@ -1851,7 +1852,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             self.forceTickle = True
             self._tickle(irc)
         duration = getDuration(delay)
-        if duration > 0:
+        if duration is not None and duration > 0:
             schedule.addEvent(la, time.time()+duration)
         else:
             la()
@@ -1863,7 +1864,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def do(self, irc, msg, args, channel, mode, items, seconds, reason):
         """[<channel>] <mode> <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        +<mode> targets for duration; <reason> is mandatory, <-1> or empty means forever"""
+        +<mode> targets for duration; <reason> is mandatory, <-1s> means forever, empty means default"""
         if mode in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
                 or mode in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):
             b = self._adds(irc, msg, args, channel, mode, items, getDuration(seconds), reason, False)
@@ -1878,7 +1879,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def q(self, irc, msg, args, channel, items, seconds, reason):
         """[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        +q targets for duration; <reason> is mandatory, <-1> or empty means forever"""
+        +q targets for duration; <reason> is mandatory, <-1s> means forever, empty means default"""
         b = self._adds(irc, msg, args, channel, 'q', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +q')
@@ -1889,7 +1890,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def b(self, irc, msg, args, channel, optlist, items, seconds, reason):
         """[<channel>] [--perm] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        +b targets for duration; <reason> is mandatory, <-1> or empty means forever,
+        +b targets for duration; <reason> is mandatory, <-1s> means forever, empty means default,
         add --perm if you want to add it to permanent bans of channel"""
         perm = False
         for (option, arg) in optlist:
@@ -1905,7 +1906,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def i(self, irc, msg, args, channel, items, seconds, reason):
         """[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        +I targets for duration; <reason> is mandatory, <-1> or empty means forever"""
+        +I targets for duration; <reason> is mandatory, <-1s> means forever, empty means default"""
         b = self._adds(irc, msg, args, channel, 'I', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +I')
@@ -1916,7 +1917,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def e(self, irc, msg, args, channel, items, seconds, reason):
         """[<channel>] <nick|hostmask>[,<nick|hostmask>] [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        +e targets for duration; <reason> is mandatory, <-1> or empty means forever"""
+        +e targets for duration; <reason> is mandatory, <-1s> means forever, empty means default"""
         b = self._adds(irc, msg, args, channel, 'e', items, getDuration(seconds), reason, False)
         if msg.nick != irc.nick and not b:
             irc.reply('nicks not found or hostmasks invalid or targets are already +e')
@@ -1954,7 +1955,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     uq = wrap(uq, ['op', many('something')])
 
     def ub(self, irc, msg, args, channel, optlist, items):
-        """[<channel>] [--perm] <nick|hostmask|*> [<nick|hostmask>]
+        """[<channel>] [--perm] <nick|hostmask|*> [<nick|hostmask|*>]
 
         sets -b on them; if * is given, remove them all,
         --perm to remove them for permanent bans"""
@@ -2163,7 +2164,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
     def cpmode(self, irc, msg, args, channel, sourceMode, target, targetMode, seconds, reason):
         """[<channelSource>] <channelMode> <channelTarget> <targetMode> [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <reason>
 
-        copy <channelSource> <channelMode> elements in <channelTarget> on <targetMode>; <-1> or empty means forever"""
+        copy <channelSource> <channelMode> elements in <channelTarget> on <targetMode>; <-1s> means forever, empty means default"""
         op = ircdb.makeChannelCapability(target, 'op')
         if not ircdb.checkCapability(msg.prefix, op):
             irc.errorNoCapability(op)
@@ -2296,25 +2297,31 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         self._tickle(irc)
     m = wrap(m, ['op', commalist('something'), rest('text')])
 
-    def addpattern(self, irc, msg, args, channel, limit, life, mode, duration, pattern):
+    def addpattern(self, irc, msg, args, channel, limit, life, mode, seconds, pattern):
         """[<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] <pattern>
 
         add a <pattern> which triggers <mode> for <duration> if the <pattern> appears
         more often than <limit> (0 for immediate action) during <life> in seconds"""
         chan = self.getChan(irc, channel)
-        result = chan.addpattern(msg.prefix, limit, life, mode, getDuration(duration),
+        duration = getDuration(seconds)
+        if duration is None:
+            duration = self.registryValue('autoExpire', channel=channel, network=irc.network)
+        result = chan.addpattern(msg.prefix, limit, life, mode, duration,
             pattern, 0, self.getDb(irc.network))
         irc.reply(result)
     addpattern = wrap(addpattern, ['op', 'nonNegativeInt', 'positiveInt', 'letter',
         any('getTs', True), rest('text')])
 
-    def addregexpattern(self, irc, msg, args, channel, limit, life, mode, duration, pattern):
+    def addregexpattern(self, irc, msg, args, channel, limit, life, mode, seconds, pattern):
         """[<channel>] <limit> <life> <mode>(bqeIkrd) [<years>y] [<weeks>w] [<days>d] [<hours>h] [<minutes>m] [<seconds>s] /<pattern>/
 
         add a <pattern> which triggers <mode> for <duration> if the <pattern> appears
         more often than <limit> (0 for immediate action) during <life> in seconds"""
         chan = self.getChan(irc, channel)
-        result = chan.addpattern(msg.prefix, limit, life, mode, getDuration(duration),
+        duration = getDuration(seconds)
+        if duration is None:
+            duration = self.registryValue('autoExpire', channel=channel, network=irc.network)
+        result = chan.addpattern(msg.prefix, limit, life, mode, duration,
             pattern[0], 1, self.getDb(irc.network))
         irc.reply(result)
         self.forceTickle = True
@@ -2338,7 +2345,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             irc.reply('nothing found')
         self.forceTickle = True
         self._tickle(irc)
-    rmpattern = wrap(rmpattern, ['op', many('positiveInt')])
+    rmpattern = wrap(rmpattern, ['op', commalist('int')])
 
     def lspattern(self, irc, msg, args, channel, pattern):
         """[<channel>] [<id|pattern>]
@@ -2400,7 +2407,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if self.registryValue('allowOpToConfig', channel=channel, network=irc.network) \
                 or ircdb.checkCapability(msg.prefix, cap):
             results = ['for %s' % channel]
-            if not autoexpire is None:
+            if autoexpire is not None:
                 self.setRegistryValue('autoExpire', autoexpire, channel=channel, network=irc.network)
             results.append('autoExpire: %s' % self.registryValue('autoExpire', channel=channel, network=irc.network))
             irc.replies(results, None, None, False)
@@ -2719,7 +2726,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     'useSmartLog', channel=channel, network=irc.network):
                 key = '%s|%s' % (m, p)
                 self.smartLog[key] = []
-            if i.add(irc, channel, m, p, duration, msg.prefix, self.getDb(irc.network)):
+            autoexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
+            if i.add(irc, channel, m, p, duration, autoexpire, msg.prefix, self.getDb(irc.network)):
                 if perm:
                     chan = ircdb.channels.getChannel(channel)
                     chan.addBan(p, 0)
@@ -2976,7 +2984,6 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             #     chan.deopAsked,chan.deopPending))
             # if chan.syn: # remove syn mandatory for support of unreal which doesn't like q list
             if len(chan.queue):
-                index = 0
                 for item in list(chan.queue):
                     (mode, value) = item
                     if mode == '+q' and self.registryValue('useChanServForQuiets', channel=channel, network=irc.network) \
@@ -2986,8 +2993,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                         s = s.replace('$channel', channel)
                         s = s.replace('$hostmask', value)
                         i.queue.enqueue(ircmsgs.IrcMsg(s))
-                        del chan.queue[index]
-                    index += 1
+                        chan.queue.remove(item)
             if not irc.state.channels[channel].isHalfopPlus(irc.nick):
                 chan.deopAsked = False
                 chan.deopPending = False
@@ -3018,19 +3024,18 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     if not chan.deopAsked:
                         if len(chan.queue):
                             L = []
-                            index = 0
                             adding = False
-                            while len(chan.queue):
-                                L.append(chan.queue.pop())
-                                m = L[index][0][1]
-                                if L[index][0][0] == '+' \
-                                        and m in self.registryValue('modesToAsk', channel=channel, network=irc.network):
-                                    if m in self.registryValue('kickMode', channel=channel, network=irc.network) \
-                                            or self.registryValue('doActionAgainstAffected', channel=channel, network=irc.network):
-                                        adding = True
+                            for item in list(chan.queue):
+                                L.append(item)
+                                chan.queue.remove(item)
+                                m = item[0][1]
+                                if item[0][0] == '+' \
+                                        and m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
+                                        and (m in self.registryValue('kickMode', channel=channel, network=irc.network)
+                                        or self.registryValue('doActionAgainstAffected', channel=channel, network=irc.network)):
+                                    adding = True
                                 if m in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):
                                     adding = True
-                                index += 1
                             # remove duplicates (should not happen, but..)
                             S = set(L)
                             r = []
@@ -3046,9 +3051,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             if len(r):
                                 # create IrcMsg
                                 self._sendModes(irc, r, f)
-                        if len(chan.action):
-                            while len(chan.action):
-                                i.queue.enqueue(chan.action.pop())
+                        for action in list(chan.action):
+                            i.queue.enqueue(action)
+                            chan.action.remove(action)
                     else:
                         retickle = True
         # send pending msgs
@@ -3064,24 +3069,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             # otherwise, we should create db records before applying mode changes...
             # ...which, well don't do that :p
             if len(chan.update):
-                overexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
-                if overexpire > 0:
-                    # won't override duration pushed by someone else if default is forever
-                    # [mode,value,seconds,prefix]
-                    L = []
-                    for update in list(chan.update.keys()):
-                        L.append(chan.update[update])
-                    o = {}
-                    index = 0
-                    for k in L:
-                        (m, value, expire, prefix) = L[index]
-                        if (expire == -1 or expire is None) and overexpire != expire:
-                            key = '%s|%s' % (m, value)
-                            chan.update[key] = [m, value, overexpire, irc.prefix]
-                        index += 1
-                L = []
-                for update in list(chan.update.keys()):
-                    L.append(chan.update[update])
+                L = list(chan.update.values())
                 for update in L:
                     (m, value, expire, prefix) = update
                     # TODO: need to protect cycle call between i.edit scheduler and tickle here
@@ -3094,16 +3082,14 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 or (prefix == irc.prefix and self.registryValue(
                                 'announceBotEdit', channel=item.channel, network=irc.network))):
                             f = self._logChan
-                        key = '%s|%s' % (m, value)
-                        del chan.update[key]
                         b = i.edit(irc, item.channel, item.mode, item.value, expire, prefix,
                             self.getDb(irc.network), self._schedule, f, self)
+                        key = '%s|%s' % (m, value)
+                        del chan.update[key]
                         retickle = True
             # update marks
             if len(chan.mark):
-                L = []
-                for mark in list(chan.mark.keys()):
-                    L.append(chan.mark[mark])
+                L = list(chan.mark.values())
                 for mark in L:
                     (m, value, reason, prefix) = mark
                     item = chan.getItem(m, value)
@@ -3117,8 +3103,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             f = self._logChan
                         i.mark(irc, item.uid, reason, prefix, self.getDb(irc.network), f, self)
                         key = '%s|%s' % (m, value)
-                        if key in chan.mark:
-                            del chan.mark[key]
+                        del chan.mark[key]
             if irc.state.channels[channel].isHalfopPlus(irc.nick) \
                     and not (self.registryValue('keepOp', channel=channel, network=irc.network)
                     or self.registryValue('doNothingAboutOwnOpStatus', channel=channel, network=irc.network)
@@ -3350,9 +3335,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             and self.registryValue('useChannelBansForPermanentBan', channel=channel, network=irc.network):
                         for ban in list(c.bans):
                             if match(ban, n, irc, self.registryValue('resolveIp')):
-                                if i.add(irc, channel, 'b', best,
-                                        self.registryValue('autoExpire', channel=channel, network=irc.network),
-                                        irc.prefix, self.getDb(irc.network)):
+                                autoexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
+                                if i.add(irc, channel, 'b', best, None, autoexpire, irc.prefix, self.getDb(irc.network)):
                                     f = None
                                     if self.registryValue('announceInTimeEditAndMark', channel=channel, network=irc.network) \
                                             and self.registryValue('announceBotMark', channel=channel, network=irc.network):
@@ -4284,7 +4268,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             chan = self.getChan(irc, channel)
             msgs = []
             announces = self.registryValue('announceModes', channel=channel, network=irc.network)
-            overexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
+            autoexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
             for change in modes:
                 (mode, value) = change
                 m = mode[1]
@@ -4310,7 +4294,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                         item.uid, '+%s' % m, value, channel, len(item.affects))
                                 data = [item.uid, m, value, channel, msg.prefix, message, False]
                                 self.addToAsked(irc, msg.prefix, data, msg.nick)
-                            if overexpire > 0:
+                            if autoexpire > 0:
                                 if msg.nick != irc.nick:
                                     toexpire.append(item)
                         # here bot could add other mode changes or actions
@@ -4422,7 +4406,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             self.forceTickle = True
                     else:
                         if m == 'o' and value == irc.nick:
-                            # prevent bot to sent many -o modes when server takes time to reply
+                            # prevent bot from sending many -o modes when server takes time to reply
                             chan.deopAsked = False
                         if m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
                                 or m in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):
@@ -4632,7 +4616,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if mode in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
                 or mode in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):
             i = self.getIrc(irc)
-            if i.add(irc, channel, mode, mask, duration, irc.prefix, self.getDb(irc.network)):
+            autoexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
+            if i.add(irc, channel, mode, mask, duration, autoexpire, irc.prefix, self.getDb(irc.network)):
                 if reason and len(reason):
                     f = None
                     if self.registryValue('announceInTimeEditAndMark', channel=channel, network=irc.network) \
