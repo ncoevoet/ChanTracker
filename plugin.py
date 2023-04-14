@@ -62,9 +62,10 @@ def checkAddressed(irc, text, channel):
 
 def isCommand(cbs, args):
     for c in cbs:
-        if args[0] == c.name().lower() and len(args) > 1:
-            return isCommand([c], args[1:])
         if c.isCommandMethod(args[0]):
+            return True
+        if args[0] == c.name().lower() and len(args) > 1 \
+                and isCommand([c], args[1:]):
             return True
         if isCommand(c.cbs, args):
             return True
