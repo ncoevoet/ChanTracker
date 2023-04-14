@@ -60,12 +60,13 @@ def checkAddressed(irc, text, channel):
     return False
 
 
-def isCommand(irc, text):
-    args = text.lower().split(None, 2)
-    for c in irc.callbacks:
-        if (args[0] == c.name().lower() and len(args) > 1
-                and c.isCommandMethod(args[1])) \
-                or c.isCommandMethod(args[0]):
+def isCommand(cbs, args):
+    for c in cbs:
+        if args[0] == c.name().lower() and len(args) > 1:
+            return isCommand([c], args[1:])
+        if c.isCommandMethod(args[0]):
+            return True
+        if isCommand(c.cbs, args):
             return True
 
 
@@ -4114,7 +4115,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                             if message:
                                 self._logChan(irc, channel, message)
             elif irc.nick == channel and not (checkAddressed(irc, text, channel)
-                    or isCommand(irc, text)):
+                    or isCommand(irc.callbacks, text.lower().split())):
                 found = self.hasAskedItems(irc, msg.prefix, remove=False, prompt=False)
                 if found:
                     tokens = callbacks.tokenize('ChanTracker editAndMark %s %s' % (found[0], text))
