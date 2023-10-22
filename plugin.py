@@ -1505,7 +1505,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if world:
             if world.ircs:
                 for irc in world.ircs:
-                    for channel in irc.state.channels:
+                    for channel in list(irc.state.channels.keys()):
+                        if not self.registryValue('enabled', channel=channel, network=irc.network):
+                            continue
                         logChannel = self.registryValue('logChannel', channel=channel, network=irc.network)
                         if logChannel and logChannel in irc.state.channels:
                             toNag = ''
@@ -2817,7 +2819,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             # restore channel state, load lists
             modesToAsk = ''.join(self.registryValue('modesToAsk', channel=channel, network=irc.network))
             modesWhenOpped = ''.join(self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network))
-            if channel in irc.state.channels:
+            if channel in irc.state.channels \
+                    and self.registryValue('enabled', channel=channel, network=irc.network):
                 if len(modesWhenOpped) and irc.state.channels[channel].isHalfopPlus(irc.nick):
                     for m in modesWhenOpped:
                         i.queue.enqueue(ircmsgs.mode(channel, args=(m,)))
@@ -2924,6 +2927,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if not i.whoxpending:
             candidate = None
             for channel in list(irc.state.channels.keys()):
+                if not self.registryValue('enabled', channel=channel, network=irc.network):
+                    continue
                 chan = self.getChan(irc, channel)
                 if not chan.syn:
                     candidate = channel
@@ -2961,6 +2966,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         def f(L):
             return ircmsgs.modes(channel, L)
         for channel in list(irc.state.channels.keys()):
+            if not self.registryValue('enabled', channel=channel, network=irc.network):
+                    continue
             chan = self.getChan(irc, channel)
             # check expired items
             for mode in list(chan.getItems().keys()):
@@ -3318,7 +3325,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             elif utils.net.isIP(msg.prefix.split('@')[1]):
                 n.setIp(msg.prefix.split('@')[1])
         for channel in channels:
-            if ircutils.isChannel(channel) and channel in irc.state.channels:
+            if ircutils.isChannel(channel) and channel in irc.state.channels \
+                    and self.registryValue('enabled', channel=channel, network=irc.network):
                 bests = getBestPattern(n, irc, self.registryValue(
                     'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                 best = bests[0]
@@ -3417,7 +3425,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if isBot and channel in i.channels:
                 del i.channels[channel]
                 continue
-            if ircutils.isChannel(channel) and channel in irc.state.channels:
+            if ircutils.isChannel(channel) and channel in irc.state.channels \
+                    and self.registryValue('enabled', channel=channel, network=irc.network):
                 bests = getBestPattern(n, irc, self.registryValue(
                     'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                 best = bests[0]
@@ -3499,35 +3508,36 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 return
         n = self.getNick(irc, target)
         n.addLog(channel, 'kicked by %s (%s)' % (msg.prefix, reason))
-        if self.registryValue('announceKick', channel=channel, network=irc.network):
-            if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
-                self._logChan(irc, channel, '[%s] %s kicks %s (%s)' % (
-                    ircutils.bold(channel), msg.nick,
-                    ircutils.mircColor(n.prefix, 'light blue'), reason))
-            else:
-                self._logChan(irc, channel, '[%s] %s kicks %s (%s)' % (
-                    channel, msg.nick, n.prefix, reason))
-        if len(reason) and msg.prefix != irc.prefix \
-                and self.registryValue('addKickMessageInComment', channel=channel, network=irc.network):
-            chan = self.getChan(irc, channel)
-            found = None
-            for mode in self.registryValue('modesToAsk', channel=channel, network=irc.network):
-                items = chan.getItemsFor(mode)
-                for k in items:
-                    item = items[k]
-                    f = match(item.value, n, irc, self.registryValue('resolveIp'))
-                    if f:
-                        found = item
+        if self.registryValue('enabled', channel=channel, network=irc.network):
+            if self.registryValue('announceKick', channel=channel, network=irc.network):
+                if self.registryValue('useColorForAnnounces', channel=channel, network=irc.network):
+                    self._logChan(irc, channel, '[%s] %s kicks %s (%s)' % (
+                        ircutils.bold(channel), msg.nick,
+                        ircutils.mircColor(n.prefix, 'light blue'), reason))
+                else:
+                    self._logChan(irc, channel, '[%s] %s kicks %s (%s)' % (
+                        channel, msg.nick, n.prefix, reason))
+            if len(reason) and msg.prefix != irc.prefix \
+                    and self.registryValue('addKickMessageInComment', channel=channel, network=irc.network):
+                chan = self.getChan(irc, channel)
+                found = None
+                for mode in self.registryValue('modesToAsk', channel=channel, network=irc.network):
+                    items = chan.getItemsFor(mode)
+                    for k in items:
+                        item = items[k]
+                        f = match(item.value, n, irc, self.registryValue('resolveIp'))
+                        if f:
+                            found = item
+                            break
+                    if found:
                         break
                 if found:
-                    break
-            if found:
-                f = None
-                if self.registryValue('announceBotMark', channel=channel, network=irc.network):
-                    f = self._logChan
-                i = self.getIrc(irc)
-                i.mark(irc, found.uid, 'kicked by %s (%s)' % (
-                    msg.nick, reason), irc.prefix, self.getDb(irc.network), f, self)
+                    f = None
+                    if self.registryValue('announceBotMark', channel=channel, network=irc.network):
+                        f = self._logChan
+                    i = self.getIrc(irc)
+                    i.mark(irc, found.uid, 'kicked by %s (%s)' % (
+                        msg.nick, reason), irc.prefix, self.getDb(irc.network), f, self)
         if not isBot:
             chan = self.getChan(irc, channel)
             if target in chan.nicks:
@@ -3543,13 +3553,15 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 return
             found = False
             (nick, ident, hostmask) = ircutils.splitHostmask(n.prefix)
-            for channel in irc.state.channels:
+            for channel in list(irc.state.channels.keys()):
                 if nick in irc.state.channels[channel].users:
                     found = True
             if not found:
                 if nick in i.nicks:
                     del i.nicks[nick]
-                for channel in irc.state.channels:
+                for channel in list(irc.state.channels.keys()):
+                    if not self.registryValue('enabled', channel=channel, network=irc.network):
+                        continue
                     bests = getBestPattern(n, irc, self.registryValue(
                         'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                     best = bests[0]
@@ -3611,7 +3623,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         if len(msg.args) == 1:
             reason = msg.args[0].strip()
         if reason and reason == '*.net *.split':
-            for channel in irc.state.channels:
+            for channel in list(irc.state.channels.keys()):
+                if not self.registryValue('enabled', channel=channel, network=irc.network):
+                    continue
                 chan = self.getChan(irc, channel)
                 if msg.nick in chan.nicks and not chan.netsplit:
                     self._split(irc, channel)
@@ -3643,7 +3657,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 if not ('Nickname regained by services' in reason
                         or 'NickServ (GHOST command used by ' in reason
                         or 'NickServ (Forcing logout ' in reason):
-                    for channel in irc.state.channels:
+                    for channel in list(irc.state.channels.keys()):
+                        if not self.registryValue('enabled', channel=channel, network=irc.network):
+                            continue
                         chan = self.getChan(irc, channel)
                         if msg.nick in chan.nicks:
                             if self.registryValue('announceKick', channel=channel, network=irc.network):
@@ -3655,7 +3671,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 else:
                                     self._logChan(irc, channel, '[%s] %s has quit (%s)' % (
                                         channel, msg.prefix, reason))
-            for channel in irc.state.channels:
+            for channel in list(irc.state.channels.keys()):
+                if not self.registryValue('enabled', channel=channel, network=irc.network):
+                    continue
                 chan = self.getChan(irc, channel)
                 if msg.nick in chan.nicks:
                     if not self._isVip(irc, channel, n):
@@ -3667,8 +3685,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                                 if p.startswith('$a:'):
                                     best = p
                                     break
-                        isCycle = self._isSomething(
-                            irc, channel, best, 'cycle')
+                        isCycle = self._isSomething(irc, channel, best, 'cycle')
                         if isCycle:
                             isBad = self._isSomething(irc, channel, best, 'bad')
                             if isBad:
@@ -3710,7 +3727,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 best = patterns[0]
             if not best:
                 return
-            for channel in irc.state.channels:
+            for channel in list(irc.state.channels.keys()):
+                if not self.registryValue('enabled', channel=channel, network=irc.network):
+                    continue
                 bests = getBestPattern(n, irc, self.registryValue(
                     'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                 best = bests[0]
@@ -3764,8 +3783,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             return
         if nick and n and n.account and n.ip:
             i = self.getIrc(irc)
-            for channel in irc.state.channels:
-                if self.registryValue('checkEvade', channel=channel, network=irc.network):
+            for channel in list(irc.state.channels.keys()):
+                if self.registryValue('enabled', channel=channel, network=irc.network) \
+                        and self.registryValue('checkEvade', channel=channel, network=irc.network):
                     if nick in irc.state.channels[channel].users:
                         modes = self.registryValue('modesToAsk', channel=channel, network=irc.network)
                         found = None
@@ -3826,7 +3846,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                     channel = channel.replace('@', '', 1)
                 if channel.startswith('+'):
                     channel = channel.replace('+', '', 1)
-                if irc.isChannel(channel) and channel in irc.state.channels:
+                if irc.isChannel(channel) and channel in irc.state.channels \
+                        and self.registryValue('enabled', channel=channel, network=irc.network):
                     bests = getBestPattern(n, irc, self.registryValue(
                         'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                     best = bests[0]
@@ -3924,7 +3945,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 channel = channel.replace('@', '', 1)
             if channel.startswith('+'):
                 channel = channel.replace('+', '', 1)
-            if irc.isChannel(channel) and channel in irc.state.channels:
+            if irc.isChannel(channel) and channel in irc.state.channels \
+                    and self.registryValue('enabled', channel=channel, network=irc.network):
                 bests = getBestPattern(n, irc, self.registryValue(
                     'useIpForGateway', channel=channel, network=irc.network), self.registryValue('resolveIp'))
                 best = bests[0]
@@ -4185,7 +4207,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             if 'account' in msg.server_tags:
                 n.setAccount(msg.server_tags['account'])
         channel = msg.args[0]
-        if channel in irc.state.channels:
+        if channel in irc.state.channels \
+                and self.registryValue('enabled', channel=channel, network=irc.network):
             if n:
                 n.addLog(channel, 'sets topic "%s"' % msg.args[1])
             if self.registryValue('announceTopic', channel=channel, network=irc.network):
@@ -4227,7 +4250,9 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         # TODO: add support for other ircds if possible, currently only freenode
         b = '%sj:%s' % (self.getIrcdExtbansPrefix(irc), fromChannel)
         kicks = []
-        for channel in irc.state.channels:
+        for channel in list(irc.state.channels.keys()):
+            if not self.registryValue('enabled', channel=channel, network=irc.network):
+                continue
             if b in irc.state.channels[channel].bans \
                     and mode in self.registryValue('kickMode', channel=channel, network=irc.network) \
                     and self.registryValue('kickOnMode', channel=channel, network=irc.network):
@@ -4265,7 +4290,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         toexpire = []
         tolift = []
         toremove = []
-        if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels:
+        if irc.isChannel(channel) and msg.args[1:] and channel in irc.state.channels \
+                and self.registryValue('enabled', channel=channel, network=irc.network):
             modes = ircutils.separateModes(msg.args[1:])
             chan = self.getChan(irc, channel)
             msgs = []
@@ -4670,6 +4696,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 log.error('%s %s %s %s %s unsupported mode' % (channel, mode, mask, duration, reason))
 
     def _isSomething(self, irc, channel, key, prop):
+        if not self.registryValue('enabled', channel=channel, network=irc.network):
+            return False
         chan = self.getChan(irc, channel)
         if prop == 'massJoin' or prop == 'cycle':
             if chan.netsplit:
@@ -4725,6 +4753,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         return b
 
     def _isHilight(self, irc, channel, key, message):
+        if not self.registryValue('enabled', channel=channel, network=irc.network):
+            return False
         limit = self.registryValue('hilightPermit', channel=channel, network=irc.network)
         if limit < 0:
             return False
@@ -4787,6 +4817,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         return (bad, candidate)
 
     def _isRepeat(self, irc, channel, key, message):
+        if not self.registryValue('enabled', channel=channel, network=irc.network):
+            return False
         if self.registryValue('repeatPermit', channel=channel, network=irc.network) < 0:
             return False
         chan = self.getChan(irc, channel)
@@ -4826,6 +4858,8 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         return result
 
     def _isCap(self, irc, channel, key, message):
+        if not self.registryValue('enabled', channel=channel, network=irc.network):
+            return False
         if self.registryValue('capPermit', channel=channel, network=irc.network) < 0:
             return False
         trigger = self.registryValue('capPercent', channel=channel, network=irc.network)

@@ -67,6 +67,9 @@ conf.registerGlobalValue(ChanTracker, 'resolveIp',
 
 ## per-channel settings
 
+conf.registerChannelValue(ChanTracker, 'enabled',
+    registry.Boolean(False, """monitor the channel and act following the rest of the settings"""))
+
 conf.registerChannelValue(ChanTracker, 'modeD',
     registry.String("", """special mode if you want to use some specific stuff;
         $hostmask (*!*@*), $klinemask (*@*), $host, $channel, $reason, $nick and $duration are available"""))
