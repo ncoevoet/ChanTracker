@@ -1535,7 +1535,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 allowed = True
                 break
         if allowed:
-            irc.queueMsg(ircmsgs.privmsg(msg.nick, server.weblink()))
+            irc.reply(server.weblink(), private=True)
         else:
             irc.errorNoCapability('#channel,op')
         self.forceTickle = True
@@ -1548,9 +1548,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         returns various statistics about channel activity"""
         c = self.getChan(irc, channel)
         messages = c.summary(self.getDb(irc.network))
-        for message in messages:
-            irc.queueMsg(ircmsgs.privmsg(msg.nick, message))
-        irc.replySuccess()
+        irc.replies(messages, onlyPrefixFirst=True, private=True)
         self.forceTickle = True
         self._tickle(irc)
     summary = wrap(summary, ['op', 'channel'])
@@ -1579,10 +1577,10 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 for prop in props:
                     newChan = getWrapper('%s.%s.%s' % (namespace, prop[0], newChannel))
                     newChan.set(prop[1])
+                irc.replySuccess()
             else:
                 for m in msgs:
                     irc.queueMsg(m)
-            irc.replySuccess()
         else:
             irc.reply("%s uses global's settings" % channel)
         self.forceTickle = True
@@ -1681,14 +1679,13 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         i = self.getIrc(irc)
         results = i.info(irc, uid, msg.prefix, self.getDb(irc.network))
         if len(results):
+            msgs = []
+            for message in results:
+                msgs.append(message[1])
             if self.registryValue('allowPublicInfo', channel=results[0][0], network=irc.network):
-                msgs = []
-                for message in results:
-                    msgs.append(message[1])
                 irc.replies(msgs, None, None, True, None)
             else:
-                for message in results:
-                    irc.queueMsg(ircmsgs.privmsg(msg.nick, message[1]))
+                irc.replies(msgs, onlyPrefixFirst=True, private=True)
         else:
             irc.reply('item not found or not enough rights to see information')
         self.forceTickle = True
@@ -1829,8 +1826,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 if not flood:
                     irc.reply(', '.join(results), private=True)
                 else:
-                    for result in results:
-                        irc.queueMsg(ircmsgs.privmsg(msg.nick, result))
+                    irc.replies(results, onlyPrefixFirst=True, private=True)
         else:
             irc.reply('nothing found')
         self.forceTickle = True
