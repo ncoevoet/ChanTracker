@@ -1490,6 +1490,7 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
         callbacks.Plugin.__init__(self, irc)
         plugins.ChannelDBHandler.__init__(self)
         self.lastTickle = None
+        self.lastCleanup = {}
         self.dbUpgraded = False
         self.forceTickle = True
         self._ircs = ircutils.IrcDict()
@@ -3120,10 +3121,52 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
                 retickle = True
                 while len(i.lowQueue):
                     irc.queueMsg(i.lowQueue.dequeue())
+        # GDPR retention cleanup (issue #37): at most once per day per network
+        if t - self.lastCleanup.get(irc.network, 0) > 86400:
+            self.lastCleanup[irc.network] = t
+            try:
+                self._retentionCleanup(irc)
+            except Exception as e:
+                log.error('ChanTracker: retention cleanup failed: %s' % e)
         if retickle:
             self.forceTickle = True
         else:
             self.forceTickle = False
+
+    def _retentionCleanup(self, irc):
+        # GDPR (issue #37): permanently delete bans removed from the channel,
+        # and their metadata (nicks, comments), once older than the per-channel
+        # 'banRetention' period. Bans whose time has expired but which were
+        # never lifted are still active and are left untouched.
+        db = self.getDb(irc.network)
+        c = db.cursor()
+        c.execute("""SELECT DISTINCT channel FROM bans WHERE removed_at IS NOT NULL""")
+        channels = [record[0] for record in c.fetchall()]
+        c.close()
+        now = time.time()
+        for channel in channels:
+            days = self.registryValue('banRetention', channel=channel, network=irc.network)
+            if days < 0:
+                continue
+            threshold = now - (days * 86400)
+            c = db.cursor()
+            c.execute("""SELECT id FROM bans WHERE channel=? AND removed_at IS NOT NULL
+                         AND removed_at < ? LIMIT 1000""", (channel, threshold))
+            uids = [record[0] for record in c.fetchall()]
+            if uids:
+                # delete in batches: a few statements per channel instead of
+                # one transaction commit per row. Chunk size stays well under
+                # SQLite's bound-variable limit.
+                for start in range(0, len(uids), 500):
+                    chunk = uids[start:start + 500]
+                    marks = ','.join(['?'] * len(chunk))
+                    c.execute('DELETE FROM nicks WHERE ban_id IN (%s)' % marks, chunk)
+                    c.execute('DELETE FROM comments WHERE ban_id IN (%s)' % marks, chunk)
+                    c.execute('DELETE FROM bans WHERE id IN (%s)' % marks, chunk)
+                db.commit()
+                log.info('ChanTracker: retention cleanup removed %d entries from %s on %s'
+                         % (len(uids), channel, irc.network))
+            c.close()
 
     def _addChanModeItem(self, irc, channel, mode, value, prefix, date):
         # bqeI* -ov
