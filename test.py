@@ -30,6 +30,7 @@
 from supybot.test import *
 
 import time
+import supybot.callbacks as callbacks
 import supybot.conf as conf
 import supybot.ircmsgs as ircmsgs
 
@@ -228,6 +229,40 @@ class ChanTrackerHelpersTestCase(PluginTestCase):
         self.assertIsNone(plugin.getDuration([]))
         self.assertEqual(plugin.getDuration([60, 30, 10]), 100)
         self.assertEqual(plugin.getDuration([3600]), 3600)
+
+    def testGetTs(self):
+        # getTs is the duration converter: it reads/mutates the args list and
+        # appends to state.args; its irc/msg params are unused (issue #41)
+        class _State:
+            def __init__(self):
+                self.args = []
+        # a bare duration word parses and is consumed
+        st = _State(); args = ['4w']
+        plugin.getTs(None, None, args, st)
+        self.assertEqual(st.args, [4 * 604800.0])
+        self.assertEqual(args, [], 'a consumed duration word is removed')
+        # a compound word "1w2d3h" sums its parts
+        st = _State(); args = ['1w2d3h']
+        plugin.getTs(None, None, args, st)
+        self.assertEqual(st.args, [float(604800 + 2 * 86400 + 3 * 3600)])
+        # a multi-word duration "4d 2h ...": getTs is called once per word,
+        # each whole word is a valid duration, so both are accepted
+        st = _State(); args = ['4d', '2h', 'ban', 'evading']
+        plugin.getTs(None, None, args, st)
+        plugin.getTs(None, None, args, st)
+        self.assertEqual(st.args, [4 * 86400.0, 2 * 3600.0])
+        self.assertEqual(args, ['ban', 'evading'],
+                         'words after the duration are left for the reason')
+        # issue #41: a date string inside a word is NOT a duration
+        st = _State(); args = ['username5d', 'ban', 'evading']
+        self.assertRaises(callbacks.ArgumentError,
+                          plugin.getTs, None, None, args, st)
+        self.assertEqual(args, ['username5d', 'ban', 'evading'],
+                         'a rejected word is left in place for the reason')
+        # a plain word is rejected
+        st = _State(); args = ['evading']
+        self.assertRaises(callbacks.ArgumentError,
+                          plugin.getTs, None, None, args, st)
 
     def testClearExtendedBanPattern(self):
         # extban support is read from irc.state.supported (prefix,modes)

@@ -1406,8 +1406,13 @@ addConverter('getPatternAndMatcher', getPatternAndMatcher)
 
 # Taken from plugins.Time.seconds
 _SECONDS_RE = re.compile(r'-?[0-9]+[ywdhms]')
+# A duration argument must consist *only* of duration tokens, so a reason
+# word like "username5d" is not mistaken for "5 days" (issue #41).
+_DURATION_RE = re.compile(r'(?:-?[0-9]+[ywdhms])+')
 def getTs(irc, msg, args, state):
     seconds = None
+    if not args or _DURATION_RE.fullmatch(args[0]) is None:
+        raise callbacks.ArgumentError
     secs = _SECONDS_RE.findall(args[0])
     for sec in secs:
         (i, kind) = int(sec[:-1]), sec[-1]
