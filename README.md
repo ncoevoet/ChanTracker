@@ -241,6 +241,14 @@ against its own lists. If a user matches, then the IRCd ban is reinstated:
 With `autoExpire` enabled, the IRCd list is pruned as appropriate and bans are rotated in a way to not reveal
 the pattern used for the match. Due to a Supybot limitation, extended bans are not supported with this feature.
 
+For data-retention compliance (e.g. GDPR), the bot can permanently delete bans that have been lifted from a
+channel, together with their metadata (affected nicks, comments), after a number of days:
+
+    @config channel #myChannel supybot.plugins.ChanTracker.banRetention 365
+
+This is disabled by default (`-1`). Only bans actually removed from the channel are affected; bans still active —
+including expired ones the bot has not lifted — are never deleted.
+
 If supported by the IRCd, the bot can track account changes and get GECOS and username information when a user
 joins the channel. This requires IRCd CAP features: https://ircv3.net/specs/extensions/capability-negotiation.html
 

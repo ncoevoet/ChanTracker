@@ -110,6 +110,10 @@ conf.registerChannelValue(ChanTracker, 'autoExpire',
     registry.Integer(-1, """default expiration time for newly placed bans; -1 disables auto-expiration, otherwise it's in seconds"""))
 conf.registerChannelValue(ChanTracker, 'autoRemoveUnregisteredQuiets',
     registry.Boolean(True, """auto remove from database unregistered quiets once expired -q $~a"""))
+conf.registerChannelValue(ChanTracker, 'banRetention',
+    registry.Integer(-1, """number of days to keep bans removed from the channel and their metadata
+        (affected nicks, comments) in the database before permanently deleting them; -1 to disable,
+        0 purges them on the next daily cleanup"""))
 conf.registerChannelValue(ChanTracker, 'allowPublicInfo',
     registry.Boolean(False, """allow !info to be returned in where it was called if True"""))
     
