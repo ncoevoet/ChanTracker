@@ -114,6 +114,12 @@ conf.registerChannelValue(ChanTracker, 'banRetention',
     registry.Integer(-1, """number of days to keep bans removed from the channel and their metadata
         (affected nicks, comments) in the database before permanently deleting them; -1 to disable,
         0 purges them on the next daily cleanup"""))
+conf.registerChannelValue(ChanTracker, 'revertServerModeChanges',
+    registry.Boolean(False, """when a server (not a user) sets or unsets a tracked ban or
+        quiet (+b/-b/+q/-q) -- e.g. a netsplitting or rejoining server riding an older
+        channel timestamp -- the bot counter-acts the change so the channel keeps matching
+        the bot's authoritative tracked list; the bot never adds or removes a mask it was
+        not already tracking, and changes made by users are left untouched"""))
 conf.registerChannelValue(ChanTracker, 'allowPublicInfo',
     registry.Boolean(False, """allow !info to be returned in where it was called if True"""))
     

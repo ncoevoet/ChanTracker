@@ -4336,12 +4336,38 @@ class ChanTracker(callbacks.Plugin, plugins.ChannelDBHandler):
             msgs = []
             announces = self.registryValue('announceModes', channel=channel, network=irc.network)
             autoexpire = self.registryValue('autoExpire', channel=channel, network=irc.network)
+            # MODE source check: a user is "nick!user@host", a server is a bare name like
+            # "irc.example.net". ircutils.isUserHostmask() is True only for a user, so
+            # "not isUserHostmask" means a server set the mode (same idiom as at line 4319).
+            revertServerModes = (bool(msg.prefix)
+                and not ircutils.isUserHostmask(msg.prefix)
+                and self.registryValue('revertServerModeChanges', channel=channel, network=irc.network))
             for change in modes:
                 (mode, value) = change
                 m = mode[1]
                 if value:
                     value = str(value).strip()
                     item = None
+                    # issue #42: counter-act ban/quiet changes made by a server (not a
+                    # user) so the channel keeps matching the bot's tracked list. Reconcile
+                    # rather than blindly invert: never add or remove a mask not already
+                    # tracked, and skip addItem/removeItem (continue) so the original Item
+                    # and DB row are preserved -- the bot's own echo carries a user
+                    # hostmask and is therefore never reverted again (no loop).
+                    if revertServerModes and value and m in ('b', 'q') \
+                            and (m in self.registryValue('modesToAsk', channel=channel, network=irc.network)
+                            or m in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network)):
+                        tracked = chan.getItemsFor(m)
+                        if mode[0] == '+' and value not in tracked:
+                            log.info('[%s] reverting server-set mode +%s %s (by %s)' % (channel, m, value, msg.prefix))
+                            chan.queue.enqueue(('-%s' % m, value))
+                            self.forceTickle = True
+                            continue
+                        elif mode[0] == '-' and value in tracked:
+                            log.info('[%s] reverting server-set mode -%s %s (by %s)' % (channel, m, value, msg.prefix))
+                            chan.queue.enqueue(('+%s' % m, value))
+                            self.forceTickle = True
+                            continue
                     if mode[0] == '+':
                         if m in self.registryValue('modesToAsk', channel=channel, network=irc.network) \
                                 or m in self.registryValue('modesToAskWhenOpped', channel=channel, network=irc.network):

@@ -249,6 +249,16 @@ channel, together with their metadata (affected nicks, comments), after a number
 This is disabled by default (`-1`). Only bans actually removed from the channel are affected; bans still active —
 including expired ones the bot has not lifted — are never deleted.
 
+When `revertServerModeChanges` is enabled, a `+b`/`-b`/`+q`/`-q` made by a *server* — rather than a user — is
+counter-acted by the bot, so the channel keeps matching the bot's tracked ban/quiet list:
+
+    @config channel #myChannel supybot.plugins.ChanTracker.revertServerModeChanges True
+
+This guards against netsplit "split riding": a netsplitting or rejoining server riding an older channel
+timestamp can re-apply a stale view and undo a ban or quiet the bot set, or restore one it removed. Disabled
+by default. The bot only reverts a mask whose state diverges from its own tracked list — it never adds or
+removes a mask it was not already tracking — and changes made by users are left untouched.
+
 If supported by the IRCd, the bot can track account changes and get GECOS and username information when a user
 joins the channel. This requires IRCd CAP features: https://ircv3.net/specs/extensions/capability-negotiation.html
 

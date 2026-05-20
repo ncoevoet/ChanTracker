@@ -31,6 +31,7 @@ from supybot.test import *
 
 import time
 import supybot.conf as conf
+import supybot.ircmsgs as ircmsgs
 
 from . import plugin
 
@@ -301,3 +302,100 @@ class ChanTrackerStateTestCase(PluginTestCase):
 
     def testGetBestPatternNoPrefixReturnsEmpty(self):
         self.assertEqual(plugin.getBestPattern(plugin.Nick(5), self.irc), [])
+
+
+class ChanTrackerRevertServerModesTestCase(PluginTestCase):
+    """Behavioral tests for revertServerModeChanges (issue #42).
+
+    When a *server* -- not a user -- sets or unsets a tracked ban/quiet, the bot
+    counter-acts the change so the channel keeps matching the bot's own tracked
+    list. The bot reconciles rather than blindly inverting: it never adds or
+    removes a mask it was not already tracking. These tests feed crafted MODE
+    messages with a server prefix vs a user prefix and assert on Chan.queue, the
+    per-channel queue of pending mode changes the bot will send.
+    """
+    plugins = ('ChanTracker',)
+    channel = '#test'
+
+    server = 'irc.split.example.net'
+    user = 'someop!user@op.example.com'
+
+    def setUp(self):
+        PluginTestCase.setUp(self)
+        # reset both options so each test starts from a known state -- registry
+        # values can persist across test methods within a single run
+        conf.supybot.plugins.ChanTracker.enabled.get(self.channel).setValue(False)
+        conf.supybot.plugins.ChanTracker.revertServerModeChanges.get(self.channel).setValue(False)
+        # put the bot in the channel (quietly, while disabled) and drain the join
+        # traffic, so doMode will process MODE messages for the channel afterwards
+        self.irc.feedMsg(ircmsgs.join(self.channel, prefix=self.prefix))
+        while self.irc.takeMsg() is not None:
+            pass
+
+    def _cb(self):
+        return self.irc.getCallback('ChanTracker')
+
+    def _chan(self):
+        return self._cb().getChan(self.irc, self.channel)
+
+    def _enableRevert(self):
+        conf.supybot.plugins.ChanTracker.enabled.get(self.channel).setValue(True)
+        conf.supybot.plugins.ChanTracker.revertServerModeChanges.get(self.channel).setValue(True)
+
+    def _mode(self, prefix, mode, mask):
+        # feed a raw MODE message as if it came from prefix (a server or a user)
+        self.irc.feedMsg(ircmsgs.IrcMsg(prefix=prefix, command='MODE',
+                                        args=(self.channel, mode, mask)))
+
+    def testServerSetBanIsReverted(self):
+        self._enableRevert()
+        self._mode(self.server, '+b', '*!*@evil.example')
+        self.assertIn(('-b', '*!*@evil.example'), list(self._chan().queue),
+                      'a server +b on an untracked mask must be undone')
+
+    def testServerSetQuietIsReverted(self):
+        self._enableRevert()
+        self._mode(self.server, '+q', '*!*@noisy.example')
+        self.assertIn(('-q', '*!*@noisy.example'), list(self._chan().queue),
+                      'a server +q on an untracked mask must be undone')
+
+    def testServerUnsetTrackedBanIsRestored(self):
+        self._enableRevert()
+        # a user sets +b -- the bot now tracks the mask
+        self._mode(self.user, '+b', '*!*@known.example')
+        chan = self._chan()
+        self.assertIn('*!*@known.example', chan.getItemsFor('b'))
+        # a server removes it -- the bot must restore it
+        self._mode(self.server, '-b', '*!*@known.example')
+        self.assertIn(('+b', '*!*@known.example'), list(chan.queue),
+                      'a server -b on a tracked mask must be restored')
+        # removeItem is skipped, so the original tracked item is preserved
+        self.assertIn('*!*@known.example', chan.getItemsFor('b'),
+                      'the original tracked item must not be dropped')
+
+    def testServerSetAlreadyTrackedBanIsNotReverted(self):
+        self._enableRevert()
+        self._mode(self.user, '+b', '*!*@dup.example')
+        self._mode(self.server, '+b', '*!*@dup.example')
+        self.assertNotIn(('-b', '*!*@dup.example'), list(self._chan().queue),
+                         'a server +b that agrees with the tracked list is left alone')
+
+    def testServerUnsetUntrackedBanIsNotReverted(self):
+        self._enableRevert()
+        self._mode(self.server, '-b', '*!*@absent.example')
+        self.assertNotIn(('+b', '*!*@absent.example'), list(self._chan().queue),
+                         'a server -b that agrees with the tracked list is left alone')
+
+    def testUserModeChangeIsNeverReverted(self):
+        self._enableRevert()
+        self._mode(self.user, '+b', '*!*@userset.example')
+        self.assertNotIn(('-b', '*!*@userset.example'), list(self._chan().queue),
+                         'a user-set mode must never be reverted')
+
+    def testOptionDisabledLeavesServerModeAlone(self):
+        # channel enabled, but revertServerModeChanges explicitly off
+        conf.supybot.plugins.ChanTracker.enabled.get(self.channel).setValue(True)
+        conf.supybot.plugins.ChanTracker.revertServerModeChanges.get(self.channel).setValue(False)
+        self._mode(self.server, '+b', '*!*@notreverted.example')
+        self.assertNotIn(('-b', '*!*@notreverted.example'), list(self._chan().queue),
+                         'with the option off, a server mode change is not reverted')
